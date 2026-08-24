@@ -10,36 +10,31 @@ import SwiftData
 @Model
 final class PriceSnapshot
 {
-    var checkedAt: Date          // quand la requête a été faite
-    var origin: String
-    var destination: String
-    var departureDate: String    // "YYYY-MM-DD"
-    var returnDate: String?
-    var cabinClass: String
     var amount: Double
     var currency: String
     var ignavID: String?
+    var outboundSummary: String?
+    var inboundSummary: String?
+    var outboundDuration: String?
+
+    var run: SearchRun?
 
     init(
-        checkedAt: Date = .now,
-        origin: String,
-        destination: String,
-        departureDate: String,
-        returnDate: String? = nil,
-        cabinClass: String,
         amount: Double,
         currency: String,
-        ignavID: String? = nil
+        ignavID: String? = nil,
+        outboundSummary: String? = nil,
+        inboundSummary: String? = nil,
+        outboundDuration: String? = nil,
+        run: SearchRun? = nil
     )
     {
-        self.checkedAt = checkedAt
-        self.origin = origin
-        self.destination = destination
-        self.departureDate = departureDate
-        self.returnDate = returnDate
-        self.cabinClass = cabinClass
         self.amount = amount
         self.currency = currency
         self.ignavID = ignavID
+        self.outboundSummary = outboundSummary
+        self.inboundSummary = inboundSummary
+        self.outboundDuration = outboundDuration
+        self.run = run
     }
 }

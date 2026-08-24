@@ -469,7 +469,7 @@ td code
     <ul class="toc">
         <li class="toc-phase">Phase A — Data model foundation</li>
         <li><a href="#m1">1. Add the SavedSearch model</a><span class="status completed">Completed</span></li>
-        <li><a href="#m2">2. Redesign SearchRun and PriceSnapshot around run history</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m2">2. Redesign SearchRun and PriceSnapshot around run history</a><span class="status completed">Completed</span></li>
         <li><a href="#m3">3. Wire the new schema into the app and seed today's default search</a><span class="status not-started">Not started</span></li>
 
         <li class="toc-phase">Phase B — Preferences window</li>
@@ -543,22 +543,40 @@ td code
     <div class="milestone" id="m2">
         <div class="milestone-head">
             <h4>2. Redesign SearchRun and PriceSnapshot around run history</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
         <p class="goal">Move from one flat snapshot per search to a model where each refresh produces a run containing the itineraries it found, so history accumulates instead of being overwritten.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Add a <code class="inline">SearchRun</code> <code class="inline">@Model</code>: <code class="inline">id</code>, <code class="inline">runAt</code>, <code class="inline">rawJSON: String?</code>, <code class="inline">errorMessage: String?</code>, <code class="inline">requestCount: Int</code> (how many Ignav calls this run made — relevant to Milestone 6), plus a relationship back to its <code class="inline">SavedSearch</code>.</li>
-            <li><input type="checkbox" disabled> Add the inverse <code class="inline">runs: [SearchRun]</code> relationship (cascade delete) on <code class="inline">SavedSearch</code>.</li>
-            <li><input type="checkbox" disabled> Rework <code class="inline">PriceSnapshot</code> to represent one itinerary within a run: keep <code class="inline">amount</code>, <code class="inline">currency</code>, <code class="inline">ignavID</code>; add <code class="inline">outboundSummary</code>/<code class="inline">inboundSummary</code>/<code class="inline">outboundDuration</code> display strings; drop the now-redundant <code class="inline">origin</code>/<code class="inline">destination</code>/<code class="inline">departureDate</code>/<code class="inline">returnDate</code>/<code class="inline">cabinClass</code> fields (they live on <code class="inline">SavedSearch</code> now).</li>
-            <li><input type="checkbox" disabled> Add a relationship from <code class="inline">PriceSnapshot</code> back to its <code class="inline">SearchRun</code> (cascade delete), and the inverse <code class="inline">itineraries: [PriceSnapshot]</code> on <code class="inline">SearchRun</code>.</li>
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">SearchRun</code> <code class="inline">@Model</code>: <code class="inline">id</code>, <code class="inline">runAt</code>, <code class="inline">rawJSON: String?</code>, <code class="inline">errorMessage: String?</code>, <code class="inline">requestCount: Int</code> (how many Ignav calls this run made — relevant to Milestone 6), plus a relationship back to its <code class="inline">SavedSearch</code>.</li>
+            <li><input type="checkbox" checked disabled> Add the inverse <code class="inline">runs: [SearchRun]</code> relationship (cascade delete) on <code class="inline">SavedSearch</code>.</li>
+            <li><input type="checkbox" checked disabled> Rework <code class="inline">PriceSnapshot</code> to represent one itinerary within a run: keep <code class="inline">amount</code>, <code class="inline">currency</code>, <code class="inline">ignavID</code>; add <code class="inline">outboundSummary</code>/<code class="inline">inboundSummary</code>/<code class="inline">outboundDuration</code> display strings; drop the now-redundant <code class="inline">origin</code>/<code class="inline">destination</code>/<code class="inline">departureDate</code>/<code class="inline">returnDate</code>/<code class="inline">cabinClass</code> fields (they live on <code class="inline">SavedSearch</code> now).</li>
+            <li><input type="checkbox" checked disabled> Add a relationship from <code class="inline">PriceSnapshot</code> back to its <code class="inline">SearchRun</code> (cascade delete), and the inverse <code class="inline">itineraries: [PriceSnapshot]</code> on <code class="inline">SearchRun</code>.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Added <code class="inline">Tarmac/SearchRun.swift</code>: a <code class="inline">SearchRun</code> <code class="inline">@Model</code> with <code class="inline">id</code>, <code class="inline">runAt</code> (defaults <code class="inline">.now</code>), <code class="inline">rawJSON</code>/<code class="inline">errorMessage</code> (optional, default nil), <code class="inline">requestCount</code>, a <code class="inline">savedSearch: SavedSearch?</code> back-reference, and a cascading <code class="inline">itineraries: [PriceSnapshot]</code> relationship.</li>
+            <li>Added a cascading <code class="inline">runs: [SearchRun]</code> relationship to <code class="inline">SavedSearch</code>.</li>
+            <li>Reworked <code class="inline">Tarmac/PriceSnapshot.swift</code>: kept <code class="inline">amount</code>/<code class="inline">currency</code>/<code class="inline">ignavID</code>, added <code class="inline">outboundSummary</code>/<code class="inline">inboundSummary</code>/<code class="inline">outboundDuration</code> and a <code class="inline">run: SearchRun?</code> back-reference, dropped <code class="inline">origin</code>/<code class="inline">destination</code>/<code class="inline">departureDate</code>/<code class="inline">returnDate</code>/<code class="inline">cabinClass</code>. Also dropped <code class="inline">checkedAt</code>, which the task list didn't explicitly call out — judged redundant with the new <code class="inline">SearchRun.runAt</code> by the same "it lives on &lt;the container&gt; now" logic the plan gives for the explicitly-dropped fields.</li>
+            <li>Cascade delete rule is placed on the two owning to-many relationship properties (<code class="inline">SavedSearch.runs</code>, <code class="inline">SearchRun.itineraries</code>) rather than the to-one back-references, matching standard SwiftData cascade semantics: deleting a <code class="inline">SavedSearch</code> cascades to its runs, deleting a <code class="inline">SearchRun</code> cascades to its itineraries — resolving an ambiguity in task 4's wording in favour of consistency with task 2's clearer wording.</li>
+            <li>No explicit <code class="inline">id</code> was added to <code class="inline">PriceSnapshot</code> (matching its pre-existing shape and the task list, which — unlike <code class="inline">SearchRun</code> — doesn't list one); SwiftData's implicit persistent identity is used instead.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/PriceSnapshotTests.swift</code> and <code class="inline">TarmacTests/SearchRunTests.swift</code> first (red — failed to compile against the old <code class="inline">PriceSnapshot</code> shape and a nonexistent <code class="inline">SearchRun</code>), including two cascade-delete tests exercising the relationship end to end (insert → save → delete parent → save → re-fetch child, asserting it's gone). Extracted a small <code class="inline">TarmacTests/TestSupport.swift</code> helper for building an in-memory <code class="inline">ModelContainer</code>/<code class="inline">ModelContext</code>, used by both new test files (Milestone 1's already-committed <code class="inline">SavedSearchTests.swift</code> was left untouched rather than retrofitted). Implemented until all 12 tests passed (green); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, and wrote its own standalone SwiftData reproduction to verify a claim empirically rather than by inspection): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — inconsistent whitespace after the two new <code class="inline">@Relationship(...)</code> attributes</em> (<code class="inline">SavedSearch.swift</code>/<code class="inline">SearchRun.swift</code>, 5 spaces before <code class="inline">var</code> instead of 1). Resolution: <strong>Deferred</strong> — left for review.</li>
+                    <li><em>Info — confirmed cascade delete placement is correct and functionally verified (not vacuous) at runtime.</em></li>
+                    <li><em>Info — confirmed dropping <code class="inline">checkedAt</code> is a sound inference; noted (non-blocking, for a possible future milestone) that a run issuing multiple Ignav calls means itineraries within one run could theoretically be fetched at slightly different times than a single <code class="inline">runAt</code> implies — not a current defect.</em></li>
+                    <li><em>Info — confirmed omitting an explicit <code class="inline">id</code> on <code class="inline">PriceSnapshot</code> is consistent and sufficient for current usage.</em></li>
+                    <li><em>Info — <code class="inline">TarmacApp.swift</code>'s <code class="inline">Schema([PriceSnapshot.self])</code> is still incomplete (unchanged by this milestone, confirmed still Milestone 3's job), but the reviewer verified — via its own synthetic reproduction — that SwiftData resolves the full relationship graph from a single "leaf" type in the schema array, so this is not currently broken by this rework; flagged as worth making explicit once Milestone 3 touches that file.</em></li>
+                </ul>
+            </li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>

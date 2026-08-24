@@ -32,6 +32,8 @@ final class SavedSearch
     var flexibilityDays: Int
     var mustIncludeWeekend: Bool
 
+    @Relationship( deleteRule: .cascade, inverse: \SearchRun.savedSearch )     var runs: [ SearchRun ] = []
+
     init(
         id: UUID = UUID(),
         createdAt: Date = .now,
