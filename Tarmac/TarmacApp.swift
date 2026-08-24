@@ -1,32 +1,36 @@
-//
-//  TarmacApp.swift
-//  Tarmac
-//
-//  Created by Thomas Grossen on 24.08.2026.
-//
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2026, Thomas Grossen
+ ******************************************************************************/
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
-struct TarmacApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+struct TarmacApp: App
+{
+    let container: ModelContainer = {
+        let schema = Schema( [ PriceSnapshot.self ] )
+        let config = ModelConfiguration( schema: schema, isStoredInMemoryOnly: false )
+        do
+        {
+            return try ModelContainer( for: schema, configurations: [ config ] )
+        }
+        catch
+        {
+            fatalError( "Could not create ModelContainer: \( error )" )
         }
     }()
 
-    var body: some Scene {
-        WindowGroup {
+    var body: some Scene
+    {
+        WindowGroup
+        {
             ContentView()
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer( container )
+        .defaultSize( width: 1000, height: 620 )
+        .windowResizability( .contentMinSize )
     }
 }
