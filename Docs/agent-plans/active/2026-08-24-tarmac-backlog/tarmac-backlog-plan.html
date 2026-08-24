@@ -476,7 +476,7 @@ td code
         <li><a href="#m4">4. Preferences window for API key and airline restriction</a><span class="status completed">Completed</span></li>
 
         <li class="toc-phase">Phase C — Ignav API client</li>
-        <li><a href="#m5">5. One-way fares call</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m5">5. One-way fares call</a><span class="status completed">Completed</span></li>
         <li><a href="#m6">6. Round-trip shape search (client-side enumeration)</a><span class="status not-started">Not started</span></li>
 
         <li class="toc-phase">Phase D — Sidebar &amp; new-search flow</li>
@@ -674,22 +674,35 @@ td code
     <div class="milestone" id="m5">
         <div class="milestone-head">
             <h4>5. One-way fares call</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
         <p class="goal"><code class="inline">IgnavClient</code> only supports round trips today; add the one-way endpoint using the confirmed contract (Appendix).</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Add a <code class="inline">OneWayRequest: Encodable</code> struct: <code class="inline">origin</code>, <code class="inline">destination</code>, <code class="inline">departure_date</code>, <code class="inline">cabin_class</code>, <code class="inline">max_stops</code>, <code class="inline">airlines_include: [String]?</code>, <code class="inline">market</code>.</li>
-            <li><input type="checkbox" disabled> Add <code class="inline">IgnavClient.oneWay(_:) async throws -> (FaresResponse, String)</code>, posting to <code class="inline">https://ignav.com/api/fares/one-way</code>, mirroring <code class="inline">roundTrip(_:)</code> (headers, timeout, pretty-printed raw JSON, <code class="inline">IgnavError.badStatus</code> handling).</li>
-            <li><input type="checkbox" disabled> Confirm <code class="inline">FaresResponse</code>/<code class="inline">Itinerary</code> decode one-way responses as-is (<code class="inline">inbound</code> stays <code class="inline">nil</code>) — no model changes expected.</li>
-            <li><input type="checkbox" disabled> Note for later: the contract also exposes <code class="inline">max_price</code>, <code class="inline">departure_time_range</code>, <code class="inline">min_checked_bags</code>/<code class="inline">min_carry_on_bags</code>, <code class="inline">allow_self_transfer</code>, and passenger counts. None are wired up by this plan (luggage stays UI-only per the Q&amp;A above) — leave as a documented follow-up.</li>
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">OneWayRequest: Encodable</code> struct: <code class="inline">origin</code>, <code class="inline">destination</code>, <code class="inline">departure_date</code>, <code class="inline">cabin_class</code>, <code class="inline">max_stops</code>, <code class="inline">airlines_include: [String]?</code>, <code class="inline">market</code>.</li>
+            <li><input type="checkbox" checked disabled> Add <code class="inline">IgnavClient.oneWay(_:) async throws -> (FaresResponse, String)</code>, posting to <code class="inline">https://ignav.com/api/fares/one-way</code>, mirroring <code class="inline">roundTrip(_:)</code> (headers, timeout, pretty-printed raw JSON, <code class="inline">IgnavError.badStatus</code> handling).</li>
+            <li><input type="checkbox" checked disabled> Confirm <code class="inline">FaresResponse</code>/<code class="inline">Itinerary</code> decode one-way responses as-is (<code class="inline">inbound</code> stays <code class="inline">nil</code>) — no model changes expected.</li>
+            <li><input type="checkbox" checked disabled> Note for later: the contract also exposes <code class="inline">max_price</code>, <code class="inline">departure_time_range</code>, <code class="inline">min_checked_bags</code>/<code class="inline">min_carry_on_bags</code>, <code class="inline">allow_self_transfer</code>, and passenger counts. None are wired up by this plan (luggage stays UI-only per the Q&amp;A above) — leave as a documented follow-up.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Added <code class="inline">OneWayRequest: Encodable</code> to <code class="inline">Tarmac/models.swift</code> — the same 7 fields as <code class="inline">RoundTripRequest</code> minus <code class="inline">return_date</code>.</li>
+            <li>Refactored <code class="inline">Tarmac/IgnavClient.swift</code> so <code class="inline">roundTrip(_:)</code> and the new <code class="inline">oneWay(_:)</code> share a private generic <code class="inline">post&lt;Body: Encodable&gt;(_:to:)</code> and a pure, testable <code class="inline">static func makeRequest&lt;Body: Encodable&gt;(apiKey:body:path:) throws -> URLRequest</code>, rather than duplicating the URL/header/timeout/status-check/decode logic — guarantees <code class="inline">oneWay</code> genuinely mirrors <code class="inline">roundTrip</code>'s behavior instead of just resembling it.</li>
+            <li>Translated the French comments/MARK headers in both touched files to English (continuing Milestone 4's whole-app English decision, applied here since these files were already being edited): <code class="inline">models.swift</code>'s two <code class="inline">// MARK:</code> headers and the <code class="inline">Price</code> decoding comment; <code class="inline">IgnavClient.swift</code>'s doc comment and the <code class="inline">"&lt;binaire&gt;"</code> fallback string.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/IgnavClientTests.swift</code> first (red). Deliberately did <strong>not</strong> add <code class="inline">URLSession</code> mocking/injection — tested only the pure, previously-untestable parts: <code class="inline">makeRequest</code>'s URL/headers/timeout/body-encoding for both request types (including a regression check that the <code class="inline">roundTrip</code> refactor didn't change its request shape), and that <code class="inline">FaresResponse</code>/<code class="inline">Itinerary</code> decode a one-way-shaped JSON fixture (no <code class="inline">inbound</code> key) correctly. The live network call inside <code class="inline">post</code> remains untested, matching <code class="inline">roundTrip</code>'s pre-existing (also untested) coverage. Implemented until all 27 tests passed (green); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, traced the <code class="inline">roundTrip</code> refactor line-by-line against the pre-diff version for behavioral equivalence, and grepped the repo to confirm no network-mocking infrastructure exists anywhere): 1 High finding, 1 Info — loop converged after 1 of the allowed 3 iterations (the High finding was already resolved by standing user policy, not left open).
+                <ul>
+                    <li><em>High — the three files this milestone touched (<code class="inline">IgnavClient.swift</code>, <code class="inline">models.swift</code>, the new <code class="inline">IgnavClientTests.swift</code>) carry the DigiDNA proprietary header instead of this project's MIT header.</em> Resolution: <strong>No action needed</strong> — this is the same Xcode Format hook behavior flagged in Milestone 1, where the user explicitly decided "Ignore headers entirely" for the remainder of this implementation. The reviewer (reviewing without that conversation history) couldn't know this was already adjudicated; not treated as a blocking finding.</li>
+                    <li><em>Info — confirmed the lack of <code class="inline">URLSession</code> mocking is proportionate, not a regression: <code class="inline">roundTrip</code>'s live network call was equally untested before this diff, and no mocking infrastructure exists anywhere in the repo.</em></li>
+                </ul>
+            </li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>

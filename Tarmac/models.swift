@@ -6,7 +6,7 @@
 
 import Foundation
 
-// MARK: - Requête
+// MARK: - Request
 
 struct RoundTripRequest: Encodable
 {
@@ -20,7 +20,18 @@ struct RoundTripRequest: Encodable
     var market: String           // "CH" -> CHF
 }
 
-// MARK: - Réponse
+struct OneWayRequest: Encodable
+{
+    var origin: String
+    var destination: String
+    var departure_date: String   // "YYYY-MM-DD"
+    var cabin_class: String      // economy | premium_economy | business | first
+    var max_stops: Int
+    var airlines_include: [ String ]?
+    var market: String           // "CH" -> CHF
+}
+
+// MARK: - Response
 
 struct FaresResponse: Decodable
 {
@@ -45,7 +56,7 @@ struct Price: Decodable
 
     enum CodingKeys: String, CodingKey { case amount, currency, status }
 
-    // Tolère un montant renvoyé en nombre OU en chaîne.
+    // Tolerates an amount returned as a number OR as a string.
     init( from decoder: Decoder ) throws
     {
         let c = try decoder.container( keyedBy: CodingKeys.self )
