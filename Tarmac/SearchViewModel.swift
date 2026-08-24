@@ -1,10 +1,7 @@
 /*******************************************************************************
- * Copyright (c) 2026, DigiDNA
- * All rights reserved
+ * The MIT License (MIT)
  *
- * Unauthorised copying of this copyrighted work, via any medium is strictly
- * prohibited.
- * Proprietary and confidential.
+ * Copyright (c) 2026, Thomas Grossen
  ******************************************************************************/
 
 import SwiftUI

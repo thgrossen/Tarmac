@@ -1,0 +1,114 @@
+/*******************************************************************************
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2026, Thomas Grossen
+ ******************************************************************************/
+
+import Foundation
+import SwiftData
+
+enum SearchKind: String, Codable
+{
+    case oneWay
+    case roundTrip
+}
+
+@Model
+final class SavedSearch
+{
+    var id: UUID
+    var createdAt: Date
+    var kind: SearchKind
+    var origin: String
+    var destination: String
+    var rangeStart: Date
+    var rangeEnd: Date
+    var cabinClass: String
+    var directOnly: Bool
+    var luggageIncluded: Bool
+
+    // Round-trip-only fields, ignored for one-way searches.
+    var tripDurationDays: Int
+    var flexibilityDays: Int
+    var mustIncludeWeekend: Bool
+
+    init(
+        id: UUID = UUID(),
+        createdAt: Date = .now,
+        kind: SearchKind,
+        origin: String,
+        destination: String,
+        rangeStart: Date,
+        rangeEnd: Date,
+        cabinClass: String,
+        directOnly: Bool = true,
+        luggageIncluded: Bool = false,
+        tripDurationDays: Int = 3,
+        flexibilityDays: Int = 0,
+        mustIncludeWeekend: Bool = false
+    )
+    {
+        self.id = id
+        self.createdAt = createdAt
+        self.kind = kind
+        self.origin = origin
+        self.destination = destination
+        self.rangeStart = rangeStart
+        self.rangeEnd = rangeEnd
+        self.cabinClass = cabinClass
+        self.directOnly = directOnly
+        self.luggageIncluded = luggageIncluded
+        self.tripDurationDays = tripDurationDays
+        self.flexibilityDays = flexibilityDays
+        self.mustIncludeWeekend = mustIncludeWeekend
+    }
+
+    /**
+     * Short summary for sidebar rows, e.g. "GVA → LIS · aller-retour · 5–12 oct.".
+     */
+    var summary: String
+    {
+        let kindLabel = self.kind == .roundTrip ? "aller-retour" : "aller simple"
+        return "\( self.origin ) → \( self.destination ) · \( kindLabel ) · \( self.dateRangeLabel )"
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d"
+        f.locale = Locale( identifier: "fr_FR" )
+        f.timeZone = TimeZone( identifier: "UTC" )
+        return f
+    }()
+
+    private static let dayMonthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d MMM"
+        f.locale = Locale( identifier: "fr_FR" )
+        f.timeZone = TimeZone( identifier: "UTC" )
+        return f
+    }()
+
+    private var dateRangeLabel: String
+    {
+        var calendar = Calendar( identifier: .gregorian )
+        calendar.timeZone = TimeZone( identifier: "UTC" )!
+
+        let start = min( self.rangeStart, self.rangeEnd )
+        let end   = max( self.rangeStart, self.rangeEnd )
+
+        let sameMonth = calendar.isDate( start, equalTo: end, toGranularity: .month )
+
+        if sameMonth
+        {
+            let startLabel = Self.dayFormatter.string( from: start )
+            let endLabel   = Self.dayMonthFormatter.string( from: end )
+            return "\( startLabel )–\( endLabel )"
+        }
+        else
+        {
+            let startLabel = Self.dayMonthFormatter.string( from: start )
+            let endLabel   = Self.dayMonthFormatter.string( from: end )
+            return "\( startLabel ) – \( endLabel )"
+        }
+    }
+}

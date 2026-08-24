@@ -6,11 +6,27 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		CF34B29F9A5B168C03682519 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E2A6E637303C873E0014748B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E2A6E63E303C873E0014748B;
+			remoteInfo = Tarmac;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		0BB32AA3516BB534B89D362E /* TarmacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TarmacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2A6E63F303C873E0014748B /* Tarmac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Tarmac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		A9CBCBC460A3027037D9B891 /* TarmacTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = TarmacTests;
+			sourceTree = "<group>";
+		};
 		E2A6E641303C873E0014748B /* Tarmac */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Tarmac;
@@ -19,6 +35,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		52A694B3B0BBF588496C570F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E2A6E63C303C873E0014748B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -33,6 +56,7 @@
 			isa = PBXGroup;
 			children = (
 				E2A6E641303C873E0014748B /* Tarmac */,
+				A9CBCBC460A3027037D9B891 /* TarmacTests */,
 				E2A6E640303C873E0014748B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -41,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				E2A6E63F303C873E0014748B /* Tarmac.app */,
+				0BB32AA3516BB534B89D362E /* TarmacTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,6 +73,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		57B551DA6DCCA8D71B6B4AE1 /* TarmacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ECECFFD54986F0B4F9828230 /* Build configuration list for PBXNativeTarget "TarmacTests" */;
+			buildPhases = (
+				758A79C3C1ADA01793AB575E /* Sources */,
+				52A694B3B0BBF588496C570F /* Frameworks */,
+				5E7E9E681E0E3FCD907AAFAD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				459BD77C0E6D9793053B0704 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A9CBCBC460A3027037D9B891 /* TarmacTests */,
+			);
+			name = TarmacTests;
+			packageProductDependencies = (
+			);
+			productName = TarmacTests;
+			productReference = 0BB32AA3516BB534B89D362E /* TarmacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		E2A6E63E303C873E0014748B /* Tarmac */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E2A6E64C303C873F0014748B /* Build configuration list for PBXNativeTarget "Tarmac" */;
@@ -80,6 +128,10 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					57B551DA6DCCA8D71B6B4AE1 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = E2A6E63E303C873E0014748B;
+					};
 					E2A6E63E303C873E0014748B = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -100,11 +152,19 @@
 			projectRoot = "";
 			targets = (
 				E2A6E63E303C873E0014748B /* Tarmac */,
+				57B551DA6DCCA8D71B6B4AE1 /* TarmacTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		5E7E9E681E0E3FCD907AAFAD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E2A6E63D303C873E0014748B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -115,6 +175,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		758A79C3C1ADA01793AB575E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E2A6E63B303C873E0014748B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,7 +191,65 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		459BD77C0E6D9793053B0704 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E2A6E63E303C873E0014748B /* Tarmac */;
+			targetProxy = CF34B29F9A5B168C03682519 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		A6FC53C0343836CCB03E5D37 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = W7K7RU678S;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = grossen.me.TarmacTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Tarmac.app/Contents/MacOS/Tarmac";
+			};
+			name = Debug;
+		};
+		AE608124E18B1502C805D7C3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = W7K7RU678S;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = grossen.me.TarmacTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Tarmac.app/Contents/MacOS/Tarmac";
+			};
+			name = Release;
+		};
 		E2A6E64A303C873F0014748B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -348,6 +473,15 @@
 			buildConfigurations = (
 				E2A6E64D303C873F0014748B /* Debug */,
 				E2A6E64E303C873F0014748B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		ECECFFD54986F0B4F9828230 /* Build configuration list for PBXNativeTarget "TarmacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A6FC53C0343836CCB03E5D37 /* Debug */,
+				AE608124E18B1502C805D7C3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
