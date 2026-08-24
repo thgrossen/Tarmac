@@ -30,12 +30,29 @@ struct SearchSidebar: View
 {
     @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var searches: [ SavedSearch ]
     @Binding var selection: SavedSearch?
+    @State private var isPresentingNewSearchSheet = false
 
     var body: some View
     {
         List( searches, selection: $selection )
         { search in
             SearchRow( search: search )
+        }
+        .toolbar
+        {
+            ToolbarItem
+            {
+                Button
+                {
+                    self.isPresentingNewSearchSheet = true
+                } label: {
+                    Label( "New Search", systemImage: "plus" )
+                }
+            }
+        }
+        .sheet( isPresented: $isPresentingNewSearchSheet )
+        {
+            NewSearchSheet()
         }
     }
 }

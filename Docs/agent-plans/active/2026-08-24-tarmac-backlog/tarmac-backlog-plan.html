@@ -481,7 +481,7 @@ td code
 
         <li class="toc-phase">Phase D — Sidebar &amp; new-search flow</li>
         <li><a href="#m7">7. Sidebar becomes a list of saved searches</a><span class="status completed">Completed</span></li>
-        <li><a href="#m8">8. "+" button and new-search sheet shell</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m8">8. "+" button and new-search sheet shell</a><span class="status completed">Completed</span></li>
         <li><a href="#m9">9. One-way search options form</a><span class="status not-started">Not started</span></li>
         <li><a href="#m10">10. Round-trip search options form</a><span class="status not-started">Not started</span></li>
 
@@ -783,21 +783,34 @@ td code
     <div class="milestone" id="m8">
         <div class="milestone-head">
             <h4>8. "+" button and new-search sheet shell</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
         <p class="goal">A "+" button in the sidebar starts a new search via a modal sheet, first asking which kind of search to run.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Add a "+" button (toolbar or sidebar footer) that presents a modal sheet over the main window.</li>
-            <li><input type="checkbox" disabled> Sheet's first step offers "One-way" and "Round trip"; choosing one advances to that type's options form (Milestone 9/10).</li>
-            <li><input type="checkbox" disabled> Sheet has a way back to the type chooser and a Cancel action that discards the in-progress search.</li>
+            <li><input type="checkbox" checked disabled> Add a "+" button (toolbar or sidebar footer) that presents a modal sheet over the main window.</li>
+            <li><input type="checkbox" checked disabled> Sheet's first step offers "One-way" and "Round trip"; choosing one advances to that type's options form (Milestone 9/10).</li>
+            <li><input type="checkbox" checked disabled> Sheet has a way back to the type chooser and a Cancel action that discards the in-progress search.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Added <code class="inline">Tarmac/NewSearchSheet.swift</code>: a <code class="inline">NewSearchSheet</code> view driven by <code class="inline">@State private var chosenKind: SearchKind?</code> — <code class="inline">nil</code> shows a kind chooser ("One-way"/"Round Trip" buttons), non-nil shows a placeholder for that kind's options form (a <code class="inline">ContentUnavailableView</code>, matching the empty-state pattern established in Milestone 7's <code class="inline">ResultsPane</code>). A header shows "Back" (resets to the chooser) only once a kind is chosen, and "Cancel" (dismisses via <code class="inline">@Environment(\.dismiss)</code>) always. Reused the existing <code class="inline">SearchKind</code> model enum directly as the step-selection type rather than introducing a parallel navigation-only enum, since the two wizard steps correspond exactly to "no kind chosen" (nil) vs. "chose this kind."</li>
+            <li>Wired a "+" toolbar button into <code class="inline">SearchSidebar</code> (<code class="inline">Tarmac/ContentView.swift</code>) presenting <code class="inline">NewSearchSheet()</code> via <code class="inline">.sheet(isPresented:)</code>.</li>
+            <li>Deliberately did <strong>not</strong> add an <code class="inline">onCreate</code>/completion-closure parameter to <code class="inline">NewSearchSheet</code> for a future options form to report back a newly-created <code class="inline">SavedSearch</code> — no <code class="inline">SavedSearch</code> is created anywhere in this milestone (that's explicitly Milestones 9/10's job), and guessing at that future API now would be speculative; the seam is a small, additive change to make when it's actually needed.</li>
+            <li>No new tests: this is pure declarative SwiftUI navigation-state UI with no extractable logic beyond trivial <code class="inline">@State</code> assignment, matching the precedent established in Milestones 4 and 7. Verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> (all pre-existing tests unaffected) and a full <code class="inline">xcodebuild build</code>. Could not visually verify the rendered sheet myself (still no Screen Recording permission in this environment).</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, attempted to verify SwiftUI's <code class="inline">.automatic</code> toolbar-placement resolution against Apple's documentation but could only retrieve page titles, not body text, from the (JS-rendered) docs — flagged as an honestly-unverified claim rather than asserted either way): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — the "+" toolbar button uses implicit <code class="inline">.automatic</code> placement rather than an explicit one (e.g. <code class="inline">.primaryAction</code>), which is harmless today (only one toolbar item exists) but could behave less predictably once a later milestone adds toolbar items elsewhere.</em> Resolution: <strong>Deferred</strong> — left for review, polish suggestion only.</li>
+                    <li><em>Low — the sheet's Cancel button has no <code class="inline">.keyboardShortcut(.cancelAction)</code>, so Esc likely doesn't dismiss it, unlike standard macOS sheet behavior.</em> Resolution: <strong>Deferred</strong> — left for review.</li>
+                </ul>
+            </li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>
