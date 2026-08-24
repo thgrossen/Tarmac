@@ -9,29 +9,33 @@ import SwiftUI
 @Observable
 final class SearchViewModel
 {
-    private static let apiKeyDefaultsKey = "ignav_api_key"
+    static let apiKeyDefaultsKey = "ignav_api_key"
+
+    @ObservationIgnored private let defaults: UserDefaults
+
+    init( defaults: UserDefaults = .standard )
+    {
+        self.defaults = defaults
+    }
 
     /**
-     * Clé API Ignav, persistée dans les préférences utilisateur.
+     * Ignav API key, persisted in user preferences.
      */
     var apiKey: String
     {
         get
         {
             self.access( keyPath: \.apiKey )
-            return self.storedAPIKey
+            return self.defaults.string( forKey: Self.apiKeyDefaultsKey ) ?? ""
         }
         set
         {
             self.withMutation( keyPath: \.apiKey )
             {
-                self.storedAPIKey = newValue
-                UserDefaults.standard.set( newValue, forKey: Self.apiKeyDefaultsKey )
+                self.defaults.set( newValue, forKey: Self.apiKeyDefaultsKey )
             }
         }
     }
-
-    @ObservationIgnored     private var storedAPIKey = UserDefaults.standard.string( forKey: SearchViewModel.apiKeyDefaultsKey ) ?? ""
 
     var origin = "GVA"
     var destination = "LIS"
@@ -39,7 +43,6 @@ final class SearchViewModel
     var returnDate = Date().addingTimeInterval( 63 * 86_400 )
     var cabin = "business"
     var directOnly = true
-    var onlyLXTP = true
 
     var isLoading = false
     var itineraries: [ Itinerary ] = []
@@ -59,7 +62,7 @@ final class SearchViewModel
         guard !self.apiKey.isEmpty
         else
         {
-            self.errorMessage = "Ajoute ta clé API Ignav."
+            self.errorMessage = "Add your Ignav API key."
             return
         }
         self.isLoading = true
@@ -74,7 +77,7 @@ final class SearchViewModel
             return_date: self.fmt.string( from: self.returnDate ),
             cabin_class: self.cabin,
             max_stops: self.directOnly ? 0 : 2,
-            airlines_include: self.onlyLXTP ? [ "LX", "TP" ] : nil,
+            airlines_include: AirlinePreference.currentAirlinesInclude( defaults: self.defaults ),
             market: "CH"
         )
 
@@ -85,7 +88,7 @@ final class SearchViewModel
             self.rawJSON = raw
             if self.itineraries.isEmpty
             {
-                self.errorMessage = "Aucun vol pour ces filtres (requête valide… et facturée)."
+                self.errorMessage = "No flights for these filters (request valid… and billed)."
             }
         }
         catch

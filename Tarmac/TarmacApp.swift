@@ -37,5 +37,10 @@ struct TarmacApp: App
         .modelContainer( container )
         .defaultSize( width: 1000, height: 620 )
         .windowResizability( .contentMinSize )
+
+        Settings
+        {
+            PreferencesView()
+        }
     }
 }

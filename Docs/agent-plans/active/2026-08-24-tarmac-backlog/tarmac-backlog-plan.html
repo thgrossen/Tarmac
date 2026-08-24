@@ -453,12 +453,12 @@ td code
     </div>
 </section>
 
-<section class="notes-section notes">
+<section class="notes-section notes" id="notes">
     <h2>Notes</h2>
     <ul>
         <li><strong>Key files:</strong> <code>Tarmac/ContentView.swift</code> (sidebar + detail UI), <code>Tarmac/SearchViewModel.swift</code> (today's form state, API key storage, and search execution — decomposed across the new sidebar/sheet/results views by this plan), <code>Tarmac/IgnavClient.swift</code> (API client, round-trip only today), <code>Tarmac/models.swift</code> (Ignav request/response DTOs), <code>Tarmac/PriceSnapshot.swift</code> (SwiftData model, redesigned in Milestone 2), <code>Tarmac/TarmacApp.swift</code> (<code>ModelContainer</code> + <code>WindowGroup</code>, gains a <code>Settings</code> scene in Milestone 4).</li>
-        <li><strong>Language:</strong> existing UI strings are French ("Clé API", "Trajet", "Chercher", "Recherche…"). Keep new UI text in French for consistency.</li>
-        <li><strong>Billing:</strong> Ignav bills per request (per the existing copy "requête valide… et facturée"). This is why Milestone 6 caps how many calls a single round-trip shape search fires per refresh, and surfaces the cap rather than silently truncating.</li>
+        <li><strong>Language:</strong> <s>existing UI strings are French ("Clé API", "Trajet", "Chercher", "Recherche…"). Keep new UI text in French for consistency.</s> <strong>Superseded during Milestone 4:</strong> per user feedback, the app's UI is now English throughout — the existing French strings were translated, and all new UI text in remaining milestones should be English.</li>
+        <li><strong>Billing:</strong> Ignav bills per request (per the existing copy, now "request valid… and billed"). This is why Milestone 6 caps how many calls a single round-trip shape search fires per refresh, and surfaces the cap rather than silently truncating.</li>
         <li><strong><code>Item.swift</code></strong> is unused default SwiftData template boilerplate, unrelated to this backlog — left untouched.</li>
         <li><strong>Code style:</strong> follow the project's existing conventions throughout — newline before <code>{</code>/<code>}</code>/<code>else</code>, <code>== false</code> over <code>!</code>, <code>isXxx</code> naming for booleans.</li>
     </ul>
@@ -473,7 +473,7 @@ td code
         <li><a href="#m3">3. Wire the new schema into the app and seed today's default search</a><span class="status completed">Completed</span></li>
 
         <li class="toc-phase">Phase B — Preferences window</li>
-        <li><a href="#m4">4. Preferences window for API key and airline restriction</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m4">4. Preferences window for API key and airline restriction</a><span class="status completed">Completed</span></li>
 
         <li class="toc-phase">Phase C — Ignav API client</li>
         <li><a href="#m5">5. One-way fares call</a><span class="status not-started">Not started</span></li>
@@ -624,25 +624,49 @@ td code
     <div class="milestone" id="m4">
         <div class="milestone-head">
             <h4>4. Preferences window for API key and airline restriction</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
         <p class="goal">Move configuration out of the search UI entirely, and give the LX+TP-only filter — which the backlog's new search forms don't include — a home as a global default instead of dropping it.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Add a <code class="inline">Settings { }</code> scene to <code class="inline">TarmacApp</code>, reachable from the application menu via ⌘, (standard macOS Preferences window).</li>
-            <li><input type="checkbox" disabled> Move the "Clé API" field into the Preferences window, keeping it persisted under the existing <code class="inline">ignav_api_key</code> <code class="inline">UserDefaults</code> key so current users don't lose their saved key.</li>
-            <li><input type="checkbox" disabled> Add an "Airlines" section: a toggle to restrict results to specific carriers (default on) and a text field for IATA codes (default <code class="inline">LX, TP</code>), persisted via <code class="inline">UserDefaults</code>/<code class="inline">@AppStorage</code>.</li>
-            <li><input type="checkbox" disabled> Remove the "Clé API" section from <code class="inline">SearchForm</code> in <code class="inline">ContentView.swift</code>.</li>
-            <li><input type="checkbox" disabled> Every Ignav request (one-way and round-trip) reads the airline restriction from this shared preference when building <code class="inline">airlines_include</code>, rather than from a per-search field.</li>
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">Settings { }</code> scene to <code class="inline">TarmacApp</code>, reachable from the application menu via ⌘, (standard macOS Preferences window).</li>
+            <li><input type="checkbox" checked disabled> Move the "Clé API" field into the Preferences window, keeping it persisted under the existing <code class="inline">ignav_api_key</code> <code class="inline">UserDefaults</code> key so current users don't lose their saved key.</li>
+            <li><input type="checkbox" checked disabled> Add an "Airlines" section: a toggle to restrict results to specific carriers (default on) and a text field for IATA codes (default <code class="inline">LX, TP</code>), persisted via <code class="inline">UserDefaults</code>/<code class="inline">@AppStorage</code>.</li>
+            <li><input type="checkbox" checked disabled> Remove the "Clé API" section from <code class="inline">SearchForm</code> in <code class="inline">ContentView.swift</code>.</li>
+            <li><input type="checkbox" checked disabled> Every Ignav request (one-way and round-trip) reads the airline restriction from this shared preference when building <code class="inline">airlines_include</code>, rather than from a per-search field.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Added <code class="inline">Tarmac/AirlinePreference.swift</code>: pure <code class="inline">parseCodes(_:)</code>/<code class="inline">airlinesInclude(restrictAirlines:rawCodes:)</code> functions plus a <code class="inline">currentAirlinesInclude(defaults:)</code> that reads the two <code class="inline">UserDefaults</code> keys with an injectable <code class="inline">UserDefaults</code> instance for testability. Deliberately reads the restriction flag via <code class="inline">defaults.object(forKey:) as? Bool ?? true</code> rather than <code class="inline">.bool(forKey:)</code>, since the latter returns <code class="inline">false</code> — not the intended default — for a never-set key (<code class="inline">@AppStorage</code>'s default is a Swift-side fallback only, not written into the real store).</li>
+            <li>Added <code class="inline">Tarmac/PreferencesView.swift</code> with an "API Key" section (<code class="inline">@AppStorage(SearchViewModel.apiKeyDefaultsKey)</code>, keeping the existing <code class="inline">ignav_api_key</code> key) and an "Airlines" section (restrict toggle, default on; IATA codes field, default "LX, TP"). Wired via a new <code class="inline">Settings { PreferencesView() }</code> scene in <code class="inline">TarmacApp.swift</code>.</li>
+            <li>Removed the "Clé API" section from <code class="inline">SearchForm</code> and the per-search "Swiss + TAP seulement" toggle (<code class="inline">vm.onlyLXTP</code>) — the goal statement says the LX+TP filter should get "a home as a global default instead of dropping it", and task 5 says requests should read the restriction "rather than from a per-search field", so the per-search toggle is superseded rather than kept alongside the new global one.</li>
+            <li><code class="inline">SearchViewModel.search()</code> now builds <code class="inline">airlines_include</code> via <code class="inline">AirlinePreference.currentAirlinesInclude(defaults: self.defaults)</code>.</li>
+            <li><strong>Found and fixed a real bug this milestone would otherwise have introduced:</strong> <code class="inline">SearchViewModel.apiKey</code> used to cache its <code class="inline">UserDefaults</code>-read value once at property-init time (<code class="inline">storedAPIKey</code>), which was safe only because its own setter (via the sidebar's <code class="inline">SecureField</code>) was the sole writer keeping cache and store in sync. Moving API-key editing into <code class="inline">PreferencesView</code>'s independent <code class="inline">@AppStorage</code> — a second writer bypassing <code class="inline">SearchViewModel</code> entirely — would have made the cached value permanently stale after launch. Fixed by removing the cache: the getter now re-reads <code class="inline">UserDefaults</code> on every access, and <code class="inline">SearchViewModel</code> gained an <code class="inline">init(defaults: UserDefaults = .standard)</code> so this is testable against an isolated suite instead of the real global store.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/AirlinePreferenceTests.swift</code> and <code class="inline">TarmacTests/SearchViewModelTests.swift</code> first (red), including a regression test (<code class="inline">apiKeyReflectsExternalWrite</code>) that would fail against the old caching behavior. Implemented until all 24 tests passed (green); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+            <li>Attempted to visually verify the Preferences window by launching the built app and screenshotting it, but <code class="inline">screencapture</code> failed ("could not create image from display") — this session's process lacks the macOS Screen Recording TCC permission, which can't be granted programmatically. Verification for this milestone therefore relied on build/test success and code reading, not a rendered screenshot.</li>
+            <li><strong>Follow-up from user feedback</strong> (viewing the app directly): (1) fixed <code class="inline">PreferencesView</code>'s text fields rendering without their standard macOS bordered appearance — removed <code class="inline">.formStyle(.grouped)</code> (which renders inline/plain-looking fields, more suited to iOS-style list editing) and added explicit <code class="inline">.textFieldStyle(.roundedBorder)</code> to both fields; (2) translated the app's UI from French to English — all of <code class="inline">PreferencesView.swift</code>'s new labels, plus <code class="inline">ContentView.swift</code>'s existing sidebar/results-pane strings and <code class="inline">SearchViewModel.swift</code>'s two error strings and one doc comment — and updated the plan's <a href="#notes">Notes</a> section to reflect English as the ongoing convention for remaining milestones. Left a few pre-existing French code comments untouched in <code class="inline">IgnavClient.swift</code>/<code class="inline">models.swift</code> (developer-facing comments, not UI labels, and outside this milestone's file scope) — flagging in case those should be translated too later.</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, verified the <code class="inline">apiKey</code> staleness-bug claim by reasoning through the pre-/post-diff writer topology, and independently confirmed the <code class="inline">.object(forKey:) as? Bool</code> vs. <code class="inline">.bool(forKey:)</code> distinction against documented <code class="inline">UserDefaults</code> behavior): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations. This round ran <em>before</em> the field-styling/language follow-up above, so it reviewed the French-labeled, <code class="inline">.formStyle(.grouped)</code> version of <code class="inline">PreferencesView</code>.
+                <ul>
+                    <li><em>Low — no user-facing feedback when the airline restriction is enabled but the codes field is empty</em> (silently falls back to unrestricted, which is deliberate and tested). Resolution: <strong>Deferred</strong> — left for review.</li>
+                    <li><em>Info — a write to <code class="inline">apiKey</code> from <code class="inline">PreferencesView</code>'s independent <code class="inline">@AppStorage</code> doesn't trigger <code class="inline">SearchViewModel</code>'s <code class="inline">@Observable</code> <code class="inline">withMutation</code>, so a live view bound to <code class="inline">vm.apiKey</code> wouldn't auto-refresh on a Preferences edit.</em> Not currently a problem — nothing in the UI binds to <code class="inline">vm.apiKey</code> any more — noted for if a future milestone adds one.</li>
+                    <li><em>Info — confirmed the <code class="inline">apiKey</code> staleness bug was real (an artifact this milestone's own change would have introduced, not pre-existing), the fix is correct, and the regression test is non-vacuous.</em></li>
+                    <li><em>Info — confirmed <code class="inline">onlyLXTP</code> has zero remaining references repo-wide, no duplicate/drifted key-string literals, correct access-level widening on <code class="inline">apiKeyDefaultsKey</code>, and consistent <code class="inline">self.defaults</code> wiring between <code class="inline">apiKey</code> and <code class="inline">AirlinePreference.currentAirlinesInclude</code>.</em></li>
+                </ul>
+            </li>
+        </ul>
         <h5>Review comments</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>User (viewing the running Preferences window) reported: (1) the app's labels should be in English rather than French; (2) the <code class="inline">TextField</code>/<code class="inline">SecureField</code> controls in the Preferences window don't look like standard macOS controls — they render more like plain text labels than editable, bordered fields.</li>
+            <li>Clarified on follow-up: the English-labels request applies to the <strong>whole app</strong>, not just the new Preferences window — translate the existing French UI now and use English for all remaining milestones' new UI going forward, superseding the plan's <a href="#notes">Notes</a> section's French-UI convention.</li>
+            <li>User shared a screenshot of the Preferences window after the field-styling fix: "This preferences window looks so bad... it is horrible." The screenshot showed the API Key field correctly bordered, but a badly unbalanced layout — section titles floating without any grouping/box, a large empty gap on the left, and the "IATA codes" label clipped to "ATA codes" against the window's left edge.</li>
+            <li>After restoring <code class="inline">.formStyle(.grouped)</code> (kept alongside the explicit <code class="inline">.textFieldStyle(.roundedBorder)</code>) and widening the window to 420pt: "ok for now."</li>
+        </ul>
     </div>
 
     <h3 class="phase">Phase C — Ignav API client</h3>

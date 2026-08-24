@@ -33,28 +33,21 @@ struct SearchForm: View
     {
         Form
         {
-            Section( "Clé API" )
+            Section( "Trip" )
             {
-                SecureField( "X-Api-Key", text: $vm.apiKey )
-                    .autocorrectionDisabled()
-            }
-
-            Section( "Trajet" )
-            {
-                TextField( "Origine (IATA)", text: $vm.origin )
+                TextField( "Origin (IATA)", text: $vm.origin )
                 TextField( "Destination (IATA)", text: $vm.destination )
-                DatePicker( "Aller", selection: $vm.departure, displayedComponents: .date )
-                DatePicker( "Retour", selection: $vm.returnDate, displayedComponents: .date )
+                DatePicker( "Departure", selection: $vm.departure, displayedComponents: .date )
+                DatePicker( "Return", selection: $vm.returnDate, displayedComponents: .date )
 
-                Picker( "Cabine", selection: $vm.cabin )
+                Picker( "Cabin", selection: $vm.cabin )
                 {
                     Text( "Economy" ).tag( "economy" )
                     Text( "Premium" ).tag( "premium_economy" )
                     Text( "Business" ).tag( "business" )
                     Text( "First" ).tag( "first" )
                 }
-                Toggle( "Vols directs uniquement", isOn: $vm.directOnly )
-                Toggle( "Swiss + TAP seulement", isOn: $vm.onlyLXTP )
+                Toggle( "Direct flights only", isOn: $vm.directOnly )
             }
 
             Section
@@ -66,7 +59,7 @@ struct SearchForm: View
                     HStack
                     {
                         if vm.isLoading { ProgressView().controlSize( .small ) }
-                        Text( vm.isLoading ? "Recherche…" : "Chercher" )
+                        Text( vm.isLoading ? "Searching…" : "Search" )
                     }
                     .frame( maxWidth: .infinity )
                 }
@@ -79,7 +72,7 @@ struct SearchForm: View
     }
 }
 
-// MARK: - Détail
+// MARK: - Detail
 
 struct ResultsPane: View
 {
@@ -103,8 +96,8 @@ struct ResultsPane: View
 
             Picker( "", selection: $tab )
             {
-                Text( "Itinéraires (\( vm.itineraries.count ))" ).tag( 0 )
-                Text( "JSON brut" ).tag( 1 )
+                Text( "Itineraries (\( vm.itineraries.count ))" ).tag( 0 )
+                Text( "Raw JSON" ).tag( 1 )
             }
             .pickerStyle( .segmented )
             .labelsHidden()
@@ -116,7 +109,7 @@ struct ResultsPane: View
             {
                 Table( vm.itineraries )
                 {
-                    TableColumn( "Prix" )
+                    TableColumn( "Price" )
                     { itin in
                         Text( "\( Int( itin.price.amount )) \( itin.price.currency )" )
                             .fontWeight( .semibold )
@@ -124,9 +117,9 @@ struct ResultsPane: View
                     }
                     .width( 110 )
 
-                    TableColumn( "Aller" ) { Text( flights( $0.outbound )) }
-                    TableColumn( "Retour" ) { Text( flights( $0.inbound )) }
-                    TableColumn( "Durée A" ) { Text( $0.outbound?.duration ?? "—" ) }.width( 90 )
+                    TableColumn( "Outbound" ) { Text( flights( $0.outbound )) }
+                    TableColumn( "Return" ) { Text( flights( $0.inbound )) }
+                    TableColumn( "Duration" ) { Text( $0.outbound?.duration ?? "—" ) }.width( 90 )
                     TableColumn( "ignav_id" )
                     { itin in
                         Text( itin.ignav_id ?? "—" ).font( .caption.monospaced())
@@ -138,7 +131,7 @@ struct ResultsPane: View
             {
                 ScrollView( [ .vertical, .horizontal ] )
                 {
-                    Text( vm.rawJSON.isEmpty ? "Aucune réponse pour l'instant." : vm.rawJSON )
+                    Text( vm.rawJSON.isEmpty ? "No response yet." : vm.rawJSON )
                         .font( .system( size: 11, design: .monospaced ))
                         .textSelection( .enabled )
                         .padding( 10 )
@@ -148,7 +141,7 @@ struct ResultsPane: View
                 {
                     if !vm.rawJSON.isEmpty
                     {
-                        Button( "Copier", systemImage: "doc.on.doc" ) { vm.copyJSON() }
+                        Button( "Copy", systemImage: "doc.on.doc" ) { vm.copyJSON() }
                             .padding( 10 )
                     }
                 }
