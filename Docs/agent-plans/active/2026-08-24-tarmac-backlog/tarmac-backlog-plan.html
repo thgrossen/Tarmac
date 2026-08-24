@@ -477,7 +477,7 @@ td code
 
         <li class="toc-phase">Phase C — Ignav API client</li>
         <li><a href="#m5">5. One-way fares call</a><span class="status completed">Completed</span></li>
-        <li><a href="#m6">6. Round-trip shape search (client-side enumeration)</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m6">6. Round-trip shape search (client-side enumeration)</a><span class="status completed">Completed</span></li>
 
         <li class="toc-phase">Phase D — Sidebar &amp; new-search flow</li>
         <li><a href="#m7">7. Sidebar becomes a list of saved searches</a><span class="status not-started">Not started</span></li>
@@ -710,23 +710,38 @@ td code
     <div class="milestone" id="m6">
         <div class="milestone-head">
             <h4>6. Round-trip shape search (client-side enumeration)</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
         <p class="goal">Implement "search over trip shapes" by calling the existing round-trip endpoint once per candidate date pair implied by the range/duration/flexibility/weekend constraint, since Ignav has no dedicated shape endpoint.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Add a search-runner function that, given a round-trip <code class="inline">SavedSearch</code>, enumerates candidate departure dates across <code class="inline">[rangeStart, rangeEnd]</code> and candidate durations across <code class="inline">[tripDurationDays − flexibilityDays, tripDurationDays + flexibilityDays]</code> (minimum 1 night).</li>
-            <li><input type="checkbox" disabled> When <code class="inline">mustIncludeWeekend</code> is set, drop candidates whose <code class="inline">[departure, departure + duration]</code> span includes no Saturday/Sunday.</li>
-            <li><input type="checkbox" disabled> Cap the number of Ignav calls per refresh (e.g. 25), since each call is billed. If enumeration produces more candidates than the cap, sample evenly across the range rather than truncating from one end, and surface the truncation on the run (e.g. "18 of 40 date combinations checked") via <code class="inline">SearchRun.requestCount</code>.</li>
-            <li><input type="checkbox" disabled> Fire the capped candidate requests, aggregate all returned itineraries, de-duplicate by <code class="inline">ignav_id</code>, sort by price.</li>
-            <li><input type="checkbox" disabled> Store the raw JSON of the response that produced the cheapest itinerary on <code class="inline">SearchRun.rawJSON</code> (storing every candidate's raw response isn't practical for the history view).</li>
+            <li><input type="checkbox" checked disabled> Add a search-runner function that, given a round-trip <code class="inline">SavedSearch</code>, enumerates candidate departure dates across <code class="inline">[rangeStart, rangeEnd]</code> and candidate durations across <code class="inline">[tripDurationDays − flexibilityDays, tripDurationDays + flexibilityDays]</code> (minimum 1 night).</li>
+            <li><input type="checkbox" checked disabled> When <code class="inline">mustIncludeWeekend</code> is set, drop candidates whose <code class="inline">[departure, departure + duration]</code> span includes no Saturday/Sunday.</li>
+            <li><input type="checkbox" checked disabled> Cap the number of Ignav calls per refresh (e.g. 25), since each call is billed. If enumeration produces more candidates than the cap, sample evenly across the range rather than truncating from one end, and surface the truncation on the run (e.g. "18 of 40 date combinations checked") via <code class="inline">SearchRun.requestCount</code>.</li>
+            <li><input type="checkbox" checked disabled> Fire the capped candidate requests, aggregate all returned itineraries, de-duplicate by <code class="inline">ignav_id</code>, sort by price.</li>
+            <li><input type="checkbox" checked disabled> Store the raw JSON of the response that produced the cheapest itinerary on <code class="inline">SearchRun.rawJSON</code> (storing every candidate's raw response isn't practical for the history view).</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Added <code class="inline">Tarmac/RoundTripShapeSearch.swift</code>: a <code class="inline">RoundTripShapeSearch</code> namespace with two pure functions — <code class="inline">candidates(for:)</code> (enumerates departure day × duration combinations across the search's range/flexibility, clamping duration to a 1-night minimum, dropping non-weekend spans when <code class="inline">mustIncludeWeekend</code> is set) and <code class="inline">sample(_:cap:)</code> (even index-based sampling to at most <code class="inline">cap</code> candidates, keeping the first and last) — plus an orchestrating <code class="inline">run(for:apiKey:cap:defaults:fetch:) async -> ShapeSearchResult</code> that fires one <code class="inline">IgnavClient.roundTrip(_:)</code> call per sampled candidate, aggregates itineraries, de-duplicates by <code class="inline">ignav_id</code> (never the unstable computed <code class="inline">Itinerary.id</code>), sorts by price, and keeps the raw JSON of whichever response contained the single cheapest itinerary.</li>
+            <li><code class="inline">candidates(for:)</code> normalizes a reversed <code class="inline">rangeStart</code>/<code class="inline">rangeEnd</code> via <code class="inline">min</code>/<code class="inline">max</code>, mirroring the defensive fix already applied to <code class="inline">SavedSearch.dateRangeLabel</code> in Milestone 1.</li>
+            <li>Calls are fired <strong>sequentially</strong>, not concurrently — a deliberate simplicity/determinism/testability tradeoff (also makes the dedup/cheapest-JSON bookkeeping trivially race-free with no synchronization needed), at the cost of wall-clock time on a large candidate set (up to <code class="inline">defaultCallCap</code> = 25 sequential network round-trips).</li>
+            <li><code class="inline">requestCount</code> in the returned <code class="inline">ShapeSearchResult</code> is the number of calls actually fired (<code class="inline">sampled.count</code>), matching <code class="inline">SearchRun.requestCount</code>'s documented meaning and the billing-awareness framing — a failed call still counts, since it was still billed. This milestone deliberately does <strong>not</strong> create or touch a <code class="inline">SearchRun</code>/<code class="inline">PriceSnapshot</code> at all — that mapping is explicitly Milestone 11's job ("Refresh button runs the selected search"); the pre-cap total candidate count (the "40" in "18 of 40") isn't stored anywhere since it's trivially recomputable later via <code class="inline">candidates(for:).count</code> on the same <code class="inline">SavedSearch</code>.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/RoundTripShapeSearchTests.swift</code> first (red) — 13 tests covering enumeration (zero-flexibility, range × flexibility, minimum-1-night clamp, weekend filtering, reversed-range normalization), sampling (under/over cap, cap of 1, cap of 0/empty), and the async runner (single candidate, price-sort + cheapest-JSON tracking, dedup, cap enforcement, partial failure tolerance, all-fail error surfacing) via an injectable <code class="inline">fetch</code> closure rather than <code class="inline">URLSession</code> mocking. Implemented until all 13 new tests passed alongside the 27 pre-existing ones (40 total); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests after a clean <code class="inline">DerivedData</code> wipe, and independently re-derived the date arithmetic for every count-sensitive test with its own Python cross-check): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — sequential (not concurrent) request firing could make a large-candidate-set refresh take tens of seconds.</em> Resolution: <strong>Deferred</strong> — confirmed as a deliberate, reasonable tradeoff for this milestone; flagged as a possible future optimization once a UI exists to show progress.</li>
+                    <li><em>Low — when the final itinerary list is empty because one candidate legitimately found nothing while an unrelated candidate call failed, the surfaced <code class="inline">errorMessage</code> attributes the "empty" outcome to that unrelated failure, which can misrepresent a normal zero-fares result as an error.</em> Resolution: <strong>Deferred</strong> — left for review; a <code class="inline">hadAnySuccess</code>-based fix was suggested but not applied since this is orchestration logic with no UI consumer yet.</li>
+                    <li><em>Info — <code class="inline">sample</code>'s duplicate-index guard (the <code class="inline">Set&lt;Int&gt;</code>) is unreachable given the preceding guards, since the sampling ratio is always &gt; 1; harmless defensive code, not a bug.</em></li>
+                </ul>
+            </li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>
