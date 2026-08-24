@@ -66,18 +66,18 @@ final class SavedSearch
     }
 
     /**
-     * Short summary for sidebar rows, e.g. "GVA → LIS · aller-retour · 5–12 oct.".
+     * Short summary for sidebar rows, e.g. "GVA → LIS · round trip · 5–12 Oct".
      */
     var summary: String
     {
-        let kindLabel = self.kind == .roundTrip ? "aller-retour" : "aller simple"
+        let kindLabel = self.kind == .roundTrip ? "round trip" : "one-way"
         return "\( self.origin ) → \( self.destination ) · \( kindLabel ) · \( self.dateRangeLabel )"
     }
 
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "d"
-        f.locale = Locale( identifier: "fr_FR" )
+        f.locale = Locale( identifier: "en_US" )
         f.timeZone = TimeZone( identifier: "UTC" )
         return f
     }()
@@ -85,7 +85,7 @@ final class SavedSearch
     private static let dayMonthFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "d MMM"
-        f.locale = Locale( identifier: "fr_FR" )
+        f.locale = Locale( identifier: "en_US" )
         f.timeZone = TimeZone( identifier: "UTC" )
         return f
     }()

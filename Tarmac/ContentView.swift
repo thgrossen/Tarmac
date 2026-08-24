@@ -4,71 +4,50 @@
  * Copyright (c) 2026, Thomas Grossen
  ******************************************************************************/
 
+import SwiftData
 import SwiftUI
 
 struct ContentView: View
 {
-    @State private var vm = SearchViewModel()
+    @State private var selectedSearch: SavedSearch?
 
     var body: some View
     {
         NavigationSplitView
         {
-            SearchForm( vm: vm )
-                .navigationSplitViewColumnWidth( min: 300, ideal: 320, max: 380 )
+            SearchSidebar( selection: $selectedSearch )
+                .navigationSplitViewColumnWidth( min: 220, ideal: 260, max: 340 )
         } detail: {
-            ResultsPane( vm: vm )
+            ResultsPane( search: selectedSearch )
         }
-        .navigationTitle( "Ignav — GVA ↔ LIS" )
+        .navigationTitle( "Tarmac" )
     }
 }
 
 // MARK: - Sidebar
 
-struct SearchForm: View
+struct SearchSidebar: View
 {
-    @Bindable var vm: SearchViewModel
+    @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var searches: [ SavedSearch ]
+    @Binding var selection: SavedSearch?
 
     var body: some View
     {
-        Form
-        {
-            Section( "Trip" )
-            {
-                TextField( "Origin (IATA)", text: $vm.origin )
-                TextField( "Destination (IATA)", text: $vm.destination )
-                DatePicker( "Departure", selection: $vm.departure, displayedComponents: .date )
-                DatePicker( "Return", selection: $vm.returnDate, displayedComponents: .date )
-
-                Picker( "Cabin", selection: $vm.cabin )
-                {
-                    Text( "Economy" ).tag( "economy" )
-                    Text( "Premium" ).tag( "premium_economy" )
-                    Text( "Business" ).tag( "business" )
-                    Text( "First" ).tag( "first" )
-                }
-                Toggle( "Direct flights only", isOn: $vm.directOnly )
-            }
-
-            Section
-            {
-                Button
-                {
-                    Task { await vm.search() }
-                } label: {
-                    HStack
-                    {
-                        if vm.isLoading { ProgressView().controlSize( .small ) }
-                        Text( vm.isLoading ? "Searching…" : "Search" )
-                    }
-                    .frame( maxWidth: .infinity )
-                }
-                .keyboardShortcut( .return, modifiers: .command )
-                .disabled( vm.isLoading )
-            }
+        List( searches, selection: $selection )
+        { search in
+            SearchRow( search: search )
         }
-        .formStyle( .grouped )
-        .autocorrectionDisabled()
+    }
+}
+
+struct SearchRow: View
+{
+    var search: SavedSearch
+
+    var body: some View
+    {
+        Text( search.summary )
+            .padding( .vertical, 2 )
     }
 }
 
@@ -76,84 +55,39 @@ struct SearchForm: View
 
 struct ResultsPane: View
 {
-    var vm: SearchViewModel
-    @State private var tab = 0
+    var search: SavedSearch?
 
     var body: some View
     {
-        VStack( spacing: 0 )
+        if let search
         {
-            if let err = vm.errorMessage
+            VStack( spacing: 0 )
             {
-                Text( err )
-                    .font( .callout.monospaced())
-                    .foregroundStyle( .red )
-                    .textSelection( .enabled )
-                    .padding( 10 )
+                Text( search.summary )
+                    .font( .title3 )
+                    .fontWeight( .semibold )
                     .frame( maxWidth: .infinity, alignment: .leading )
-                    .background( .red.opacity( 0.08 ))
-            }
+                    .padding()
 
-            Picker( "", selection: $tab )
-            {
-                Text( "Itineraries (\( vm.itineraries.count ))" ).tag( 0 )
-                Text( "Raw JSON" ).tag( 1 )
-            }
-            .pickerStyle( .segmented )
-            .labelsHidden()
-            .padding( 8 )
+                Divider()
 
-            Divider()
-
-            if tab == 0
-            {
-                Table( vm.itineraries )
-                {
-                    TableColumn( "Price" )
-                    { itin in
-                        Text( "\( Int( itin.price.amount )) \( itin.price.currency )" )
-                            .fontWeight( .semibold )
-                            .monospacedDigit()
-                    }
-                    .width( 110 )
-
-                    TableColumn( "Outbound" ) { Text( flights( $0.outbound )) }
-                    TableColumn( "Return" ) { Text( flights( $0.inbound )) }
-                    TableColumn( "Duration" ) { Text( $0.outbound?.duration ?? "—" ) }.width( 90 )
-                    TableColumn( "ignav_id" )
-                    { itin in
-                        Text( itin.ignav_id ?? "—" ).font( .caption.monospaced())
-                    }
-                }
-                .tableStyle( .inset( alternatesRowBackgrounds: true ))
+                ContentUnavailableView(
+                    "No results yet",
+                    systemImage: "airplane.circle",
+                    description: Text( "Refresh this search to check current prices." )
+                )
+                .frame( maxWidth: .infinity, maxHeight: .infinity )
             }
-            else
-            {
-                ScrollView( [ .vertical, .horizontal ] )
-                {
-                    Text( vm.rawJSON.isEmpty ? "No response yet." : vm.rawJSON )
-                        .font( .system( size: 11, design: .monospaced ))
-                        .textSelection( .enabled )
-                        .padding( 10 )
-                        .frame( maxWidth: .infinity, alignment: .leading )
-                }
-                .overlay( alignment: .topTrailing )
-                {
-                    if !vm.rawJSON.isEmpty
-                    {
-                        Button( "Copy", systemImage: "doc.on.doc" ) { vm.copyJSON() }
-                            .padding( 10 )
-                    }
-                }
-            }
+            .frame( minWidth: 620, minHeight: 420 )
         }
-        .frame( minWidth: 620, minHeight: 420 )
-    }
-
-    private func flights( _ leg: Leg? ) -> String
-    {
-        guard let segs = leg?.segments, !segs.isEmpty else { return "—" }
-        return segs.map { "\( $0.carrier_code ?? "" )\( $0.flight_number ?? "" )" }
-            .joined( separator: " → " )
+        else
+        {
+            ContentUnavailableView(
+                "No search selected",
+                systemImage: "airplane",
+                description: Text( "Select a search from the sidebar." )
+            )
+            .frame( minWidth: 620, minHeight: 420 )
+        }
     }
 }

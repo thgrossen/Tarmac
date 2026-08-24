@@ -91,7 +91,7 @@ struct SavedSearchTests
             cabinClass: "business"
         )
 
-        #expect( search.summary == "GVA → LIS · aller-retour · 5–12 oct." )
+        #expect( search.summary == "GVA → LIS · round trip · 5–12 Oct" )
     }
 
     @Test( "Summary for a one-way search spanning two months" )
@@ -106,7 +106,7 @@ struct SavedSearchTests
             cabinClass: "economy"
         )
 
-        #expect( search.summary == "GVA → LIS · aller simple · 28 sept. – 3 oct." )
+        #expect( search.summary == "GVA → LIS · one-way · 28 Sep – 3 Oct" )
     }
 
     @Test( "Summary normalizes a reversed date range" )
@@ -121,6 +121,6 @@ struct SavedSearchTests
             cabinClass: "business"
         )
 
-        #expect( search.summary == "GVA → LIS · aller-retour · 5–12 oct." )
+        #expect( search.summary == "GVA → LIS · round trip · 5–12 Oct" )
     }
 }

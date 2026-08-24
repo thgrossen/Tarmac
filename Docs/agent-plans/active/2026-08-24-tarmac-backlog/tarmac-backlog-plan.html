@@ -480,7 +480,7 @@ td code
         <li><a href="#m6">6. Round-trip shape search (client-side enumeration)</a><span class="status completed">Completed</span></li>
 
         <li class="toc-phase">Phase D — Sidebar &amp; new-search flow</li>
-        <li><a href="#m7">7. Sidebar becomes a list of saved searches</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m7">7. Sidebar becomes a list of saved searches</a><span class="status completed">Completed</span></li>
         <li><a href="#m8">8. "+" button and new-search sheet shell</a><span class="status not-started">Not started</span></li>
         <li><a href="#m9">9. One-way search options form</a><span class="status not-started">Not started</span></li>
         <li><a href="#m10">10. Round-trip search options form</a><span class="status not-started">Not started</span></li>
@@ -751,22 +751,31 @@ td code
     <div class="milestone" id="m7">
         <div class="milestone-head">
             <h4>7. Sidebar becomes a list of saved searches</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
         <p class="goal">Replace the sidebar form with a history of the searches that have been set up, one row per search, exclusive selection driving the detail pane.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Replace <code class="inline">SearchForm</code> in <code class="inline">ContentView.swift</code> with a <code class="inline">List</code>/<code class="inline">Table</code> driven by <code class="inline">@Query var searches: [SavedSearch]</code> (newest first).</li>
-            <li><input type="checkbox" disabled> Each row shows the search's summary (type, origin → destination, date/duration info at a glance).</li>
-            <li><input type="checkbox" disabled> Selection is exclusive (single optional binding); the selected search drives <code class="inline">ResultsPane</code>.</li>
-            <li><input type="checkbox" disabled> <code class="inline">ResultsPane</code> now takes the selected <code class="inline">SavedSearch?</code> (was the whole <code class="inline">SearchViewModel</code>); show an empty state when nothing is selected.</li>
+            <li><input type="checkbox" checked disabled> Replace <code class="inline">SearchForm</code> in <code class="inline">ContentView.swift</code> with a <code class="inline">List</code>/<code class="inline">Table</code> driven by <code class="inline">@Query var searches: [SavedSearch]</code> (newest first).</li>
+            <li><input type="checkbox" checked disabled> Each row shows the search's summary (type, origin → destination, date/duration info at a glance).</li>
+            <li><input type="checkbox" checked disabled> Selection is exclusive (single optional binding); the selected search drives <code class="inline">ResultsPane</code>.</li>
+            <li><input type="checkbox" checked disabled> <code class="inline">ResultsPane</code> now takes the selected <code class="inline">SavedSearch?</code> (was the whole <code class="inline">SearchViewModel</code>); show an empty state when nothing is selected.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Rewrote <code class="inline">Tarmac/ContentView.swift</code>: <code class="inline">SearchForm</code> is replaced by a new <code class="inline">SearchSidebar</code> using <code class="inline">@Query(sort: \SavedSearch.createdAt, order: .reverse)</code> and <code class="inline">List(searches, selection: $selection)</code>, with each row rendered by a new <code class="inline">SearchRow</code> as <code class="inline">Text(search.summary)</code> — <code class="inline">summary</code> already composes type/origin→destination/date-range into one string, so no separate duplicate header line was added. <code class="inline">ContentView</code> now holds <code class="inline">@State private var selectedSearch: SavedSearch?</code> (was <code class="inline">SearchViewModel</code>) and passes it down; the navigation title changed from the now-inapplicable hardcoded <code class="inline">"Ignav — GVA ↔ LIS"</code> to <code class="inline">"Tarmac"</code>.</li>
+            <li><code class="inline">ResultsPane</code> now takes <code class="inline">search: SavedSearch?</code>: shows the search's summary plus a <code class="inline">ContentUnavailableView("No results yet", ...)</code> when a search is selected, or <code class="inline">ContentUnavailableView("No search selected", ...)</code> otherwise. The old itinerary <code class="inline">Table</code>/raw-JSON tab and its <code class="inline">flights(_:)</code> helper were removed entirely — they operated on <code class="inline">vm.itineraries: [Itinerary]</code>, which has no equivalent once <code class="inline">ResultsPane</code> no longer holds a <code class="inline">SearchViewModel</code>; the real data source going forward is <code class="inline">SearchRun.itineraries: [PriceSnapshot]</code> (a structurally different, flatter shape), which doesn't exist until Milestone 11 creates <code class="inline">SearchRun</code>s — Milestone 12 explicitly re-adds an adapted itinerary table against that real data.</li>
+            <li><code class="inline">Tarmac/SearchViewModel.swift</code> was deliberately <strong>left untouched</strong>, even though nothing in <code class="inline">ContentView.swift</code> references it any more after this change — it's still actively used by <code class="inline">PreferencesView.swift</code> (Milestone 4) and has its own passing test suite; the plan's own Notes section describes it as being "decomposed... by this plan" gradually rather than deleted in one milestone, and this milestone's task list doesn't mention removing it.</li>
+            <li><strong>Fixed a gap left over from Milestone 4's English-UI decision:</strong> <code class="inline">SavedSearch.summary</code> (added in Milestone 1) was never actually rendered anywhere in the app until this milestone puts it in <code class="inline">SearchRow</code>/<code class="inline">ResultsPane</code> — so it never had a chance to comply with the "whole app switches to English" decision made partway through Milestone 4. Translated it now: kind labels <code class="inline">"aller-retour"</code>/<code class="inline">"aller simple"</code> → <code class="inline">"round trip"</code>/<code class="inline">"one-way"</code>, date-formatter locale <code class="inline">fr_FR</code> → <code class="inline">en_US</code> (e.g. <code class="inline">"5–12 oct."</code> → <code class="inline">"5–12 Oct"</code>). Updated the three <code class="inline">summary</code>-asserting tests in the already-completed <code class="inline">TarmacTests/SavedSearchTests.swift</code> (Milestone 1) to match — only the expected string literals changed, not the test scenarios/dates/inputs.</li>
+            <li>TDD cycle: updated <code class="inline">SavedSearchTests.swift</code>'s expected strings first (red against the still-French implementation), then translated <code class="inline">SavedSearch.swift</code> (green). <code class="inline">ContentView.swift</code>'s new views (<code class="inline">SearchSidebar</code>/<code class="inline">SearchRow</code>/<code class="inline">ResultsPane</code>) are pure declarative composition with no extractable logic beyond the already-tested <code class="inline">summary</code> property and SwiftUI's own <code class="inline">@Query</code>/<code class="inline">List</code> machinery, so no new test file was added for them — matching the precedent set by Milestone 4's <code class="inline">PreferencesView.swift</code>. All 40 pre-existing tests still pass; verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>. Could not visually verify the rendered UI myself (still no Screen Recording permission in this environment).</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, traced <code class="inline">List</code>'s actual resolved SDK initializer to confirm the <code class="inline">@Model</code>/<code class="inline">Identifiable</code>/<code class="inline">Hashable</code> selection-typing claim rather than trusting that it merely compiled, and independently verified the <code class="inline">en_US</code> month-abbreviation output via a standalone script): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations. No Low findings either; only confirmatory Info notes, all judgment calls endorsed as reasonable with no objections.</li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>
