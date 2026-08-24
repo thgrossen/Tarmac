@@ -470,7 +470,7 @@ td code
         <li class="toc-phase">Phase A — Data model foundation</li>
         <li><a href="#m1">1. Add the SavedSearch model</a><span class="status completed">Completed</span></li>
         <li><a href="#m2">2. Redesign SearchRun and PriceSnapshot around run history</a><span class="status completed">Completed</span></li>
-        <li><a href="#m3">3. Wire the new schema into the app and seed today's default search</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m3">3. Wire the new schema into the app and seed today's default search</a><span class="status completed">Completed</span></li>
 
         <li class="toc-phase">Phase B — Preferences window</li>
         <li><a href="#m4">4. Preferences window for API key and airline restriction</a><span class="status not-started">Not started</span></li>
@@ -584,21 +584,37 @@ td code
     <div class="milestone" id="m3">
         <div class="milestone-head">
             <h4>3. Wire the new schema into the app and seed today's default search</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
         <p class="goal">Register the new models with SwiftData, and make sure the existing hardcoded GVA↔LIS search isn't lost when the app upgrades.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Update <code class="inline">TarmacApp</code>'s <code class="inline">Schema([...])</code> to include <code class="inline">SavedSearch.self</code>, <code class="inline">SearchRun.self</code>, <code class="inline">PriceSnapshot.self</code>.</li>
-            <li><input type="checkbox" disabled> On first launch (no <code class="inline">SavedSearch</code> rows exist yet), insert one matching today's hardcoded defaults: GVA → LIS, round trip, business, direct-only, <code class="inline">rangeStart</code>/<code class="inline">rangeEnd</code> = today + 60 days, <code class="inline">tripDurationDays</code> = 3, <code class="inline">flexibilityDays</code> = 0, <code class="inline">mustIncludeWeekend</code> = false — reproducing the current fixed departure/return pair as a zero-flexibility shape.</li>
-            <li><input type="checkbox" disabled> Confirm <code class="inline">Item.swift</code> (unused SwiftData template model) stays untouched — out of scope for this plan.</li>
+            <li><input type="checkbox" checked disabled> Update <code class="inline">TarmacApp</code>'s <code class="inline">Schema([...])</code> to include <code class="inline">SavedSearch.self</code>, <code class="inline">SearchRun.self</code>, <code class="inline">PriceSnapshot.self</code>.</li>
+            <li><input type="checkbox" checked disabled> On first launch (no <code class="inline">SavedSearch</code> rows exist yet), insert one matching today's hardcoded defaults: GVA → LIS, round trip, business, direct-only, <code class="inline">rangeStart</code>/<code class="inline">rangeEnd</code> = today + 60 days, <code class="inline">tripDurationDays</code> = 3, <code class="inline">flexibilityDays</code> = 0, <code class="inline">mustIncludeWeekend</code> = false — reproducing the current fixed departure/return pair as a zero-flexibility shape.</li>
+            <li><input type="checkbox" checked disabled> Confirm <code class="inline">Item.swift</code> (unused SwiftData template model) stays untouched — out of scope for this plan.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><code class="inline">TarmacApp.swift</code>'s <code class="inline">Schema([...])</code> now lists <code class="inline">SavedSearch.self</code>, <code class="inline">SearchRun.self</code>, <code class="inline">PriceSnapshot.self</code> (previously <code class="inline">PriceSnapshot.self</code> only).</li>
+            <li>Added <code class="inline">Tarmac/DefaultSearchSeeder.swift</code>: a standalone <code class="inline">DefaultSearchSeeder.seedIfNeeded(in context: ModelContext, referenceDate: Date = .now)</code>, extracted out of <code class="inline">TarmacApp</code> so it's independently testable against an in-memory context rather than the app's real on-disk store. Inserts a search matching the original hardcoded defaults (GVA → LIS, round trip, business, direct-only, <code class="inline">tripDurationDays = 3</code>, <code class="inline">flexibilityDays = 0</code>, <code class="inline">mustIncludeWeekend = false</code>, <code class="inline">rangeStart == rangeEnd ==</code> today + 60 days) only when no <code class="inline">SavedSearch</code> rows exist yet.</li>
+            <li><code class="inline">TarmacApp.init()</code> calls <code class="inline">DefaultSearchSeeder.seedIfNeeded(in: self.container.mainContext)</code> — using the container's <code class="inline">mainContext</code> (the same context <code class="inline">.modelContainer(container)</code> publishes into the environment) rather than a separate <code class="inline">ModelContext(container)</code>, so later <code class="inline">@Query</code>/<code class="inline">@Environment(\.modelContext)</code> views see the seeded row immediately.</li>
+            <li><code class="inline">Item.swift</code> no longer exists in the repo — it was already removed in a prior commit, before this plan started — so this task was trivially satisfied; nothing to confirm or leave untouched.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/DefaultSearchSeederTests.swift</code> first (red — <code class="inline">DefaultSearchSeeder</code> didn't exist), covering both the empty-store seed case (asserting every field, including the date arithmetic against an independently-verified expected date) and the already-seeded no-duplicate case. Implemented until both passed (green) alongside all 13 pre-existing tests (15 total); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests and independently recomputed the date arithmetic): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — <code class="inline">seedIfNeeded</code> swallows all three of its failure paths (<code class="inline">fetchCount</code>, date-math, <code class="inline">save()</code>) via <code class="inline">try?</code>/silent early-return with no logging</em>, so a transient fetch error would be indistinguishable from "store is empty" and could seed a duplicate with no diagnostic trail. Resolution: <strong>Deferred</strong> — left for review; judged low-likelihood (local, first-launch, in-memory-free path) but noted for awareness.</li>
+                    <li><em>Info — confirmed seeder architecture is sound: no retain cycles, no actor-isolation issues, the existing <code class="inline">fatalError</code> path on container-creation failure is unaffected since it fires during property initialization before <code class="inline">init()</code>'s body runs, and <code class="inline">App.init()</code> runs exactly once per process so there's no realistic double-seed path from multi-window/scene reconnection.</em></li>
+                    <li><em>Info — confirmed schema is complete: a repo-wide grep for <code class="inline">@Model</code> finds exactly the three registered types, nothing missing or extraneous.</em></li>
+                    <li><em>Info (not new) — the seeded search's <code class="inline">rangeStart == rangeEnd</code> will be the first real-world trigger of the same-day-range rendering quirk in <code class="inline">SavedSearch.summary</code>, already flagged and deferred in Milestone 1.</em></li>
+                </ul>
+            </li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>

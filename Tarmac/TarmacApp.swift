@@ -11,7 +11,7 @@ import SwiftUI
 struct TarmacApp: App
 {
     let container: ModelContainer = {
-        let schema = Schema( [ PriceSnapshot.self ] )
+        let schema = Schema( [ SavedSearch.self, SearchRun.self, PriceSnapshot.self ] )
         let config = ModelConfiguration( schema: schema, isStoredInMemoryOnly: false )
         do
         {
@@ -22,6 +22,11 @@ struct TarmacApp: App
             fatalError( "Could not create ModelContainer: \( error )" )
         }
     }()
+
+    init()
+    {
+        DefaultSearchSeeder.seedIfNeeded( in: self.container.mainContext )
+    }
 
     var body: some Scene
     {
