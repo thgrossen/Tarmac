@@ -52,7 +52,10 @@ struct SearchSidebar: View
         }
         .sheet( isPresented: $isPresentingNewSearchSheet )
         {
-            NewSearchSheet()
+            NewSearchSheet
+            { newSearch in
+                self.selection = newSearch
+            }
         }
     }
 }

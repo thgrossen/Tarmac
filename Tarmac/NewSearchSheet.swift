@@ -10,6 +10,7 @@ struct NewSearchSheet: View
 {
     @Environment( \.dismiss ) private var dismiss
     @State private var chosenKind: SearchKind?
+    var onCreate: ( SavedSearch ) -> Void
 
     var body: some View
     {
@@ -36,19 +37,22 @@ struct NewSearchSheet: View
 
             Divider()
 
-            if let kind = self.chosenKind
+            switch self.chosenKind
             {
-                NewSearchOptionsPlaceholder( kind: kind )
-            }
-            else
-            {
-                NewSearchKindChooser
-                {
-                    self.chosenKind = $0
-                }
+                case .oneWay:
+                    OneWaySearchForm( onCreate: self.onCreate )
+
+                case .roundTrip:
+                    NewSearchOptionsPlaceholder( kind: .roundTrip )
+
+                case nil:
+                    NewSearchKindChooser
+                    {
+                        self.chosenKind = $0
+                    }
             }
         }
-        .frame( width: 420, height: 360 )
+        .frame( width: 420, height: 420 )
     }
 }
 
