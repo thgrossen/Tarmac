@@ -16,6 +16,9 @@ final class PriceSnapshot
     var outboundSummary: String?
     var inboundSummary: String?
     var outboundDuration: String?
+    var carrier: String?
+    var departureTime: String?
+    var arrivalTime: String?
 
     var run: SearchRun?
 
@@ -26,6 +29,9 @@ final class PriceSnapshot
         outboundSummary: String? = nil,
         inboundSummary: String? = nil,
         outboundDuration: String? = nil,
+        carrier: String? = nil,
+        departureTime: String? = nil,
+        arrivalTime: String? = nil,
         run: SearchRun? = nil
     )
     {
@@ -35,6 +41,9 @@ final class PriceSnapshot
         self.outboundSummary = outboundSummary
         self.inboundSummary = inboundSummary
         self.outboundDuration = outboundDuration
+        self.carrier = carrier
+        self.departureTime = departureTime
+        self.arrivalTime = arrivalTime
         self.run = run
     }
 

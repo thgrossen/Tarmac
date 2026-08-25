@@ -21,6 +21,9 @@ struct PriceSnapshotTests
         #expect( snapshot.outboundSummary == nil )
         #expect( snapshot.inboundSummary == nil )
         #expect( snapshot.outboundDuration == nil )
+        #expect( snapshot.carrier == nil )
+        #expect( snapshot.departureTime == nil )
+        #expect( snapshot.arrivalTime == nil )
         #expect( snapshot.run == nil )
     }
 
@@ -33,7 +36,10 @@ struct PriceSnapshotTests
             ignavID: "abc123",
             outboundSummary: "GVA → LIS, LX1234",
             inboundSummary: "LIS → GVA, TP987",
-            outboundDuration: "2h35"
+            outboundDuration: "2h35",
+            carrier: "SWISS",
+            departureTime: "14:30",
+            arrivalTime: "17:55"
         )
 
         #expect( snapshot.amount == 542.0 )
@@ -42,6 +48,9 @@ struct PriceSnapshotTests
         #expect( snapshot.outboundSummary == "GVA → LIS, LX1234" )
         #expect( snapshot.inboundSummary == "LIS → GVA, TP987" )
         #expect( snapshot.outboundDuration == "2h35" )
+        #expect( snapshot.carrier == "SWISS" )
+        #expect( snapshot.departureTime == "14:30" )
+        #expect( snapshot.arrivalTime == "17:55" )
     }
 
     @Test( "Formatted amount for a finite price" )

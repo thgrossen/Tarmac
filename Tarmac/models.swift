@@ -75,8 +75,24 @@ struct Price: Decodable
 
 struct Leg: Decodable
 {
+    let carrier: String?
     let segments: [ Segment ]?
     let duration: String?
+
+    enum CodingKeys: String, CodingKey { case carrier, segments, duration_minutes }
+
+    init( from decoder: Decoder ) throws
+    {
+        let c = try decoder.container( keyedBy: CodingKeys.self )
+        self.carrier  = try? c.decode( String.self, forKey: .carrier )
+        self.segments = try? c.decode( [ Segment ].self, forKey: .segments )
+        self.duration = ( try? c.decode( Int.self, forKey: .duration_minutes ) ).map( Self.formatDuration )
+    }
+
+    private static func formatDuration( _ minutes: Int ) -> String
+    {
+        "\( minutes / 60 )h\( String( format: "%02d", minutes % 60 ) )"
+    }
 }
 
 struct Segment: Decodable
@@ -87,4 +103,50 @@ struct Segment: Decodable
     let destination: String?
     let departure_time: String?
     let arrival_time: String?
+
+    enum CodingKeys: String, CodingKey
+    {
+        case carrier_code
+        case flight_number
+        case origin
+        case destination
+        case departure_time = "departure_time_local"
+        case arrival_time = "arrival_time_local"
+    }
+
+    private static let isoFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        f.locale = Locale( identifier: "en_US_POSIX" )
+        return f
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        f.locale = Locale( identifier: "en_US_POSIX" )
+        return f
+    }()
+
+    init( from decoder: Decoder ) throws
+    {
+        let c = try decoder.container( keyedBy: CodingKeys.self )
+        self.carrier_code   = try? c.decode( String.self, forKey: .carrier_code )
+        self.flight_number  = try? c.decode( String.self, forKey: .flight_number )
+        self.origin         = try? c.decode( String.self, forKey: .origin )
+        self.destination    = try? c.decode( String.self, forKey: .destination )
+        self.departure_time = Self.formatTime( try? c.decode( String.self, forKey: .departure_time ) )
+        self.arrival_time   = Self.formatTime( try? c.decode( String.self, forKey: .arrival_time ) )
+    }
+
+    private static func formatTime( _ raw: String? ) -> String?
+    {
+        guard let raw,
+              let date = Self.isoFormatter.date( from: raw )
+        else
+        {
+            return nil
+        }
+        return Self.timeFormatter.string( from: date )
+    }
 }

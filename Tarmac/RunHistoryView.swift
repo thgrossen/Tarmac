@@ -190,6 +190,9 @@ private struct RunDetailView: View
                 TableColumn( "Outbound" ) { Text( $0.outboundSummary ?? "—" ) }
                 TableColumn( "Inbound" ) { Text( $0.inboundSummary ?? "—" ) }
                 TableColumn( "Duration" ) { Text( $0.outboundDuration ?? "—" ) }.width( 90 )
+                TableColumn( "Carrier" ) { Text( $0.carrier ?? "—" ) }
+                TableColumn( "Departure" ) { Text( $0.departureTime ?? "—" ) }.width( 80 )
+                TableColumn( "Arrival" ) { Text( $0.arrivalTime ?? "—" ) }.width( 80 )
                 TableColumn( "ignav_id" )
                 { snapshot in
                     Text( snapshot.ignavID ?? "—" ).font( .caption.monospaced() )

@@ -136,6 +136,9 @@ enum SearchRunner
             outboundSummary: self.legSummary( itinerary.outbound ),
             inboundSummary: self.legSummary( itinerary.inbound ),
             outboundDuration: itinerary.outbound?.duration,
+            carrier: itinerary.outbound?.carrier,
+            departureTime: itinerary.outbound?.segments?.first?.departure_time,
+            arrivalTime: itinerary.outbound?.segments?.last?.arrival_time,
             run: run
         )
     }

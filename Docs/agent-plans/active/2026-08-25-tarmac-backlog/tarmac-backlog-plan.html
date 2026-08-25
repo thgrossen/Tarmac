@@ -364,7 +364,7 @@
     <li><a href="#m6">6. Rename "Save" to "Search" and run immediately</a><span class="status completed">Completed</span></li>
 
     <li class="phase-label">Phase C &middot; Results Table</li>
-    <li><a href="#m7">7. Fix empty Duration; add carrier, departure, and arrival columns</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m7">7. Fix empty Duration; add carrier, departure, and arrival columns</a><span class="status completed">Completed</span></li>
     <li><a href="#m8">8. marketing_carrier_code and standard flight-number format</a><span class="status not-started">Not started</span></li>
     <li><a href="#m9">9. Sortable results table, default sort by Price</a><span class="status not-started">Not started</span></li>
 
@@ -627,7 +627,7 @@
   <div class="milestone" id="m7">
     <div class="milestone-head">
       <h3>7. Fix empty Duration; add carrier, departure, and arrival columns</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p>
       <strong>Goal:</strong> The results table's Duration column renders empty, and it's missing
@@ -642,13 +642,30 @@
       <li>Verify the table shows a populated Duration plus the three new columns against real API data.</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Investigated first, against real data:</strong> the on-disk SwiftData store (<code>~/Library/Containers/grossen.me.Tarmac/.../default.store</code>) already held real successful runs with raw JSON saved from earlier live testing this session. Inspected it directly via <code>sqlite3</code> rather than guessing or re-spending a real (billed) API call. Found the actual payload shape: <code>Leg</code> has <code>"carrier": "SWISS"</code> and <code>"duration_minutes": 145</code> (no <code>"duration"</code> key at all &mdash; confirmed root cause of the empty column); <code>Segment</code> has <code>"departure_time_local"</code>/<code>"arrival_time_local"</code> (ISO-ish local datetime, no UTC offset), not <code>"departure_time"</code>/<code>"arrival_time"</code>. <code>Segment.carrier_code</code>/<code>.origin</code>/<code>.destination</code> are separately confirmed decoded from wrong keys too (real keys are <code>marketing_carrier_code</code>/<code>departure_airport</code>/<code>arrival_airport</code>) &mdash; left untouched, since fixing <code>carrier_code</code> is explicitly Milestone 8's job (<code>marketing_carrier_code ?? carrier_code</code> fallback), and <code>origin</code>/<code>destination</code> are unused anywhere in the app.</li>
+      <li>TDD cycle: updated <code>IgnavClientTests.swift</code>'s and <code>SearchRunnerTests.swift</code>'s JSON fixtures from the old fictional shape (<code>"duration": "2h35"</code>) to the real shape, with new assertions (red), then implemented custom <code>Decodable</code> inits for <code>Leg</code> (adds <code>carrier: String?</code>; <code>duration</code> now decodes <code>duration_minutes</code> and formats it, e.g. 145 &rarr; "2h25") and <code>Segment</code> (<code>departure_time</code>/<code>arrival_time</code> now decode from <code>departure_time_local</code>/<code>arrival_time_local</code> via a <code>CodingKeys</code> remap, formatted "HH:mm" from the ISO string), mirroring the existing <code>Price</code> custom-decoder precedent in the same file (green).</li>
+      <li>Added <code>PriceSnapshot.carrier</code>/<code>.departureTime</code>/<code>.arrivalTime</code> (all optional <code>String?</code>, <code>nil</code> defaults &mdash; safe for SwiftData lightweight migration against the existing on-disk store, unlike the non-optional-field migration crash hit earlier in Milestone 5). <code>SearchRunner.snapshot(for:run:)</code> populates them from <code>itinerary.outbound?.carrier</code>, <code>itinerary.outbound?.segments?.first?.departure_time</code>, and <code>itinerary.outbound?.segments?.last?.arrival_time</code> &mdash; first segment's departure / last segment's arrival, representing a possibly-multi-segment connection's overall span (exercised by the existing 2-segment <code>roundTripMapsLegSummaries</code> test).</li>
+      <li>Added "Carrier", "Departure", "Arrival" <code>TableColumn</code>s to <code>RunHistoryView.swift</code>'s <code>itineraryTable</code>, between the existing "Duration" and "ignav_id" columns.</li>
+      <li>Verified live against the real API (not just tests): refreshed a real search and confirmed the table shows correct real data &mdash; Duration "2h25", Carrier "Tap Air Portugal", Departure "08:45", Arrival "12:10" (screenshotted, user-visible confirmation).</li>
+      <li><strong>Automated-review fix:</strong> the initial <code>Segment.formatTime</code> fell back to returning the <em>raw, unparsed</em> ISO string when a date failed to parse, rather than <code>nil</code> &mdash; inconsistent with <code>formatDuration</code>'s and <code>Price</code>'s "fail invisibly, don't show malformed data" pattern elsewhere in the same file, and would have rendered a garbled timestamp instead of "&mdash;" if the API ever changed its date format. Fixed via TDD (added <code>decodesMalformedSegmentTimeAsNil</code>, red, then changed the fallback to <code>nil</code>, green).</li>
+      <li>Full test suite and app build both pass.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent, independently confirmed the multi-segment departure/arrival semantics via the 2-segment test, confirmed no other decode call site or fixture depends on the old <code>"duration"</code> key, and confirmed the new <code>PriceSnapshot</code> fields are SwiftData-migration-safe as all-optional): 1 Medium, 2 Low, 1 Info &mdash; loop converged after 1 of the allowed 3 iterations.
+        <ul>
+          <li><em>Medium &mdash; <code>Segment.formatTime</code>'s fallback returned the raw unparsed ISO string instead of <code>nil</code> on a parse failure, inconsistent with <code>formatDuration</code>/<code>Price</code>'s existing "fail invisibly" precedent in the same file; would render a garbled timestamp instead of "&mdash;" if the API's date format ever changed.</em> Resolution: <strong>Fixed</strong> &mdash; see Implementation notes above.</li>
+          <li><em>Low &mdash; <code>formatDuration</code> doesn't guard negative minutes (would render oddly, e.g. "0h-05"); not reachable from real API data.</em> Resolution: <strong>Deferred</strong> &mdash; left for review.</li>
+          <li><em>Low &mdash; <code>duration_minutes</code> is decoded strictly as <code>Int</code> with no numeric-as-string fallback, unlike <code>Price.amount</code>'s explicit tolerance for either encoding; speculative, the real payload uses a bare int.</em> Resolution: <strong>Deferred</strong> &mdash; left for review.</li>
+          <li><em>Info &mdash; the new "Carrier" column has no explicit <code>.width(...)</code> unlike its Duration/Departure/Arrival siblings; matches the pre-existing Outbound/Inbound columns' pattern, cosmetic only.</em> No action needed.</li>
+        </ul>
+      </li>
+    </ul>
     <div class="field-label">Review comments</div>
     <p class="empty">None yet.</p>
   </div>

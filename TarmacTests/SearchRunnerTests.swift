@@ -87,7 +87,9 @@ struct SearchRunnerTests
         let defaults = Self.freshDefaults()
         let ( response, raw ) = try Self.fares( itineraries: """
             { "ignav_id": "AB1", "price": { "amount": 350, "currency": "CHF" },
-              "outbound": { "segments": [ { "carrier_code": "LX", "flight_number": "123" } ], "duration": "2h35" } }
+              "outbound": { "carrier": "SWISS", "duration_minutes": 155,
+                "segments": [ { "carrier_code": "LX", "flight_number": "123",
+                  "departure_time_local": "2026-10-05T08:00:00", "arrival_time_local": "2026-10-05T10:35:00" } ] } }
             """ )
 
         let run = await SearchRunner.run(
@@ -121,6 +123,9 @@ struct SearchRunnerTests
         #expect( run.itineraries.first?.ignavID == "AB1" )
         #expect( run.itineraries.first?.outboundSummary == "LX123" )
         #expect( run.itineraries.first?.outboundDuration == "2h35" )
+        #expect( run.itineraries.first?.carrier == "SWISS" )
+        #expect( run.itineraries.first?.departureTime == "08:00" )
+        #expect( run.itineraries.first?.arrivalTime == "10:35" )
         #expect( run.itineraries.first?.inboundSummary == nil )
         #expect( run.itineraries.first?.run === run )
     }
@@ -329,7 +334,13 @@ struct SearchRunnerTests
             roundTripFetch: { _ in
                 try Self.fares( itineraries: """
                     { "ignav_id": "RT1", "price": { "amount": 900, "currency": "CHF" },
-                      "outbound": { "segments": [ { "carrier_code": "LX", "flight_number": "100" }, { "carrier_code": "TP", "flight_number": "200" } ], "duration": "5h00" },
+                      "outbound": { "carrier": "SWISS", "duration_minutes": 300,
+                        "segments": [
+                          { "carrier_code": "LX", "flight_number": "100",
+                            "departure_time_local": "2026-10-05T06:00:00", "arrival_time_local": "2026-10-05T08:00:00" },
+                          { "carrier_code": "TP", "flight_number": "200",
+                            "departure_time_local": "2026-10-05T09:00:00", "arrival_time_local": "2026-10-05T11:00:00" }
+                        ] },
                       "inbound": { "segments": [ { "carrier_code": "TP", "flight_number": "201" } ] } }
                     """ )
             }
@@ -339,6 +350,9 @@ struct SearchRunnerTests
         #expect( snapshot.outboundSummary == "LX100 → TP200" )
         #expect( snapshot.inboundSummary == "TP201" )
         #expect( snapshot.outboundDuration == "5h00" )
+        #expect( snapshot.carrier == "SWISS" )
+        #expect( snapshot.departureTime == "06:00" )
+        #expect( snapshot.arrivalTime == "11:00" )
         #expect( snapshot.run === run )
     }
 

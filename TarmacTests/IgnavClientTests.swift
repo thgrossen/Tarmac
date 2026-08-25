@@ -81,8 +81,16 @@ struct IgnavClientTests
                         "ignav_id": "abc123",
                         "price": { "amount": 542.0, "currency": "CHF" },
                         "outbound": {
-                            "segments": [ { "carrier_code": "LX", "flight_number": "1234" } ],
-                            "duration": "2h35"
+                            "carrier": "SWISS",
+                            "duration_minutes": 145,
+                            "segments": [
+                                {
+                                    "carrier_code": "LX",
+                                    "flight_number": "1234",
+                                    "departure_time_local": "2026-08-26T14:30:00",
+                                    "arrival_time_local": "2026-08-26T17:55:00"
+                                }
+                            ]
                         }
                     }
                 ]
@@ -95,7 +103,36 @@ struct IgnavClientTests
         let itinerary = try #require( decoded.itineraries.first )
         #expect( itinerary.ignav_id == "abc123" )
         #expect( itinerary.price.amount == 542.0 )
+        #expect( itinerary.outbound?.carrier == "SWISS" )
+        #expect( itinerary.outbound?.duration == "2h25" )
         #expect( itinerary.outbound?.segments?.first?.carrier_code == "LX" )
+        #expect( itinerary.outbound?.segments?.first?.departure_time == "14:30" )
+        #expect( itinerary.outbound?.segments?.first?.arrival_time == "17:55" )
         #expect( itinerary.inbound == nil )
+    }
+
+    @Test( "A malformed segment time string decodes to nil, not the raw value" )
+    func decodesMalformedSegmentTimeAsNil() throws
+    {
+        let json = """
+            {
+                "itineraries": [
+                    {
+                        "price": { "amount": 100, "currency": "CHF" },
+                        "outbound": {
+                            "segments": [
+                                { "departure_time_local": "not-a-date", "arrival_time_local": "17:55" }
+                            ]
+                        }
+                    }
+                ]
+            }
+            """.data( using: .utf8 )!
+
+        let decoded = try JSONDecoder().decode( FaresResponse.self, from: json )
+        let segment = try #require( decoded.itineraries.first?.outbound?.segments?.first )
+
+        #expect( segment.departure_time == nil )
+        #expect( segment.arrival_time == nil )
     }
 }
