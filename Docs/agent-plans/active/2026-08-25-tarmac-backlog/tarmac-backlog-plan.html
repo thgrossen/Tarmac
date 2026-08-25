@@ -356,7 +356,7 @@
     <li class="phase-label">Phase A &middot; Sidebar &amp; Navigation</li>
     <li><a href="#m1">1. Fix sidebar selection not updating the results pane</a><span class="status completed">Completed</span></li>
     <li><a href="#m2">2. Multiline, richer sidebar rows</a><span class="status completed">Completed</span></li>
-    <li><a href="#m3">3. Remove the "Tarmac" window title</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m3">3. Remove the "Tarmac" window title</a><span class="status completed">Completed</span></li>
 
     <li class="phase-label">Phase B &middot; Search Input &amp; Preferences</li>
     <li><a href="#m4">4. Add Market preference and remove hardcoded "CH"</a><span class="status not-started">Not started</span></li>
@@ -467,7 +467,7 @@
   <div class="milestone" id="m3">
     <div class="milestone-head">
       <h3>3. Remove the "Tarmac" window title</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p><strong>Goal:</strong> The "Tarmac" navigation title on the main window adds no value and should go.</p>
     <div class="field-label">Tasks</div>
@@ -476,13 +476,19 @@
       <li>Confirm the resulting title bar still looks acceptable on macOS (decide whether to leave it blank or use the system default).</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>Removed <code>.navigationTitle( "Tarmac" )</code> from <code>ContentView</code>'s <code>NavigationSplitView</code>. No TDD applicable &mdash; a one-line UI removal with no testable logic.</li>
+      <li>Verified live in a running debug build: the title bar still reads "Tarmac", but that text now comes from macOS's own default window-title behavior (derived from the app bundle's target name, since the project has no static <code>Info.plist</code>/<code>CFBundleDisplayName</code> override) rather than the removed explicit modifier &mdash; the "system default" option from the task list. Looks like a normal, acceptable macOS title bar.</li>
+      <li>Full test suite and app build both pass; confirmed via repo-wide grep that nothing else references <code>.navigationTitle</code> or depends on the removed modifier.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent, independently greped the repo for other title-related modifiers and checked <code>TarmacApp.swift</code>'s <code>WindowGroup</code>/<code>Settings</code> scenes and the Xcode project's Info.plist generation settings): no findings of any severity &mdash; loop converged after 1 of the allowed 3 iterations.</li>
+    </ul>
     <div class="field-label">Review comments</div>
     <p class="empty">None yet.</p>
   </div>

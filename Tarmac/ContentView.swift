@@ -21,7 +21,6 @@ struct ContentView: View
         } detail: {
             ResultsPane( search: selectedSearch, refreshState: self.refreshState )
         }
-        .navigationTitle( "Tarmac" )
     }
 }
 
