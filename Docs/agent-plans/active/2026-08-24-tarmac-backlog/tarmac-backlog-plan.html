@@ -483,7 +483,7 @@ td code
         <li><a href="#m7">7. Sidebar becomes a list of saved searches</a><span class="status completed">Completed</span></li>
         <li><a href="#m8">8. "+" button and new-search sheet shell</a><span class="status completed">Completed</span></li>
         <li><a href="#m9">9. One-way search options form</a><span class="status completed">Completed</span></li>
-        <li><a href="#m10">10. Round-trip search options form</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m10">10. Round-trip search options form</a><span class="status completed">Completed</span></li>
 
         <li class="toc-phase">Phase E — Results pane &amp; run history</li>
         <li><a href="#m11">11. Refresh button runs the selected search</a><span class="status not-started">Not started</span></li>
@@ -858,21 +858,37 @@ td code
     <div class="milestone" id="m10">
         <div class="milestone-head">
             <h4>10. Round-trip search options form</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-25">2026-08-25</time></p>
         <p class="goal">Capture the fields that define a round-trip shape, per the backlog: origin, destination, date range, trip duration, flexibility, must-include-weekend, cabin class, direct-only, luggage included.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Build the form with origin/destination, date range, trip duration stepper, flexibility stepper, must-include-weekend checkbox, cabin class picker, direct-only checkbox, luggage-included checkbox.</li>
-            <li><input type="checkbox" disabled> "Save" creates a <code class="inline">SavedSearch(kind: .roundTrip, ...)</code>, inserts it, dismisses the sheet, selects the new search.</li>
-            <li><input type="checkbox" disabled> Same IATA validation as Milestone 9.</li>
+            <li><input type="checkbox" checked disabled> Build the form with origin/destination, date range, trip duration stepper, flexibility stepper, must-include-weekend checkbox, cabin class picker, direct-only checkbox, luggage-included checkbox.</li>
+            <li><input type="checkbox" checked disabled> "Save" creates a <code class="inline">SavedSearch(kind: .roundTrip, ...)</code>, inserts it, dismisses the sheet, selects the new search.</li>
+            <li><input type="checkbox" checked disabled> Same IATA validation as Milestone 9.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Checked the original backlog source doc again for the round-trip section's exact field descriptions (trip duration, ± flexibility, must-include-weekend) to keep field labels/wording consistent with the source intent.</li>
+            <li>Added <code class="inline">Tarmac/RoundTripSearchForm.swift</code>, structurally parallel to Milestone 9's <code class="inline">OneWaySearchForm.swift</code>: same origin/destination/date-range/cabin/direct-only/luggage-included fields and Save/validation pattern, plus a "Trip duration" stepper (1–30 nights), a "Flexibility" stepper (±0–14 days), and a "Must include a weekend" toggle, all passed into <code class="inline">SavedSearch(kind: .roundTrip, ...)</code>. Deliberately built as a mostly-independent file rather than sharing a "common fields" component with <code class="inline">OneWaySearchForm.swift</code> up front, since the plan's task list lists round-trip's full field set independently and only explicitly calls for reusing IATA validation (already shared via <code class="inline">IATACode</code>).</li>
+            <li>Wired the <code class="inline">.roundTrip</code> case in <code class="inline">NewSearchSheet</code>'s step switch to <code class="inline">RoundTripSearchForm</code>, removed the now-fully-unused <code class="inline">NewSearchOptionsPlaceholder</code> (both wizard branches now show real forms), and grew the sheet's shared fixed frame from 420pt to 480pt to fit round-trip's three extra rows.</li>
+            <li>No new tests: same <code class="inline">@Environment</code>/<code class="inline">@State</code>-coupled view code as <code class="inline">OneWaySearchForm</code>, reusing the already-tested <code class="inline">IATACode</code>. All 41 tests pass; verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>. Could not visually verify the rendered form myself (still no Screen Recording permission).</li>
+            <li><strong>Follow-up from the automated review's Medium finding:</strong> extracted a shared <code class="inline">Tarmac/CabinClassPicker.swift</code> and updated both <code class="inline">OneWaySearchForm.swift</code> (Milestone 9, already committed) and <code class="inline">RoundTripSearchForm.swift</code> to use it, removing the duplicated four-tag cabin-class <code class="inline">Picker</code> that the review flagged as a real two-sources-of-truth risk.</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, verified the <code class="inline">onCreate</code>/selection chain end-to-end for round-trip the same way it was traced for one-way in Milestone 9, cross-checked Stepper ranges against <code class="inline">RoundTripShapeSearch.candidates(for:)</code>'s implicit assumptions, and hand-verified <code class="inline">save()</code>'s 10-argument field mapping): 1 Medium finding, 1 Low, 2 Info.
+                <ul>
+                    <li><em>Medium — <code class="inline">OneWaySearchForm.swift</code> and <code class="inline">RoundTripSearchForm.swift</code> duplicated the cabin-class <code class="inline">Picker</code> verbatim (all four hardcoded tag rows) — a concrete, already-existing two-sources-of-truth risk, not speculative.</em> Resolution: <strong>Fixed</strong> — extracted <code class="inline">CabinClassPicker</code>, used by both forms.</li>
+                    <li><em>Low — the sheet's shared fixed frame size has grown every milestone that added a step (360→420→480) to fit whichever form currently needs the most room.</em> Resolution: <strong>Deferred</strong> — no action needed now per the reviewer; noted as a pattern that won't scale indefinitely if a future step needs even more room.</li>
+                    <li><em>Info — confirmed the Stepper ranges (1–30 nights, ±0–14 days) don't violate any implicit assumption in <code class="inline">RoundTripShapeSearch.candidates(for:)</code>, and confirmed <code class="inline">save()</code>'s field mapping has no swapped parameters.</em></li>
+                </ul>
+            </li>
+            <li><strong>Round 2</strong> (new fresh sub-agent, independently re-ran build + tests, grepped the whole tree to confirm no duplicate inline cabin <code class="inline">Picker</code> remained anywhere, and did a full independent re-review rather than only checking the one fix): no Medium/Critical/High findings — confirmed the extraction is correct and complete, confirmed no regression in either form's Save/validation/<code class="inline">onCreate</code> behavior or in the wizard's Back/Cancel navigation, and confirmed omitting a Doxygen doc comment on <code class="inline">CabinClassPicker</code> is consistent with this codebase's established convention (no <code class="inline">View</code>-conforming struct anywhere carries one). Loop converged after 2 of the allowed 3 iterations.</li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>

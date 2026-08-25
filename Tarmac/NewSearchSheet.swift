@@ -43,7 +43,7 @@ struct NewSearchSheet: View
                     OneWaySearchForm( onCreate: self.onCreate )
 
                 case .roundTrip:
-                    NewSearchOptionsPlaceholder( kind: .roundTrip )
+                    RoundTripSearchForm( onCreate: self.onCreate )
 
                 case nil:
                     NewSearchKindChooser
@@ -52,7 +52,7 @@ struct NewSearchSheet: View
                     }
             }
         }
-        .frame( width: 420, height: 420 )
+        .frame( width: 420, height: 480 )
     }
 }
 
@@ -89,20 +89,5 @@ private struct NewSearchKindChooser: View
         }
         .frame( maxWidth: .infinity, maxHeight: .infinity )
         .padding()
-    }
-}
-
-private struct NewSearchOptionsPlaceholder: View
-{
-    var kind: SearchKind
-
-    var body: some View
-    {
-        ContentUnavailableView(
-            self.kind == .roundTrip ? "Round Trip Search" : "One-Way Search",
-            systemImage: "airplane.departure",
-            description: Text( "This step isn't implemented yet." )
-        )
-        .frame( maxWidth: .infinity, maxHeight: .infinity )
     }
 }
