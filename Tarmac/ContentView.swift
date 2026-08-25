@@ -84,6 +84,7 @@ struct ResultsPane: View
         if let search
         {
             SearchDetailView( search: search, refreshState: self.refreshState )
+                .id( search.id )
         }
         else
         {
@@ -103,6 +104,8 @@ struct SearchDetailView: View
     var refreshState: RefreshState
 
     @Environment( \.modelContext ) private var modelContext
+    @State private var selectedRun: SearchRun?
+    @State private var isFollowingLatestRun = true
 
     private var isLoading: Bool { self.refreshState.isLoading( self.search.id ) }
     private var errorMessage: String? { self.refreshState.errorMessage( for: self.search.id ) }
@@ -157,12 +160,39 @@ struct SearchDetailView: View
 
             Divider()
 
-            ContentUnavailableView(
-                "No results yet",
-                systemImage: "airplane.circle",
-                description: Text( "Refresh this search to check current prices." )
-            )
-            .frame( maxWidth: .infinity, maxHeight: .infinity )
+            let runs = self.search.runsNewestFirst
+            if runs.isEmpty
+            {
+                ContentUnavailableView(
+                    "No results yet",
+                    systemImage: "airplane.circle",
+                    description: Text( "Refresh this search to check current prices." )
+                )
+                .frame( maxWidth: .infinity, maxHeight: .infinity )
+            }
+            else
+            {
+                RunHistoryView(
+                    runs: runs,
+                    selection: self.$selectedRun,
+                    isFollowingLatest: self.$isFollowingLatestRun
+                )
+                .onAppear
+                {
+                    if self.selectedRun == nil
+                    {
+                        self.selectedRun = runs.first
+                    }
+                }
+                .onChange( of: runs.count )
+                {
+                    let selectionStillValid = runs.contains { $0.id == self.selectedRun?.id }
+                    if self.isFollowingLatestRun || selectionStillValid == false
+                    {
+                        self.selectedRun = runs.first
+                    }
+                }
+            }
         }
         .frame( minWidth: 620, minHeight: 420 )
     }

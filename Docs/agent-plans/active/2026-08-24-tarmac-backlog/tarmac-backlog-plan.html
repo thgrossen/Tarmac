@@ -487,7 +487,7 @@ td code
 
         <li class="toc-phase">Phase E — Results pane &amp; run history</li>
         <li><a href="#m11">11. Refresh button runs the selected search</a><span class="status completed">Completed</span></li>
-        <li><a href="#m12">12. Show run history in the results pane</a><span class="status not-started">Not started</span></li>
+        <li><a href="#m12">12. Show run history in the results pane</a><span class="status completed">Completed</span></li>
     </ul>
 </section>
 
@@ -945,21 +945,37 @@ td code
     <div class="milestone" id="m12">
         <div class="milestone-head">
             <h4>12. Show run history in the results pane</h4>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p class="meta">Completed <time datetime="2026-08-25">2026-08-25</time></p>
         <p class="goal">Keep every result run for the selected search visible, not only the most recent one, so price movement over time is legible.</p>
 
         <h5>Tasks</h5>
         <ul class="tasks">
-            <li><input type="checkbox" disabled> Add a run picker (list of past runs by timestamp + cheapest price) above the existing itineraries table, defaulting to the most recent run.</li>
-            <li><input type="checkbox" disabled> Selecting an older run shows that run's itineraries in the existing <code class="inline">Table</code> (price/outbound/inbound/duration/ignav_id columns) and its "JSON brut" tab.</li>
-            <li><input type="checkbox" disabled> Show price movement at a glance (e.g. cheapest-price delta vs. the previous run) so a search's history is legible without opening every run individually.</li>
+            <li><input type="checkbox" checked disabled> Add a run picker (list of past runs by timestamp + cheapest price) above the existing itineraries table, defaulting to the most recent run.</li>
+            <li><input type="checkbox" checked disabled> Selecting an older run shows that run's itineraries in the existing <code class="inline">Table</code> (price/outbound/inbound/duration/ignav_id columns) and its "JSON brut" tab.</li>
+            <li><input type="checkbox" checked disabled> Show price movement at a glance (e.g. cheapest-price delta vs. the previous run) so a search's history is legible without opening every run individually.</li>
         </ul>
 
         <h5>Implementation notes</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li>Added <code class="inline">SearchRun.cheapestFare: PriceSnapshot?</code> (the lowest-<code class="inline">amount</code> itinerary, or nil) and <code class="inline">SearchRun.priceDelta(previous:) -> Double?</code> (this run's cheapest minus <code class="inline">previous</code>'s, nil if either has no fares or there's no previous run), plus <code class="inline">SavedSearch.runsNewestFirst: [SearchRun]</code> (<code class="inline">runs</code> sorted by <code class="inline">runAt</code> descending) — all as tested computed properties/methods on the models, following the same pattern as <code class="inline">SavedSearch.summary</code>/<code class="inline">dateRangeLabel</code>.</li>
+            <li>Added <code class="inline">Tarmac/RunHistoryView.swift</code>: <code class="inline">RunHistoryView</code> (public) takes a newest-first <code class="inline">runs: [SearchRun]</code> and a <code class="inline">selection</code> binding; renders a horizontally-scrolling <code class="inline">RunPicker</code> of tappable <code class="inline">RunChip</code>s (timestamp, cheapest fare, colored up/down delta vs. the previous run) above a <code class="inline">RunDetailView</code> for the selected run — a segmented "Itineraries"/"Raw JSON" tab, the Itineraries tab being the adapted <code class="inline">Table</code> (Price/Outbound/Inbound/Duration/ignav_id columns) that Milestone 7 removed pending this milestone re-adding it against the new <code class="inline">PriceSnapshot</code> shape. The plan's task-list wording "JSON brut" was the original French UI's tab name, quoted descriptively, not literally — per the app's English-UI convention (Milestone 4 onward) this ships as "Raw JSON".</li>
+            <li><code class="inline">Tarmac/ContentView.swift</code>'s <code class="inline">SearchDetailView</code> gained <code class="inline">@State private var selectedRun: SearchRun?</code>, computes <code class="inline">let runs = self.search.runsNewestFirst</code>, and shows the existing "No results yet" empty state when empty or <code class="inline">RunHistoryView</code> otherwise, defaulting <code class="inline">selectedRun</code> to the newest run on first appearance. <code class="inline">ResultsPane</code> re-applies <code class="inline">.id(search.id)</code> to <code class="inline">SearchDetailView</code> (removed during Milestone 11's duplicate-refresh fix) specifically to reset this new, purely-synchronous local <code class="inline">@State</code> when the sidebar selection changes — safe to reintroduce because Milestone 11 moved the one piece of state an in-flight async <code class="inline">Task</code> writes into (<code class="inline">isLoading</code>/<code class="inline">errorMessage</code>) out into the externally-owned <code class="inline">RefreshState</code>, which isn't affected by this view's teardown.</li>
+            <li>TDD cycle: extended <code class="inline">TarmacTests/SearchRunTests.swift</code> and <code class="inline">TarmacTests/SavedSearchTests.swift</code> first (red — the new model members didn't exist), covering <code class="inline">cheapestFare</code> tie-breaking, all four <code class="inline">priceDelta</code> nil-propagation cases plus the difference computation, and <code class="inline">runsNewestFirst</code> ordering. Implemented until green; verified via <code class="inline">xcodebuild test</code> and a full <code class="inline">xcodebuild build</code>. <code class="inline">RunHistoryView</code>/<code class="inline">RunPicker</code>/<code class="inline">RunChip</code>/<code class="inline">RunDetailView</code> are pure declarative SwiftUI with no extractable logic beyond the already-tested model members, matching the precedent from Milestones 4/7/8/9/10 — no dedicated view tests added.</li>
+            <li><strong>Follow-up from automated review round 1</strong> (all three findings fixed): (1) <em>Medium</em> — <code class="inline">.onChange(of: runs.count)</code> was unconditionally resetting <code class="inline">selectedRun</code> to the newest run on every refresh, discarding a manual selection of an older run mid-comparison. Fixed with a second piece of state, <code class="inline">isFollowingLatestRun: Bool</code> (default <code class="inline">true</code>), threaded down to <code class="inline">RunPicker</code> and cleared to <code class="inline">false</code> on any manual chip tap; the reset now only fires when still following latest, or when the current selection has actually become invalid — preserving "defaults to the most recent run" across repeated refreshes while no longer yanking away a deliberate older-run selection. (2) <em>Low</em> — the price-delta arrow's suppression check compared the untruncated <code class="inline">Double</code> to zero while the displayed magnitude used <code class="inline">Int(...)</code> truncation, so a sub-1.0 delta (e.g. 0.4) could render an arrow next to a "0". Fixed by gating on <code class="inline">Int(delta) != 0</code>, matching the display truncation exactly. (3) <em>Low</em> — the "pair each run with its chronological predecessor" indexing lived untested, inline in <code class="inline">RunPicker</code>. Extracted to a tested <code class="inline">Array&lt;SearchRun&gt;.pairedWithPrevious()</code> in <code class="inline">SearchRun.swift</code>, used by <code class="inline">RunPicker</code> via <code class="inline">ForEach(self.runs.pairedWithPrevious(), id: \.run.id)</code>.</li>
+        </ul>
         <h5>Automated review</h5>
-        <p class="field empty">Not started.</p>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, built and ran the full suite independently): no Critical/High findings; 1 Medium, 2 Low (a third Low — file headers, already-adjudicated per Milestone 5 — not treated as a live finding).
+                <ul>
+                    <li><em>Medium — <code class="inline">.onChange(of: runs.count)</code> discards a valid manual run selection on every refresh.</em> Resolution: <strong>Fixed</strong> — see Implementation notes.</li>
+                    <li><em>Low — price-delta arrow could render alongside a "0" for sub-1.0-magnitude deltas.</em> Resolution: <strong>Fixed</strong>.</li>
+                    <li><em>Low — previous-run pairing logic untested, inline in view code.</em> Resolution: <strong>Fixed</strong> — extracted and tested.</li>
+                </ul>
+            </li>
+            <li><strong>Round 2</strong> (new fresh sub-agent, independently re-ran build + full test suite, traced the <code class="inline">isFollowingLatestRun</code>/<code class="inline">selectedRun</code> interaction through a concrete multi-refresh/manual-selection sequence, and verified the truncation-guard fix algebraically for near-zero deltas in both directions): confirmed all three fixes correct and complete, no new Critical/High/Medium/Low findings. Two Info-level observations, both pre-existing (not introduced by this milestone or its fix cycle) and left as-is: <code class="inline">RunDetailView</code>'s Itineraries/Raw JSON tab selection isn't reset when switching which run is selected (plausibly intentional — lets you compare the same tab across runs); the run picker doesn't auto-scroll to keep the newest chip visible if the user has manually scrolled it while still "following latest". Loop converged after 2 of the allowed 3 iterations.</li>
+        </ul>
         <h5>Review comments</h5>
         <p class="field empty">Not started.</p>
     </div>

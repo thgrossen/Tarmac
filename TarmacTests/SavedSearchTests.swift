@@ -123,4 +123,23 @@ struct SavedSearchTests
 
         #expect( search.summary == "GVA → LIS · round trip · 5–12 Oct" )
     }
+
+    @Test( "runsNewestFirst sorts runs by runAt descending" )
+    func runsNewestFirst()
+    {
+        let search = SavedSearch(
+            kind: .roundTrip,
+            origin: "GVA",
+            destination: "LIS",
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 12 ),
+            cabinClass: "business"
+        )
+        let oldest = SearchRun( runAt: Self.utcDate( 2026, 10, 1 ), requestCount: 1 )
+        let middle = SearchRun( runAt: Self.utcDate( 2026, 10, 2 ), requestCount: 1 )
+        let newest = SearchRun( runAt: Self.utcDate( 2026, 10, 3 ), requestCount: 1 )
+        search.runs = [ middle, oldest, newest ]
+
+        #expect( search.runsNewestFirst.map( \.id ) == [ newest.id, middle.id, oldest.id ] )
+    }
 }

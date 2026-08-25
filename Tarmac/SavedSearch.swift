@@ -74,6 +74,14 @@ final class SavedSearch
         return "\( self.origin ) → \( self.destination ) · \( kindLabel ) · \( self.dateRangeLabel )"
     }
 
+    /**
+     * This search's runs, most recent first.
+     */
+    var runsNewestFirst: [ SearchRun ]
+    {
+        self.runs.sorted { $0.runAt > $1.runAt }
+    }
+
     private static let dayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "d"
