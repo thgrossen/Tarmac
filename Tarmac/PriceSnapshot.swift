@@ -37,4 +37,19 @@ final class PriceSnapshot
         self.outboundDuration = outboundDuration
         self.run = run
     }
+
+    /**
+     * Amount and currency for display, e.g. "397 CHF", or `nil` when `amount` isn't finite
+     * (e.g. an unparseable price from the API).
+     */
+    var formattedAmount: String?
+    {
+        guard self.amount.isFinite
+        else
+        {
+            return nil
+        }
+
+        return "\( Int( self.amount )) \( self.currency )"
+    }
 }

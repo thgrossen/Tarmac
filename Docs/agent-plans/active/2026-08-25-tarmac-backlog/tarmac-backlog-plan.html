@@ -355,7 +355,7 @@
   <ol>
     <li class="phase-label">Phase A &middot; Sidebar &amp; Navigation</li>
     <li><a href="#m1">1. Fix sidebar selection not updating the results pane</a><span class="status completed">Completed</span></li>
-    <li><a href="#m2">2. Multiline, richer sidebar rows</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m2">2. Multiline, richer sidebar rows</a><span class="status completed">Completed</span></li>
     <li><a href="#m3">3. Remove the "Tarmac" window title</a><span class="status not-started">Not started</span></li>
 
     <li class="phase-label">Phase B &middot; Search Input &amp; Preferences</li>
@@ -423,7 +423,7 @@
   <div class="milestone" id="m2">
     <div class="milestone-head">
       <h3>2. Multiline, richer sidebar rows</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p>
       <strong>Goal:</strong> Sidebar rows are currently a single line of text. Show more at a
@@ -437,13 +437,29 @@
       <li>Verify readability at the sidebar's existing width range (220&ndash;340pt).</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>TDD cycle: extracted a new <code>SavedSearch.tripDetail: String</code> computed property (<code>"&lt;kind&gt; · &lt;dateRangeLabel&gt;"</code>, e.g. "round trip · 5&ndash;12 Oct"), adding two tests first (red &mdash; <code>tripDetail</code> didn't exist), then implementing it (green) and refactoring the pre-existing <code>summary</code> to build on top of it instead of duplicating the kind/date-range logic. All pre-existing <code>summary</code> tests still pass unchanged, confirming the refactor is behavior-preserving.</li>
+      <li>Redesigned <code>SearchRow</code> (ContentView.swift) as a <code>VStack</code>: a bold <code>.headline</code> primary line (<code>"&lt;origin&gt; → &lt;destination&gt;"</code>), and a <code>.caption</code>/<code>.secondary</code> line with <code>tripDetail</code> plus the most recent run's cheapest fare when available. Added <code>.frame(maxWidth: .infinity, alignment: .leading)</code> and <code>.contentShape(Rectangle())</code> so the whole row stays one tap/click target now that its content no longer naturally fills the row width, keeping Milestone 1's row-selection fix working.</li>
+      <li>Verified live in a running debug build (screenshot): bold route line, muted secondary line, price shown on rows with existing run history (e.g. "397 CHF"); user confirmed visually ("looks nice") and that row-click selection still works.</li>
+      <li><strong>Automated-review fix:</strong> the initial fare text used <code>Int(cheapestFare.amount)</code> directly, which traps on a non-finite <code>Double</code> (NaN) &mdash; and <code>PriceSnapshot.amount</code> can genuinely be <code>.nan</code> for an unparseable API price (models.swift), which <code>SearchRun.cheapestFare</code>'s <code>min</code>-by-amount can select since NaN comparisons are always <code>false</code>. Fixed via TDD: added a NaN-safe <code>PriceSnapshot.formattedAmount: String?</code> computed property (tests written first, red, then implemented, green), and <code>SearchRow</code> now uses it instead of formatting inline. This also dedupes the "amount + currency" format string that <code>RunHistoryView</code>'s <code>RunChip</code> already had inline (left untouched &mdash; out of this milestone's scope, and it has the same pre-existing NaN risk, noted below for awareness).</li>
+      <li>Full test suite (<code>xcodebuild test</code>) and a full app build both pass after the fix.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent): 1 High, 3 Low, 1 Info.
+        <ul>
+          <li><em>High &mdash; <code>Int(cheapestFare.amount)</code> traps on a confirmed-reachable NaN price, and this diff moves that crash from an opt-in detail view into the always-visible sidebar (renders for every saved search on launch).</em> Resolution: <strong>Fixed</strong> &mdash; see <code>PriceSnapshot.formattedAmount</code> above.</li>
+          <li><em>Low &mdash; <code>runsNewestFirst.first?.cheapestFare</code> fully sorts every search's runs on every sidebar row render just to find the newest one; an O(m) <code>max(by:)</code> would suffice.</em> Resolution: <strong>Deferred</strong> &mdash; left for review; not a current perf concern at this app's scale.</li>
+          <li><em>Low &mdash; the same "amount + currency" fare-formatting pattern is now duplicated between <code>SearchRow</code> and <code>RunHistoryView</code>'s pre-existing <code>RunChip</code> (which also has the same un-guarded <code>Int(amount)</code> NaN risk, untouched since it's outside this milestone's file).</em> Resolution: <strong>Deferred</strong> &mdash; <code>SearchRow</code> now uses the new NaN-safe <code>formattedAmount</code>; migrating <code>RunChip</code> to it too is left for review/a future milestone.</li>
+          <li><em>Low &mdash; the secondary line (kind · date range · optional fare) has no truncation guard at the sidebar's 220pt minimum width and could wrap, making row heights inconsistent.</em> Resolution: <strong>Deferred</strong> &mdash; left for review; manual verification was at the default ~260&ndash;310pt width, not the 220pt floor.</li>
+          <li><em>Info &mdash; the sidebar's fare text isn't <code>.monospacedDigit()</code> unlike <code>RunChip</code>'s.</em> Resolution: <strong>Deferred</strong> &mdash; purely cosmetic, left for review.</li>
+        </ul>
+      </li>
+    </ul>
     <div class="field-label">Review comments</div>
     <p class="empty">None yet.</p>
   </div>

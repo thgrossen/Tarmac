@@ -124,6 +124,36 @@ struct SavedSearchTests
         #expect( search.summary == "GVA → LIS · round trip · 5–12 Oct" )
     }
 
+    @Test( "Trip detail for a round trip within the same month" )
+    func tripDetailRoundTripSameMonth()
+    {
+        let search = SavedSearch(
+            kind: .roundTrip,
+            origin: "GVA",
+            destination: "LIS",
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 12 ),
+            cabinClass: "business"
+        )
+
+        #expect( search.tripDetail == "round trip · 5–12 Oct" )
+    }
+
+    @Test( "Trip detail for a one-way search spanning two months" )
+    func tripDetailOneWayCrossMonth()
+    {
+        let search = SavedSearch(
+            kind: .oneWay,
+            origin: "GVA",
+            destination: "LIS",
+            rangeStart: Self.utcDate( 2026, 9, 28 ),
+            rangeEnd: Self.utcDate( 2026, 10, 3 ),
+            cabinClass: "economy"
+        )
+
+        #expect( search.tripDetail == "one-way · 28 Sep – 3 Oct" )
+    }
+
     @Test( "runsNewestFirst sorts runs by runAt descending" )
     func runsNewestFirst()
     {

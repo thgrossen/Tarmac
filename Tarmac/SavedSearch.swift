@@ -70,8 +70,16 @@ final class SavedSearch
      */
     var summary: String
     {
+        "\( self.origin ) → \( self.destination ) · \( self.tripDetail )"
+    }
+
+    /**
+     * Trip kind and date range, e.g. "round trip · 5–12 Oct".
+     */
+    var tripDetail: String
+    {
         let kindLabel = self.kind == .roundTrip ? "round trip" : "one-way"
-        return "\( self.origin ) → \( self.destination ) · \( kindLabel ) · \( self.dateRangeLabel )"
+        return "\( kindLabel ) · \( self.dateRangeLabel )"
     }
 
     /**

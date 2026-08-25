@@ -86,8 +86,27 @@ struct SearchRow: View
 
     var body: some View
     {
-        Text( search.summary )
-            .padding( .vertical, 2 )
+        VStack( alignment: .leading, spacing: 3 )
+        {
+            Text( "\( self.search.origin ) → \( self.search.destination )" )
+                .font( .headline )
+
+            HStack( spacing: 4 )
+            {
+                Text( self.search.tripDetail )
+
+                if let cheapestFare = self.search.runsNewestFirst.first?.cheapestFare,
+                   let formattedAmount = cheapestFare.formattedAmount
+                {
+                    Text( "· \( formattedAmount )" )
+                }
+            }
+            .font( .caption )
+            .foregroundStyle( .secondary )
+        }
+        .padding( .vertical, 4 )
+        .frame( maxWidth: .infinity, alignment: .leading )
+        .contentShape( Rectangle() )
     }
 }
 

@@ -43,4 +43,20 @@ struct PriceSnapshotTests
         #expect( snapshot.inboundSummary == "LIS → GVA, TP987" )
         #expect( snapshot.outboundDuration == "2h35" )
     }
+
+    @Test( "Formatted amount for a finite price" )
+    func formattedAmountFinite()
+    {
+        let snapshot = PriceSnapshot( amount: 397.0, currency: "CHF" )
+
+        #expect( snapshot.formattedAmount == "397 CHF" )
+    }
+
+    @Test( "Formatted amount is nil for a non-finite price" )
+    func formattedAmountNonFinite()
+    {
+        let snapshot = PriceSnapshot( amount: .nan, currency: "CHF" )
+
+        #expect( snapshot.formattedAmount == nil )
+    }
 }
