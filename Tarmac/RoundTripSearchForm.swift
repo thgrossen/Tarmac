@@ -75,7 +75,7 @@ struct RoundTripSearchForm: View
             HStack
             {
                 Spacer()
-                Button( "Save" )
+                Button( "Search" )
                 {
                     self.save()
                 }

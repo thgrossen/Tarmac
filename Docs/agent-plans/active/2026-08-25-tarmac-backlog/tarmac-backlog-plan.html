@@ -361,7 +361,7 @@
     <li class="phase-label">Phase B &middot; Search Input &amp; Preferences</li>
     <li><a href="#m4">4. Add Market preference and remove hardcoded "CH"</a><span class="status completed">Completed</span></li>
     <li><a href="#m5">5. Add number-of-passengers field</a><span class="status completed">Completed</span></li>
-    <li><a href="#m6">6. Rename "Save" to "Search" and run immediately</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m6">6. Rename "Save" to "Search" and run immediately</a><span class="status completed">Completed</span></li>
 
     <li class="phase-label">Phase C &middot; Results Table</li>
     <li><a href="#m7">7. Fix empty Duration; add carrier, departure, and arrival columns</a><span class="status not-started">Not started</span></li>
@@ -580,7 +580,7 @@
   <div class="milestone" id="m6">
     <div class="milestone-head">
       <h3>6. Rename "Save" to "Search" and run immediately</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p>
       <strong>Goal:</strong> Creating a new search should feel like searching, not just saving a
@@ -595,13 +595,26 @@
       <li>Verify: creating a new search shows a run in <code>RunHistoryView</code> without pressing Refresh.</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>Renamed the "Save" button to "Search" in both <code>OneWaySearchForm.swift</code> and <code>RoundTripSearchForm.swift</code> &mdash; label only, <code>save()</code>'s internal logic and name unchanged.</li>
+      <li><code>SearchSidebar</code> now receives <code>refreshState: RefreshState</code> from <code>ContentView</code> (which already owned it for the detail pane's "Refresh" button) and gained <code>@Environment(\.modelContext)</code>. Its <code>NewSearchSheet</code> <code>onCreate</code> closure &mdash; after setting <code>selection</code>/<code>selectedID</code> (from Milestone 1's fix) &mdash; now also kicks off <code>Task { await self.runInitialSearch(for: newSearch) }</code>.</li>
+      <li>Added <code>SearchSidebar.runInitialSearch(for:)</code>, deliberately mirroring the pre-existing <code>SearchDetailView.refresh()</code> exactly (same API-key check, <code>RefreshState.beginRefresh</code>/<code>endRefresh</code> calls, <code>SearchRunner.run</code>, <code>modelContext.insert(run)</code>) so the new search's loading/error UI is the app's one existing pattern, not a new one &mdash; no new UI was added. Since the new search is auto-selected synchronously before the run's <code>Task</code> starts, <code>SearchDetailView</code>'s existing "Refresh" button (spinner + "Refreshing…", <code>.disabled</code> while loading) reflects the in-flight run automatically once it renders for the new search.</li>
+      <li>No new tests: this is SwiftUI/environment wiring with no unit-testable seam (mirrors how <code>SearchDetailView.refresh()</code> itself isn't unit tested either). Verified live instead, per the milestone's own verify step.</li>
+      <li>Verified live: full test suite and app build both pass; the user confirmed both buttons read "Search" and that creating a new search shows a run in the results pane without pressing Refresh.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent, independently traced that <code>modelContext</code>/<code>refreshState</code> are the same shared instances end-to-end, confirmed result attribution is keyed off the captured <code>search</code> parameter rather than later selection state so concurrent creations can't cross-contaminate, and grepped for stray "Save" strings and other <code>SearchSidebar(...)</code> call sites): no Critical/High/Medium findings &mdash; loop converged after 1 of the allowed 3 iterations.
+        <ul>
+          <li><em>Low &mdash; <code>runInitialSearch</code> and <code>SearchDetailView.refresh()</code> are now near-duplicate methods; a future change to this flow (error copy, retry/backoff, telemetry) would need updating in both places.</em> Resolution: <strong>Deferred</strong> &mdash; left for review; not urgent for two short, self-contained call sites, but worth extracting if a third ever appears.</li>
+          <li><em>Info &mdash; the design intent that <code>refreshState.isLoading</code> is already <code>true</code> "by the time <code>SearchDetailView</code> renders" isn't a hard guarantee, since <code>Task { await ... }</code> enqueues rather than running inline; confirmed this is imperceptible in practice and matches the pre-existing <code>SearchDetailView.refresh()</code>'s own <code>Task</code> pattern, so not a regression.</em> No action needed.</li>
+        </ul>
+      </li>
+    </ul>
     <div class="field-label">Review comments</div>
     <p class="empty">None yet.</p>
   </div>

@@ -60,7 +60,7 @@ struct OneWaySearchForm: View
             HStack
             {
                 Spacer()
-                Button( "Save" )
+                Button( "Search" )
                 {
                     self.save()
                 }

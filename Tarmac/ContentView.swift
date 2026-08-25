@@ -16,7 +16,7 @@ struct ContentView: View
     {
         NavigationSplitView
         {
-            SearchSidebar( selection: $selectedSearch )
+            SearchSidebar( selection: $selectedSearch, refreshState: self.refreshState )
                 .navigationSplitViewColumnWidth( min: 220, ideal: 260, max: 340 )
         } detail: {
             ResultsPane( search: selectedSearch, refreshState: self.refreshState )
@@ -30,6 +30,9 @@ struct SearchSidebar: View
 {
     @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var searches: [ SavedSearch ]
     @Binding var selection: SavedSearch?
+    var refreshState: RefreshState
+
+    @Environment( \.modelContext ) private var modelContext
     @State private var selectedID: SavedSearch.ID?
     @State private var isPresentingNewSearchSheet = false
 
@@ -74,8 +77,30 @@ struct SearchSidebar: View
             { newSearch in
                 self.selection = newSearch
                 self.selectedID = newSearch.id
+                Task { await self.runInitialSearch( for: newSearch ) }
             }
         }
+    }
+
+    private func runInitialSearch( for search: SavedSearch ) async
+    {
+        let apiKey = UserDefaults.standard.string( forKey: SearchViewModel.apiKeyDefaultsKey ) ?? ""
+        guard apiKey.isEmpty == false
+        else
+        {
+            self.refreshState.setError( "Add your Ignav API key.", for: search.id )
+            return
+        }
+
+        guard self.refreshState.beginRefresh( for: search.id )
+        else
+        {
+            return
+        }
+
+        let run = await SearchRunner.run( for: search, apiKey: apiKey )
+        self.modelContext.insert( run )
+        self.refreshState.endRefresh( for: search.id, errorMessage: run.errorMessage )
     }
 }
 
