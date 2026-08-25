@@ -23,6 +23,7 @@ struct RoundTripSearchForm: View
     @State private var cabinClass = "business"
     @State private var directOnly = true
     @State private var luggageIncluded = false
+    @State private var passengers = 1
 
     private var isValid: Bool
     {
@@ -57,6 +58,13 @@ struct RoundTripSearchForm: View
                     CabinClassPicker( selection: $cabinClass )
                     Toggle( "Direct flights only", isOn: $directOnly )
                     Toggle( "Luggage included", isOn: $luggageIncluded )
+                    Picker( "Passengers", selection: $passengers )
+                    {
+                        ForEach( 1 ... 12, id: \.self )
+                        { count in
+                            Text( "\( count )" ).tag( count )
+                        }
+                    }
                 }
             }
             .formStyle( .grouped )
@@ -89,6 +97,7 @@ struct RoundTripSearchForm: View
             cabinClass: self.cabinClass,
             directOnly: self.directOnly,
             luggageIncluded: self.luggageIncluded,
+            passengers: self.passengers,
             tripDurationDays: self.tripDurationDays,
             flexibilityDays: self.flexibilityDays,
             mustIncludeWeekend: self.mustIncludeWeekend

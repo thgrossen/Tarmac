@@ -18,6 +18,7 @@ struct RoundTripRequest: Encodable
     var max_stops: Int
     var airlines_include: [ String ]?
     var market: String           // "CH" -> CHF
+    var passengers: Int
 }
 
 struct OneWayRequest: Encodable
@@ -29,6 +30,7 @@ struct OneWayRequest: Encodable
     var max_stops: Int
     var airlines_include: [ String ]?
     var market: String           // "CH" -> CHF
+    var passengers: Int
 }
 
 // MARK: - Response

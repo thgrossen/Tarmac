@@ -20,6 +20,7 @@ struct OneWaySearchForm: View
     @State private var cabinClass = "business"
     @State private var directOnly = true
     @State private var luggageIncluded = false
+    @State private var passengers = 1
 
     private var isValid: Bool
     {
@@ -42,6 +43,13 @@ struct OneWaySearchForm: View
                     CabinClassPicker( selection: $cabinClass )
                     Toggle( "Direct flights only", isOn: $directOnly )
                     Toggle( "Luggage included", isOn: $luggageIncluded )
+                    Picker( "Passengers", selection: $passengers )
+                    {
+                        ForEach( 1 ... 12, id: \.self )
+                        { count in
+                            Text( "\( count )" ).tag( count )
+                        }
+                    }
                 }
             }
             .formStyle( .grouped )
@@ -73,7 +81,8 @@ struct OneWaySearchForm: View
             rangeEnd: self.rangeEnd,
             cabinClass: self.cabinClass,
             directOnly: self.directOnly,
-            luggageIncluded: self.luggageIncluded
+            luggageIncluded: self.luggageIncluded,
+            passengers: self.passengers
         )
         self.modelContext.insert( search )
         self.onCreate( search )

@@ -209,6 +209,27 @@ struct SearchRunnerTests
         #expect( log.requests.first?.market == "US" )
     }
 
+    @Test( "Forwards the search's passenger count" )
+    func oneWayForwardsPassengers() async throws
+    {
+        let search = Self.makeOneWaySearch()
+        search.passengers = 3
+        let log = FetchLog< OneWayRequest >()
+        let ( response, raw ) = try Self.fares( itineraries: "" )
+
+        _ = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { request in
+                log.record( request )
+                return ( response, raw )
+            }
+        )
+
+        #expect( log.requests.first?.passengers == 3 )
+    }
+
     @Test( "An empty one-way result surfaces the no-fares message but keeps the raw JSON" )
     func oneWayEmptyResultSurfacesMessage() async throws
     {
@@ -258,6 +279,7 @@ struct SearchRunnerTests
             tripDurationDays: 3,
             flexibilityDays: 0
         )
+        search.passengers = 4
         let log      = FetchLog< RoundTripRequest >()
         let defaults = Self.freshDefaults()
         defaults.set( false, forKey: AirlinePreference.restrictAirlinesDefaultsKey )
@@ -279,6 +301,7 @@ struct SearchRunnerTests
         #expect( log.requests.count == 2 )
         #expect( log.requests.first?.airlines_include == nil )
         #expect( log.requests.first?.market == "FR" )
+        #expect( log.requests.first?.passengers == 4 )
         #expect( run.requestCount == 2 )
         #expect( run.itineraries.count == 2 )
         #expect( run.savedSearch === search )

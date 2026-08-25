@@ -80,7 +80,8 @@ enum SearchRunner
             cabin_class: search.cabinClass,
             max_stops: search.directOnly ? 0 : 2,
             airlines_include: AirlinePreference.currentAirlinesInclude( defaults: defaults ),
-            market: MarketPreference.currentMarket( defaults: defaults )
+            market: MarketPreference.currentMarket( defaults: defaults ),
+            passengers: search.passengers
         )
 
         do

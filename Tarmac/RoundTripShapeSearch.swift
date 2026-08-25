@@ -188,7 +188,8 @@ enum RoundTripShapeSearch
                 cabin_class: search.cabinClass,
                 max_stops: search.directOnly ? 0 : 2,
                 airlines_include: airlinesInclude,
-                market: market
+                market: market,
+                passengers: search.passengers
             )
 
             do

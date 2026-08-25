@@ -26,6 +26,7 @@ final class SavedSearch
     var cabinClass: String
     var directOnly: Bool
     var luggageIncluded: Bool
+    var passengers: Int = 1
 
     // Round-trip-only fields, ignored for one-way searches.
     var tripDurationDays: Int
@@ -45,6 +46,7 @@ final class SavedSearch
         cabinClass: String,
         directOnly: Bool = true,
         luggageIncluded: Bool = false,
+        passengers: Int = 1,
         tripDurationDays: Int = 3,
         flexibilityDays: Int = 0,
         mustIncludeWeekend: Bool = false
@@ -60,6 +62,7 @@ final class SavedSearch
         self.cabinClass = cabinClass
         self.directOnly = directOnly
         self.luggageIncluded = luggageIncluded
+        self.passengers = passengers
         self.tripDurationDays = tripDurationDays
         self.flexibilityDays = flexibilityDays
         self.mustIncludeWeekend = mustIncludeWeekend

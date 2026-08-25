@@ -360,7 +360,7 @@
 
     <li class="phase-label">Phase B &middot; Search Input &amp; Preferences</li>
     <li><a href="#m4">4. Add Market preference and remove hardcoded "CH"</a><span class="status completed">Completed</span></li>
-    <li><a href="#m5">5. Add number-of-passengers field</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m5">5. Add number-of-passengers field</a><span class="status completed">Completed</span></li>
     <li><a href="#m6">6. Rename "Save" to "Search" and run immediately</a><span class="status not-started">Not started</span></li>
 
     <li class="phase-label">Phase C &middot; Results Table</li>
@@ -540,7 +540,7 @@
   <div class="milestone" id="m5">
     <div class="milestone-head">
       <h3>5. Add number-of-passengers field</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p><strong>Goal:</strong> Search forms should let the user specify passenger count, defaulting to 1, and send it to the Ignav API.</p>
     <div class="field-label">Tasks</div>
@@ -551,15 +551,30 @@
       <li>Verify: create a search with more than 1 passenger and confirm the value is present in the outgoing request (e.g. via the Raw JSON tab or a local request inspection).</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>TDD cycle: added <code>passengers: Int</code> (required, no default, matching every other field in these structs) to <code>RoundTripRequest</code>/<code>OneWayRequest</code> (models.swift), and <code>var passengers: Int = 1</code> to the <code>SavedSearch</code> <code>@Model</code>. Extended <code>IgnavClientTests.swift</code>'s two request-building tests and <code>SavedSearchTests.swift</code>'s defaults test first (red), then implemented (green).</li>
+      <li><strong>Found and fixed a real SwiftData migration bug mid-implementation:</strong> the first attempt declared <code>passengers</code> with only an <code>init</code>-parameter default (<code>var passengers: Int</code>, no property-level initializer), which crashed the app on launch against this developer's existing on-disk store &mdash; confirmed via Console output showing <code>Cannot migrate store in-place: ... missing attribute values on mandatory destination attribute</code> for <code>entity=SavedSearch, attribute=passengers</code>, taking down <code>TarmacApp.init()</code>'s <code>fatalError</code> and, with it, the XCTest host (<code>xcodebuild test</code> failed with "test runner crashed before establishing connection", not a compile error). SwiftData's <code>@Model</code> macro needs a <em>property-level</em> default expression (<code>var passengers: Int = 1</code>) to backfill existing rows during automatic lightweight migration &mdash; an <code>init</code> parameter default alone doesn't reach the persisted schema. Fixed by adding the property-level default; confirmed the app now launches cleanly against the pre-existing store and the full test suite passes.</li>
+      <li>Threaded <code>search.passengers</code> into <code>SearchRunner.runOneWay</code> and <code>RoundTripShapeSearch.run</code>'s request construction (a direct property read per request, not hoisted like the <code>UserDefaults</code>-backed <code>market</code>/<code>airlines_include</code> reads, since it doesn't need to be). <code>SearchViewModel.search()</code> (an unused legacy path, per the plan's own <a href="#notes">Notes</a>) had to be updated to compile too; passes a literal <code>passengers: 1</code> since it has no dedicated state of its own.</li>
+      <li>Added a <code>Stepper</code> (range 1&ndash;9) to both search forms per the plan's task text, then replaced it with a <code>Picker</code> drop-down (range 1&ndash;12) per user feedback (see Review comments) &mdash; built the same way as the existing Market <code>Picker</code> in <code>PreferencesView.swift</code> (<code>ForEach(1...12, id: \.self)</code> + <code>.tag(count)</code>), bound to <code>@State private var passengers = 1</code> in each form, threaded into <code>SavedSearch(...)</code> construction.</li>
+      <li>Added <code>SearchRunnerTests.swift</code> wiring tests (<code>oneWayForwardsPassengers</code>, and a passenger assertion added to the existing <code>roundTripDispatchesShapeSearch</code>) proving a search's passenger count actually flows into the outgoing request, per the task's explicit verify step.</li>
+      <li>Verified live: full test suite and app build both pass; the user opened both search forms and confirmed the Passengers drop-down renders correctly offering 1&ndash;12. The plan's suggested "Raw JSON tab" check doesn't actually show the outgoing request (only the API response), so the wiring tests above serve as the verification for that instead.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent, independently verified the SwiftData migration fix against documented lightweight-migration behaviour and grepped the repo confirming every <code>RoundTripRequest</code>/<code>OneWayRequest</code> construction site was updated): no Critical/High/Medium findings &mdash; loop converged after 1 of the allowed 3 iterations.
+        <ul>
+          <li><em>Low &mdash; <code>passengers</code> is now the only <code>SavedSearch</code> field with a property-level default; the other pre-existing non-optional fields (<code>directOnly</code>, <code>luggageIncluded</code>, <code>tripDurationDays</code>, <code>flexibilityDays</code>, <code>mustIncludeWeekend</code>) only have <code>init</code>-parameter defaults &mdash; the same shape that caused this milestone's migration crash. Not currently a bug (those fields were already part of the migrated schema), but a future contributor adding a new field could easily copy the wrong sibling and reintroduce the same crash.</em> Resolution: <strong>Deferred</strong> &mdash; retrofitting pre-existing, already-safe fields is outside this milestone's scope; left for review/a possible follow-up convention note.</li>
+        </ul>
+      </li>
+    </ul>
     <div class="field-label">Review comments</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>User prefers a drop-down (Picker) offering 1&ndash;12 passengers instead of the plan's suggested <code>Stepper</code> with a 1&ndash;9 range.</li>
+    </ul>
   </div>
 
   <div class="milestone" id="m6">
