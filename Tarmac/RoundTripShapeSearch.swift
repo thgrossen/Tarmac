@@ -22,7 +22,7 @@ enum RoundTripShapeSearch
         var returnDate: Date
     }
 
-    static let defaultCallCap = 25
+    nonisolated static let defaultCallCap = 25
 
     private static let calendar: Calendar = {
         var calendar = Calendar( identifier: .gregorian )
