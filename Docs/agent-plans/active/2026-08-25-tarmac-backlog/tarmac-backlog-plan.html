@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tarmac Backlog Plan</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #16181d;
+    --panel: #1e2128;
+    --panel-2: #23262e;
+    --border: #2c303a;
+    --text: #e6e8ec;
+    --text-dim: #9aa0ac;
+    --accent: #5b9dff;
+    --phase: #c9a4ff;
+
+    --status-not-started-bg: #33363f;
+    --status-not-started-fg: #b7bcc7;
+    --status-in-progress-bg: #4a3a12;
+    --status-in-progress-fg: #f0b73a;
+    --status-completed-bg: #163a25;
+    --status-completed-fg: #3ecf7e;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 48px 24px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .meta {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .meta code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.85em;
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  section {
+    margin-bottom: 36px;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 20px 0 6px;
+  }
+
+  p { margin: 0 0 10px; }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.88em;
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+
+  .overview p:last-child { margin-bottom: 0; }
+
+  .qa {
+    display: grid;
+    gap: 12px;
+  }
+
+  .qa-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .qa-item .q {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .qa-item .a {
+    color: var(--text-dim);
+  }
+
+  .qa-item .q::before {
+    content: "Q ";
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .qa-item .a::before {
+    content: "A ";
+    color: var(--status-completed-fg);
+    font-weight: 700;
+  }
+
+  .notes ul {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .notes li {
+    margin-bottom: 8px;
+  }
+
+  .notes li:last-child { margin-bottom: 0; }
+
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: toc;
+  }
+
+  nav.toc .phase-label {
+    font-weight: 700;
+    color: var(--phase);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 16px 0 6px;
+  }
+
+  nav.toc .phase-label:first-child { margin-top: 0; }
+
+  nav.toc li {
+    counter-increment: toc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+  }
+
+  nav.toc li:hover { background: var(--panel); }
+
+  nav.toc li::before {
+    content: counter(toc) ".";
+    color: var(--text-dim);
+    min-width: 20px;
+  }
+
+  nav.toc a {
+    color: var(--text);
+    text-decoration: none;
+    flex: 1;
+  }
+
+  nav.toc a:hover { color: var(--accent); }
+
+  .status {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .status.not-started {
+    background: var(--status-not-started-bg);
+    color: var(--status-not-started-fg);
+  }
+
+  .status.in-progress {
+    background: var(--status-in-progress-bg);
+    color: var(--status-in-progress-fg);
+  }
+
+  .status.completed {
+    background: var(--status-completed-bg);
+    color: var(--status-completed-fg);
+  }
+
+  .phase-heading {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--phase);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 28px 0 12px;
+  }
+
+  .phase-heading:first-of-type { margin-top: 0; }
+
+  .milestone {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 16px;
+    scroll-margin-top: 24px;
+  }
+
+  .milestone-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .milestone-head h3 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  .field-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 14px 0 6px;
+  }
+
+  .field-label:first-of-type { margin-top: 0; }
+
+  .milestone ul.tasks {
+    margin: 0;
+    padding-left: 20px;
+  }
+
+  .milestone ul.tasks li {
+    margin-bottom: 6px;
+  }
+
+  .milestone ul.tasks li:last-child { margin-bottom: 0; }
+
+  .empty {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .completed-date {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <h1>Tarmac Backlog Implementation Plan</h1>
+  <div class="meta">
+    Generated 2026-08-25 &middot; Source:
+    <code>Docs/agent-plans/active/2026-08-25-tarmac-backlog/tarmac-backlog.html</code>
+  </div>
+</header>
+
+<section class="overview">
+  <h2>Overview</h2>
+  <p>
+    This plan implements the ten items in the Tarmac Backlog: a sidebar selection bug, sidebar UI
+    improvements, a new Market preference, a passenger-count field, a faster new-search flow, a
+    cleaner window title, richer and sortable results columns, and an exploratory item on booking
+    links.
+  </p>
+  <p>
+    The approach groups the work into four phases &mdash; Sidebar &amp; Navigation, Search Input &amp;
+    Preferences, Results Table, and Exploration &mdash; each containing small, independently
+    reviewable and committable milestones. Preference-style additions (Market) follow the existing
+    <code>AirlinePreference</code> pattern already used for the Airlines preference, for consistency.
+    Two milestones (the sidebar-selection bug and the empty-Duration bug) start with root-cause
+    investigation before any fix, since neither has a confirmed cause yet.
+  </p>
+</section>
+
+<section class="qa">
+  <h2>Questions &amp; answers</h2>
+  <div class="qa-item">
+    <div class="q">For the sidebar bug, what specifically is broken?</div>
+    <div class="a">Clicking a row does nothing &mdash; no selection, no detail-pane update.</div>
+  </div>
+  <div class="qa-item">
+    <div class="q">Is "Improve the UI" just about multiline sidebar rows, or a broader ask?</div>
+    <div class="a">A broader UI pass, not just multiline rows.</div>
+  </div>
+  <div class="qa-item">
+    <div class="q">What other sidebar UI improvements are wanted?</div>
+    <div class="a">Show more details per row (route, dates, and last price at a glance, with better hierarchy).</div>
+  </div>
+  <div class="qa-item">
+    <div class="q">Is <code>marketing_carrier_code</code> a new API field, and what's the target flight-number format?</div>
+    <div class="a">It's already present in the Ignav API response the user currently receives; format as <code>"LX 1234"</code> (space-separated).</div>
+  </div>
+  <div class="qa-item">
+    <div class="q">What JSON field name does the Ignav API expect for passenger count?</div>
+    <div class="a"><code>"passengers"</code>.</div>
+  </div>
+  <div class="qa-item">
+    <div class="q">Why does <code>Leg.duration</code> come back empty &mdash; wrong key, nested elsewhere, or absent?</div>
+    <div class="a">Unknown &mdash; only the UI table has been checked so far, not a raw API response.</div>
+  </div>
+  <div class="qa-item">
+    <div class="q">Should the new Market preference be free text or a picker?</div>
+    <div class="a">A picker / dropdown.</div>
+  </div>
+  <div class="qa-item">
+    <div class="q">Which market codes should the picker offer?</div>
+    <div class="a">CH, FR, DE, GB, US (CH as the default).</div>
+  </div>
+</section>
+
+<section class="notes">
+  <h2>Notes</h2>
+  <ul>
+    <li><code>market: "CH"</code> is hardcoded in three places today: <code>SearchViewModel.swift:81</code>, <code>RoundTripShapeSearch.swift:190</code>, and <code>SearchRunner.swift:83</code>. All three need to move onto the new preference.</li>
+    <li><code>AirlinePreference.swift</code> is the established convention for a UserDefaults-backed search preference (defaults key constants + a <code>current...(defaults:)</code> reader) &mdash; the new Market preference should mirror it.</li>
+    <li><code>SearchViewModel</code> appears to no longer be wired into <code>ContentView</code> (which drives search via <code>SearchRunner</code> and SwiftData <code>@Query</code> instead), but it still owns the <code>apiKeyDefaultsKey</code> constant read elsewhere and still hardcodes market/has no passenger field. Update it for consistency where touched, but its unused <code>search()</code> path is not otherwise in scope.</li>
+    <li>Results-table plumbing runs through <code>SearchRunner.snapshot(for:run:)</code> / <code>legSummary(_:)</code> (SearchRunner.swift) into the SwiftData <code>PriceSnapshot</code> model (PriceSnapshot.swift), rendered by <code>RunHistoryView</code>'s <code>itineraryTable</code> &mdash; milestones 7&ndash;9 all touch this same pipeline.</li>
+    <li>No booking/deep-link field exists anywhere in the current models or client code, so milestone 10 is genuinely exploratory and may conclude with no code change.</li>
+  </ul>
+</section>
+
+<nav class="toc">
+  <h2>Table of contents</h2>
+  <ol>
+    <li class="phase-label">Phase A &middot; Sidebar &amp; Navigation</li>
+    <li><a href="#m1">1. Fix sidebar selection not updating the results pane</a><span class="status completed">Completed</span></li>
+    <li><a href="#m2">2. Multiline, richer sidebar rows</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m3">3. Remove the "Tarmac" window title</a><span class="status not-started">Not started</span></li>
+
+    <li class="phase-label">Phase B &middot; Search Input &amp; Preferences</li>
+    <li><a href="#m4">4. Add Market preference and remove hardcoded "CH"</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m5">5. Add number-of-passengers field</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m6">6. Rename "Save" to "Search" and run immediately</a><span class="status not-started">Not started</span></li>
+
+    <li class="phase-label">Phase C &middot; Results Table</li>
+    <li><a href="#m7">7. Fix empty Duration; add carrier, departure, and arrival columns</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m8">8. marketing_carrier_code and standard flight-number format</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m9">9. Sortable results table, default sort by Price</a><span class="status not-started">Not started</span></li>
+
+    <li class="phase-label">Phase D &middot; Exploration</li>
+    <li><a href="#m10">10. Investigate a "buy ticket" link</a><span class="status not-started">Not started</span></li>
+  </ol>
+</nav>
+
+<section>
+  <h2>Milestones</h2>
+
+  <div class="phase-heading">Phase A &middot; Sidebar &amp; Navigation</div>
+
+  <div class="milestone" id="m1">
+    <div class="milestone-head">
+      <h3>1. Fix sidebar selection not updating the results pane</h3>
+      <span class="status completed">Completed</span>
+    </div>
+    <p>
+      <strong>Goal:</strong> Clicking a search in the sidebar currently does nothing &mdash; no
+      row selection, no results-pane update. The sidebar's core navigation must work reliably.
+    </p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Reproduce the bug in a debug build: confirm clicking a <code>SearchRow</code> in <code>SearchSidebar</code>'s <code>List(searches, selection: $selection)</code> (ContentView.swift) doesn't select the row or update <code>ResultsPane</code>.</li>
+      <li>Investigate the root cause (per systematic debugging, not a workaround) &mdash; candidates include row hit-testing/tap-target issues, selection binding not propagating, or SwiftData <code>@Query</code> result identity instability across view updates.</li>
+      <li>Apply the fix.</li>
+      <li>Verify: click multiple sidebar rows and confirm <code>ResultsPane.search</code> updates each time; confirm keyboard arrow-key navigation works; confirm the existing <code>NewSearchSheet</code> <code>onCreate</code> auto-selection still works.</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Completed</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
+    <div class="field-label">Implementation notes</div>
+    <ul>
+      <li>Built and ran the app live to reproduce and verify (via <code>xcodebuild</code> with <code>DEVELOPER_DIR</code> pointed at <code>Xcode.app</code>, since <code>xcode-select</code> pointed at the Command Line Tools). Since the terminal process lacked Accessibility/Screen Recording access and the user chose not to grant it, reproduction and verification were done interactively: the user clicked in the running app while a temporary diagnostic <code>.onChange</code> print (with <code>NSUnbufferedIO=YES</code> and stdout redirected to a log file, launching the binary directly rather than via <code>open</code>) and periodic screenshots confirmed exactly what did or didn't happen.</li>
+      <li><strong>Root cause:</strong> <code>List(searches, selection: $selection)</code> resolved to SwiftUI's whole-object selection overload (<code>SelectionValue == SavedSearch</code>), which requires <code>SavedSearch: Hashable</code>. <code>SavedSearch</code> is a SwiftData <code>@Model</code> conforming to <code>PersistentModel</code>, whose <code>Hashable</code>/<code>Equatable</code> are based on <code>persistentModelID</code> (a <code>PersistentIdentifier</code>) &mdash; but <code>SavedSearch</code> also declares its own <code>id: UUID</code> property, which wins as the witness for <code>Identifiable.id</code> and is what <code>List</code>'s internal <code>ForEach</code> uses for row identity. This split identity (UUID for row identity vs. <code>PersistentIdentifier</code> for selection-value equality) silently broke AppKit's row-click&rarr;selection-binding path: confirmed live that the setter was never invoked on click, and confirmed via a controlled before/after experiment that switching to ID-based selection fixed it immediately.</li>
+      <li><strong>Fix:</strong> <code>SearchSidebar</code> now holds <code>@State private var selectedID: SavedSearch.ID?</code> bound to the <code>List</code>. A guarded <code>onChange(of: selectedID)</code> derives the pre-existing <code>selection: SavedSearch?</code> binding (unchanged from the caller's perspective) by looking it up in <code>searches</code>; a <code>nil</code> <code>selectedID</code> clears <code>selection</code>, but a non-<code>nil</code> <code>selectedID</code> not (yet) found in <code>searches</code> leaves <code>selection</code> untouched rather than clobbering it.</li>
+      <li>That guard exists because of a regression found and fixed during this same milestone: an initial version also synced <code>selectedID</code> from <code>selection</code> (for the <code>NewSearchSheet</code> creation path), creating a two-hop loop that, confirmed live, cleared the selection right after creating a new search (the derived lookup ran before SwiftData's <code>@Query</code> had refreshed to include the new row). Fixed by removing that reverse sync and having <code>NewSearchSheet</code>'s <code>onCreate</code> set both <code>selection</code> and <code>selectedID</code> directly (no lookup, no race).</li>
+      <li>No unit tests were added: this is purely declarative SwiftUI/AppKit selection-binding wiring with no unit-testable seam, and the repo has no SwiftUI-interaction test infrastructure (no ViewInspector, no XCUITest target). Verification followed the milestone's own manual-verification steps instead, done live with the user: multiple-row clicks, keyboard arrow-key navigation, and <code>NewSearchSheet</code> auto-selection were each confirmed working after the fix.</li>
+      <li>A global tool hook (from the <code>digidna</code>/<code>imazing</code> plugins) rewrote <code>ContentView.swift</code>'s license header to a DigiDNA proprietary notice on every edit, unrelated to this fix. Per user instruction, left as-is for the user to correct manually afterward (the same thing happened and was handled the same way on this plan's predecessor's Milestone 1).</li>
+    </ul>
+    <div class="field-label">Automated review</div>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent): 1 Medium, 1 Low, no Critical/High.
+        <ul>
+          <li><em>Medium &mdash; if the currently-selected search is ever deleted elsewhere, <code>selectedID</code> is never reset and the "not found" branch of the guard leaves <code>selection</code> pointing at the deleted <code>SavedSearch</code>, which downstream views would then read.</em> Resolution: <strong>Deferred</strong> &mdash; confirmed via repo-wide grep that no delete feature exists anywhere in the app today, so this path is currently unreachable; adding a guard against it now would be speculative validation for a scenario that can't happen, which conflicts with the user's standing instruction against that. Left for the user to weigh in on now, and to revisit if/when a delete feature is added.</li>
+          <li><em>Low &mdash; no comment explains why <code>SearchSidebar</code> keeps two parallel selection states (<code>selectedID</code> and <code>selection</code>), i.e. the <code>UUID</code> vs. <code>PersistentIdentifier</code> identity mismatch that made the single-binding form silently non-functional.</em> Resolution: <strong>Deferred</strong> &mdash; left for the user's review.</li>
+        </ul>
+      </li>
+    </ul>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="milestone" id="m2">
+    <div class="milestone-head">
+      <h3>2. Multiline, richer sidebar rows</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p>
+      <strong>Goal:</strong> Sidebar rows are currently a single line of text. Show more at a
+      glance &mdash; route, dates, and last known price &mdash; with clearer visual hierarchy.
+    </p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Redesign <code>SearchRow</code> (ContentView.swift) as a multiline layout: route (origin &rarr; destination) as a bold primary line, with a secondary line for trip kind, date range, and the most recent cheapest fare (<code>search.runsNewestFirst.first?.cheapestFare</code>) when available.</li>
+      <li>Restructure away from the single <code>SavedSearch.summary</code> string into separately styled fields (e.g. a <code>VStack</code> of labeled <code>Text</code> views) to get the improved hierarchy.</li>
+      <li>Keep the whole row as a single tappable/selectable target so the Milestone 1 fix keeps working.</li>
+      <li>Verify readability at the sidebar's existing width range (220&ndash;340pt).</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="milestone" id="m3">
+    <div class="milestone-head">
+      <h3>3. Remove the "Tarmac" window title</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p><strong>Goal:</strong> The "Tarmac" navigation title on the main window adds no value and should go.</p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Remove <code>.navigationTitle("Tarmac")</code> from <code>ContentView.swift</code>.</li>
+      <li>Confirm the resulting title bar still looks acceptable on macOS (decide whether to leave it blank or use the system default).</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="phase-heading">Phase B &middot; Search Input &amp; Preferences</div>
+
+  <div class="milestone" id="m4">
+    <div class="milestone-head">
+      <h3>4. Add Market preference and remove hardcoded "CH"</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p>
+      <strong>Goal:</strong> The <code>market</code> field sent on every search is hardcoded to
+      <code>"CH"</code> in three places. Make it a user preference, picked from a fixed list.
+    </p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Add a <code>MarketPreference</code> enum mirroring <code>AirlinePreference.swift</code>'s pattern: a defaults key, <code>defaultMarket = "CH"</code>, a fixed <code>allMarkets = ["CH", "FR", "DE", "GB", "US"]</code> list, and a <code>currentMarket(defaults:)</code> reader.</li>
+      <li>Add a "Market" section with a <code>Picker</code> to <code>PreferencesView.swift</code>, bound via <code>@AppStorage</code> to the new defaults key, offering the fixed market list.</li>
+      <li>Replace the hardcoded <code>market: "CH"</code> in <code>SearchViewModel.swift:81</code>, <code>RoundTripShapeSearch.swift:190</code>, and <code>SearchRunner.swift:83</code> with <code>MarketPreference.currentMarket(defaults:)</code>, using the <code>defaults</code> parameter already threaded through <code>RoundTripShapeSearch.run</code> and <code>SearchRunner.runOneWay</code>/<code>runRoundTrip</code>.</li>
+      <li>Verify a run picks up a changed Market preference.</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="milestone" id="m5">
+    <div class="milestone-head">
+      <h3>5. Add number-of-passengers field</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p><strong>Goal:</strong> Search forms should let the user specify passenger count, defaulting to 1, and send it to the Ignav API.</p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Add <code>passengers: Int</code> (default 1) to <code>SavedSearch</code> (SavedSearch.swift), and <code>passengers: Int</code> to <code>RoundTripRequest</code> and <code>OneWayRequest</code> (models.swift), matching the confirmed API field name <code>"passengers"</code>.</li>
+      <li>Add a <code>Stepper</code> for passenger count (range e.g. 1&ndash;9) to <code>OneWaySearchForm.swift</code> and <code>RoundTripSearchForm.swift</code>, defaulting to 1.</li>
+      <li>Thread <code>search.passengers</code> through <code>SearchRunner.runOneWay</code>/<code>runRoundTrip</code> and <code>RoundTripShapeSearch.run</code> into the request bodies.</li>
+      <li>Verify: create a search with more than 1 passenger and confirm the value is present in the outgoing request (e.g. via the Raw JSON tab or a local request inspection).</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="milestone" id="m6">
+    <div class="milestone-head">
+      <h3>6. Rename "Save" to "Search" and run immediately</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p>
+      <strong>Goal:</strong> Creating a new search should feel like searching, not just saving a
+      definition &mdash; the button should read "Search" and a run should start immediately,
+      without a separate Refresh click.
+    </p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Rename the "Save" button label to "Search" in <code>OneWaySearchForm.swift</code> and <code>RoundTripSearchForm.swift</code>.</li>
+      <li>After <code>modelContext.insert(search)</code> and <code>onCreate(search)</code>, trigger an immediate <code>SearchRunner.run(for:apiKey:...)</code> for the new search &mdash; likely by having the form's <code>onCreate</code> callback (owned by <code>SearchSidebar</code>/<code>ContentView</code>, which has access to <code>refreshState</code> and the model context) kick off the run, since the forms themselves don't have that context today.</li>
+      <li>Decide how the sheet closes and how loading feedback is shown while the initial run is in flight, reusing the existing <code>RefreshState</code>/<code>isLoading</code> pattern the "Refresh" button already uses.</li>
+      <li>Verify: creating a new search shows a run in <code>RunHistoryView</code> without pressing Refresh.</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="phase-heading">Phase C &middot; Results Table</div>
+
+  <div class="milestone" id="m7">
+    <div class="milestone-head">
+      <h3>7. Fix empty Duration; add carrier, departure, and arrival columns</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p>
+      <strong>Goal:</strong> The results table's Duration column renders empty, and it's missing
+      carrier, departure time, and arrival time altogether.
+    </p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Investigate first: inspect a real Ignav response (via the existing "Raw JSON" tab, or a fresh call) to find where flight duration actually lives in the payload &mdash; the cause is currently unknown (wrong key, nested under segments, or a different key entirely).</li>
+      <li>Fix <code>Leg.duration</code> decoding (models.swift) so <code>itinerary.outbound?.duration</code> reflects real data, and adjust <code>SearchRunner.snapshot(for:run:)</code> (SearchRunner.swift:138) accordingly.</li>
+      <li>Extend <code>PriceSnapshot</code> (PriceSnapshot.swift) and <code>SearchRunner.legSummary</code>/<code>snapshot</code> to also carry carrier, departure time, and arrival time from <code>Segment</code> (models.swift).</li>
+      <li>Add corresponding <code>TableColumn</code>s to <code>RunHistoryView.swift</code>'s <code>itineraryTable</code>.</li>
+      <li>Verify the table shows a populated Duration plus the three new columns against real API data.</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="milestone" id="m8">
+    <div class="milestone-head">
+      <h3>8. marketing_carrier_code and standard flight-number format</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p><strong>Goal:</strong> Flight numbers currently render as e.g. "LX1234"; they should use the marketing carrier code and standard IATA spacing, e.g. "LX 1234".</p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Add <code>marketing_carrier_code: String?</code> to <code>Segment</code> in <code>models.swift</code>.</li>
+      <li>Update <code>SearchRunner.legSummary</code> (SearchRunner.swift:143) to format each segment as <code>"&lt;marketing_carrier_code ?? carrier_code&gt; &lt;flight_number&gt;"</code> (space-separated) instead of the current no-separator concatenation.</li>
+      <li>Verify displayed flight numbers read like "LX 1234" in the results table.</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="milestone" id="m9">
+    <div class="milestone-head">
+      <h3>9. Sortable results table, default sort by Price</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p><strong>Goal:</strong> The itinerary results table isn't sortable. Make it sortable, defaulting to cheapest-first.</p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Convert the <code>Table(self.run.itineraries) { ... }</code> in <code>RunHistoryView.swift</code>'s <code>itineraryTable</code> to the <code>Table(..., sortOrder:)</code> form, adding <code>KeyPathComparator</code>s to the sortable columns (at minimum Price).</li>
+      <li>Default the sort order to Price ascending.</li>
+      <li>Verify clicking column headers re-sorts the table, and a freshly opened run defaults to cheapest-first.</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+  <div class="phase-heading">Phase D &middot; Exploration</div>
+
+  <div class="milestone" id="m10">
+    <div class="milestone-head">
+      <h3>10. Investigate a "buy ticket" link</h3>
+      <span class="status not-started">Not started</span>
+    </div>
+    <p><strong>Goal:</strong> Determine whether the Ignav API can provide a booking/purchase link for a fare, and surface it if so.</p>
+    <div class="field-label">Tasks</div>
+    <ul class="tasks">
+      <li>Inspect a real Ignav response (raw JSON) and any available API docs for a booking/deep-link field &mdash; none exists in the current models or client code.</li>
+      <li>If a link field exists: add it to <code>Itinerary</code>/<code>Segment</code> (models.swift), and surface a "Buy" link/button in <code>RunHistoryView.swift</code>'s results table (e.g. via <code>Link</code> or <code>NSWorkspace.shared.open</code>).</li>
+      <li>If no such field exists: record that finding in this milestone's implementation notes and close it with no app changes.</li>
+    </ul>
+    <div class="field-label">Status</div>
+    <p>Not started</p>
+    <div class="field-label">Completed</div>
+    <p class="completed-date empty">&mdash;</p>
+    <div class="field-label">Implementation notes</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Automated review</div>
+    <p class="empty">None yet.</p>
+    <div class="field-label">Review comments</div>
+    <p class="empty">None yet.</p>
+  </div>
+
+</section>
+
+</div>
+</body>
+</html>

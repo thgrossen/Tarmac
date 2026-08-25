@@ -31,13 +31,31 @@ struct SearchSidebar: View
 {
     @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var searches: [ SavedSearch ]
     @Binding var selection: SavedSearch?
+    @State private var selectedID: SavedSearch.ID?
     @State private var isPresentingNewSearchSheet = false
 
     var body: some View
     {
-        List( searches, selection: $selection )
+        List( searches, selection: $selectedID )
         { search in
             SearchRow( search: search )
+        }
+        .onChange( of: self.selectedID )
+        {
+            guard let selectedID = self.selectedID
+            else
+            {
+                self.selection = nil
+                return
+            }
+
+            // A freshly created search may not have reached `searches` yet (see the
+            // `NewSearchSheet` sheet below, which sets both `selectedID` and `selection`
+            // directly); don't clobber `selection` while that catches up.
+            if let match = self.searches.first( where: { $0.id == selectedID } )
+            {
+                self.selection = match
+            }
         }
         .toolbar
         {
@@ -56,6 +74,7 @@ struct SearchSidebar: View
             NewSearchSheet
             { newSearch in
                 self.selection = newSearch
+                self.selectedID = newSearch.id
             }
         }
     }

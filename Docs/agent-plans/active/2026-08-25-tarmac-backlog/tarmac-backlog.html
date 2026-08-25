@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tarmac Backlog</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #16181d;
+    --panel: #1e2128;
+    --border: #2c303a;
+    --text: #e6e8ec;
+    --text-dim: #9aa0ac;
+    --accent: #5b9dff;
+    --number: #5b9dff;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 48px 24px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h1 {
+    margin: 0 0 8px;
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .meta {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  ol.backlog {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    counter-reset: item;
+  }
+
+  .item {
+    counter-increment: item;
+    position: relative;
+    padding: 20px 20px 20px 64px;
+    margin-bottom: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .item::before {
+    content: counter(item);
+    position: absolute;
+    left: 20px;
+    top: 20px;
+    min-width: 24px;
+    font-weight: 700;
+    color: var(--number);
+    font-size: 1rem;
+  }
+
+  .item h2 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    font-weight: 600;
+  }
+
+  .item p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.88em;
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Tarmac Backlog</h1>
+    <div class="meta">Generated 2026-08-25</div>
+  </header>
+
+  <ol class="backlog">
+    <li class="item">
+      <h2>Sidebar selection doesn't update the results pane</h2>
+      <p>Clicking a search in the sidebar list has no visible effect: the row doesn't select and the results pane doesn't switch to the clicked search. Selection should work reliably and drive the results pane to the chosen search.</p>
+    </li>
+    <li class="item">
+      <h2>Sidebar rows: multiline layout and richer UI</h2>
+      <p>Sidebar rows currently render as a single line of text. They should wrap onto multiple lines (e.g. route on one line, dates/price on another) and show more detail per row so a search's route, dates, and last known price are visible at a glance, with better visual hierarchy overall.</p>
+    </li>
+    <li class="item">
+      <h2>Add Market to Preferences</h2>
+      <p>The <code>market</code> field sent on every search request is currently hardcoded to <code>"CH"</code> in three places. Add a Market preference (e.g. defaulting to CH) so it's configurable instead of hardcoded.</p>
+    </li>
+    <li class="item">
+      <h2>Add number of passengers to search forms</h2>
+      <p>Search forms (one-way and round-trip) should include a number-of-passengers field, defaulting to 1.</p>
+    </li>
+    <li class="item">
+      <h2>Rename "Save" to "Search" and run immediately</h2>
+      <p>In the new-search forms, the "Save" button should be relabeled "Search" and should kick off a search run immediately on save, instead of requiring a separate click on "Refresh" afterward.</p>
+    </li>
+    <li class="item">
+      <h2>Remove the "Tarmac" window title</h2>
+      <p>The "Tarmac" navigation title on the main window doesn't add value and should be removed.</p>
+    </li>
+    <li class="item">
+      <h2>Show carrier, departure time, and arrival time in results; fix empty Duration</h2>
+      <p>The results table only shows a combined outbound/inbound summary and a Duration column. It should also surface carrier, departure time, and arrival time. Separately, the Duration column is currently showing empty and needs to be fixed.</p>
+    </li>
+    <li class="item">
+      <h2>Use marketing_carrier_code for flight number display</h2>
+      <p>The results table currently formats flight numbers by concatenating <code>carrier_code</code> and <code>flight_number</code> with no separator (e.g. "LX1234"). It should instead use <code>marketing_carrier_code</code> (present in the Ignav API response but not yet modeled in the app) and format it in the standard IATA style with a space, e.g. "LX 1234".</p>
+    </li>
+    <li class="item">
+      <h2>Make the results table sortable, default sort by Price</h2>
+      <p>The itinerary results table isn't sortable today. Add sorting support, with Price as the default sort column.</p>
+    </li>
+    <li class="item">
+      <h2>Investigate a "buy ticket" link in results</h2>
+      <p>Explore whether the Ignav API can provide a link to purchase/book the selected fare, and if so, surface it in the results.</p>
+    </li>
+  </ol>
+</div>
+</body>
+</html>
