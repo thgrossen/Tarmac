@@ -11,6 +11,7 @@ struct PreferencesView: View
     @AppStorage( SearchViewModel.apiKeyDefaultsKey ) private var apiKey = ""
     @AppStorage( AirlinePreference.restrictAirlinesDefaultsKey ) private var restrictAirlines = true
     @AppStorage( AirlinePreference.airlineCodesDefaultsKey ) private var airlineCodes = AirlinePreference.defaultAirlineCodes
+    @AppStorage( MarketPreference.marketDefaultsKey ) private var market = MarketPreference.defaultMarket
 
     var body: some View
     {
@@ -21,6 +22,17 @@ struct PreferencesView: View
                 SecureField( "X-Api-Key", text: $apiKey )
                     .textFieldStyle( .roundedBorder )
                     .autocorrectionDisabled()
+            }
+
+            Section( "Market" )
+            {
+                Picker( "Market", selection: $market )
+                {
+                    ForEach( MarketPreference.allMarkets, id: \.self )
+                    { code in
+                        Text( code ).tag( code )
+                    }
+                }
             }
 
             Section( "Airlines" )

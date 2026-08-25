@@ -359,7 +359,7 @@
     <li><a href="#m3">3. Remove the "Tarmac" window title</a><span class="status completed">Completed</span></li>
 
     <li class="phase-label">Phase B &middot; Search Input &amp; Preferences</li>
-    <li><a href="#m4">4. Add Market preference and remove hardcoded "CH"</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m4">4. Add Market preference and remove hardcoded "CH"</a><span class="status completed">Completed</span></li>
     <li><a href="#m5">5. Add number-of-passengers field</a><span class="status not-started">Not started</span></li>
     <li><a href="#m6">6. Rename "Save" to "Search" and run immediately</a><span class="status not-started">Not started</span></li>
 
@@ -498,7 +498,7 @@
   <div class="milestone" id="m4">
     <div class="milestone-head">
       <h3>4. Add Market preference and remove hardcoded "CH"</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p>
       <strong>Goal:</strong> The <code>market</code> field sent on every search is hardcoded to
@@ -512,13 +512,27 @@
       <li>Verify a run picks up a changed Market preference.</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>TDD cycle: added <code>Tarmac/MarketPreference.swift</code>, mirroring <code>AirlinePreference.swift</code>'s pattern exactly &mdash; <code>marketDefaultsKey</code>, <code>defaultMarket = "CH"</code>, <code>allMarkets = ["CH", "FR", "DE", "GB", "US"]</code>, and a <code>currentMarket(defaults:)</code> reader. Tests written first (red &mdash; <code>MarketPreference</code> didn't exist), then implemented (green).</li>
+      <li>Added a "Market" section with a <code>Picker</code> to <code>PreferencesView.swift</code> (between "API Key" and "Airlines"), bound via <code>@AppStorage(MarketPreference.marketDefaultsKey)</code>, built via <code>ForEach(MarketPreference.allMarkets, id: \.self)</code>.</li>
+      <li>Replaced all three hardcoded <code>market: "CH"</code> call sites (<code>SearchViewModel.swift</code>, <code>SearchRunner.swift</code>, <code>RoundTripShapeSearch.swift</code>) with <code>MarketPreference.currentMarket(defaults:)</code>, reusing the <code>defaults</code> parameter/property already threaded through each. In <code>RoundTripShapeSearch.run</code>, hoisted the market lookup out of the per-candidate loop into a local <code>let</code>, matching how the pre-existing <code>airlinesInclude</code> lookup right above it is already hoisted (read once per search, not once per candidate).</li>
+      <li>Added regression tests to <code>SearchRunnerTests.swift</code> (<code>oneWayReadsMarketPreference</code>, and a market assertion added to the existing <code>roundTripDispatchesShapeSearch</code>) exercising the actual wiring end to end &mdash; a changed preference flows into the outgoing request &mdash; per the task's explicit "verify a run picks up a changed Market preference" step and a gap the automated review noted (the pre-existing tests only implicitly covered the default value).</li>
+      <li>Verified live: built and ran the app; the user opened Preferences (this session's terminal lacks Accessibility to trigger app menus itself) and confirmed a native macOS pop-up <code>Picker</code> renders correctly in a new "Market" section, defaulting to "CH". Full test suite and app build both pass.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent, independently grepped the repo confirming all three original hardcoded call sites were replaced and no test regressed): no Critical/High/Medium findings &mdash; loop converged after 1 of the allowed 3 iterations.
+        <ul>
+          <li><em>Low &mdash; the <code>@param defaults</code> Doxygen line on <code>SearchRunner.run</code>/<code>RoundTripShapeSearch.run</code> still says "airline restriction preference", now stale since <code>defaults</code> also feeds the market preference.</em> Resolution: <strong>Deferred</strong> &mdash; left for review.</li>
+          <li><em>Low &mdash; <code>currentMarket(defaults:)</code> doesn't validate a persisted value against <code>allMarkets</code>, so a stale/unlisted code (e.g. from a future app version) would be sent to Ignav verbatim and show no matching <code>Picker</code> selection.</em> Resolution: <strong>Deferred</strong> &mdash; not reachable through normal UI use (the <code>Picker</code> only offers the five listed codes), and mirrors <code>AirlinePreference</code>'s existing precedent of not validating either; left for review.</li>
+          <li><em>Info &mdash; noted that the pre-existing <code>SearchRunnerTests.swift:109</code> assertion (<code>market == "CH"</code>) only implicitly tested the default value, not that the wiring actually reads the preference.</em> Resolution: <strong>Fixed</strong> &mdash; addressed directly by the new regression tests above rather than left as a gap, since it maps to an explicit, unmet task requirement.</li>
+        </ul>
+      </li>
+    </ul>
     <div class="field-label">Review comments</div>
     <p class="empty">None yet.</p>
   </div>

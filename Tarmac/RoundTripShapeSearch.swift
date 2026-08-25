@@ -170,6 +170,7 @@ enum RoundTripShapeSearch
 
         let sampled = self.sample( self.candidates( for: search ), cap: cap )
         let airlinesInclude = AirlinePreference.currentAirlinesInclude( defaults: defaults )
+        let market = MarketPreference.currentMarket( defaults: defaults )
 
         var itineraries: [ Itinerary ] = []
         var seenIDs = Set< String >()
@@ -187,7 +188,7 @@ enum RoundTripShapeSearch
                 cabin_class: search.cabinClass,
                 max_stops: search.directOnly ? 0 : 2,
                 airlines_include: airlinesInclude,
-                market: "CH"
+                market: market
             )
 
             do

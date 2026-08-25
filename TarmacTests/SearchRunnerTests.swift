@@ -187,6 +187,28 @@ struct SearchRunnerTests
         #expect( log.requests.first?.airlines_include == nil )
     }
 
+    @Test( "Reads the market preference from the injected UserDefaults suite" )
+    func oneWayReadsMarketPreference() async throws
+    {
+        let search   = Self.makeOneWaySearch()
+        let log      = FetchLog< OneWayRequest >()
+        let defaults = Self.freshDefaults()
+        defaults.set( "US", forKey: MarketPreference.marketDefaultsKey )
+        let ( response, raw ) = try Self.fares( itineraries: "" )
+
+        _ = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: defaults,
+            oneWayFetch: { request in
+                log.record( request )
+                return ( response, raw )
+            }
+        )
+
+        #expect( log.requests.first?.market == "US" )
+    }
+
     @Test( "An empty one-way result surfaces the no-fares message but keeps the raw JSON" )
     func oneWayEmptyResultSurfacesMessage() async throws
     {
@@ -239,6 +261,7 @@ struct SearchRunnerTests
         let log      = FetchLog< RoundTripRequest >()
         let defaults = Self.freshDefaults()
         defaults.set( false, forKey: AirlinePreference.restrictAirlinesDefaultsKey )
+        defaults.set( "FR", forKey: MarketPreference.marketDefaultsKey )
 
         let run = await SearchRunner.run(
             for: search,
@@ -255,6 +278,7 @@ struct SearchRunnerTests
 
         #expect( log.requests.count == 2 )
         #expect( log.requests.first?.airlines_include == nil )
+        #expect( log.requests.first?.market == "FR" )
         #expect( run.requestCount == 2 )
         #expect( run.itineraries.count == 2 )
         #expect( run.savedSearch === search )
