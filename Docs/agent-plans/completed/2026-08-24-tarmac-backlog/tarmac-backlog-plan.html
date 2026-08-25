@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarmac Multi-Search — Implementation Plan</title>
+<style>
+:root
+{
+    --bg:          #16181d;
+    --surface:     #1e2128;
+    --surface-alt: #23272f;
+    --border:      #333844;
+    --text:        #e4e7ee;
+    --text-dim:    #a2a9b8;
+    --accent:      #6fb3ff;
+    --accent-dim:  #2c4a6e;
+    --green:       #6fd19a;
+    --green-dim:   #1f3f2e;
+    --amber:       #f0c46b;
+    --amber-dim:   #4a3a1a;
+    --gray:        #a2a9b8;
+    --gray-dim:    #2e323b;
+}
+
+*
+{
+    box-sizing: border-box;
+}
+
+body
+{
+    margin: 0;
+    padding: 48px 24px 96px;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+main
+{
+    max-width: 880px;
+    margin: 0 auto;
+}
+
+header
+{
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+}
+
+h1
+{
+    margin: 0 0 10px;
+    font-size: 2.1rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+}
+
+.meta
+{
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 0.875rem;
+}
+
+.meta time,
+.meta code
+{
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+}
+
+.meta code
+{
+    font-size: 0.85em;
+    background: var(--surface-alt);
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.overview
+{
+    color: var(--text-dim);
+    margin: 0 0 8px;
+}
+
+section
+{
+    margin-bottom: 48px;
+}
+
+h2
+{
+    font-size: 0.8rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    margin: 0 0 20px;
+}
+
+h3.phase
+{
+    font-size: 0.95rem;
+    font-weight: 650;
+    color: var(--accent);
+    margin: 32px 0 14px;
+    letter-spacing: 0.01em;
+}
+
+h3.phase:first-child
+{
+    margin-top: 0;
+}
+
+/* Questions & answers */
+
+.qa
+{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.qa-item
+{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+}
+
+.qa-item .q
+{
+    margin: 0 0 8px;
+    font-weight: 620;
+}
+
+.qa-item .q::before
+{
+    content: "Q — ";
+    color: var(--accent);
+    font-weight: 650;
+}
+
+.qa-item .a
+{
+    margin: 0;
+    color: var(--text-dim);
+}
+
+.qa-item .a::before
+{
+    content: "A — ";
+    color: var(--green);
+    font-weight: 650;
+}
+
+/* Notes */
+
+.notes ul
+{
+    margin: 0;
+    padding-left: 20px;
+    color: var(--text-dim);
+}
+
+.notes li
+{
+    margin-bottom: 10px;
+}
+
+.notes code
+{
+    background: var(--surface-alt);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: var(--text);
+}
+
+/* Table of contents */
+
+.toc
+{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.toc-phase
+{
+    margin: 18px 0 8px;
+    font-size: 0.85rem;
+    font-weight: 650;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.toc-phase:first-child
+{
+    margin-top: 0;
+}
+
+.toc li
+{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    margin-bottom: 6px;
+}
+
+.toc a
+{
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+.toc a:hover
+{
+    color: var(--accent);
+}
+
+/* Status capsules */
+
+.status
+{
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.status.not-started
+{
+    background: var(--gray-dim);
+    color: var(--gray);
+}
+
+.status.in-progress
+{
+    background: var(--amber-dim);
+    color: var(--amber);
+}
+
+.status.completed
+{
+    background: var(--green-dim);
+    color: var(--green);
+}
+
+/* Milestones */
+
+.milestone
+{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 26px;
+    margin-bottom: 18px;
+    scroll-margin-top: 24px;
+}
+
+.milestone-head
+{
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 6px;
+}
+
+.milestone h4
+{
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 620;
+    line-height: 1.4;
+}
+
+.milestone .goal
+{
+    color: var(--text-dim);
+    margin: 6px 0 16px;
+}
+
+.milestone h5
+{
+    margin: 16px 0 8px;
+    font-size: 0.78rem;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+}
+
+.milestone h5:first-of-type
+{
+    margin-top: 0;
+}
+
+ul.tasks
+{
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+ul.tasks li
+{
+    padding: 5px 0 5px 28px;
+    position: relative;
+    color: var(--text);
+}
+
+ul.tasks input[type="checkbox"]
+{
+    position: absolute;
+    left: 0;
+    top: 8px;
+}
+
+.field.empty
+{
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 0.92rem;
+}
+
+code.inline
+{
+    background: var(--surface-alt);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* Appendix */
+
+pre
+{
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--text);
+}
+
+table
+{
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 24px;
+    font-size: 0.92rem;
+}
+
+th, td
+{
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+}
+
+th
+{
+    color: var(--text-dim);
+    font-weight: 650;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+td code
+{
+    background: var(--surface-alt);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+}
+
+.appendix p
+{
+    color: var(--text-dim);
+}
+</style>
+</head>
+<body>
+<main>
+
+<header>
+    <h1>Tarmac Multi-Search — Implementation Plan</h1>
+    <p class="meta">Generated <time datetime="2026-08-24">2026-08-24</time> · Source <code>Docs/agent-plans/active/2026-08-24-tarmac-backlog/tarmac-backlog.html</code></p>
+</header>
+
+<section class="overview-section">
+    <h2>Overview</h2>
+    <p class="overview">
+        Tarmac is today a single hardcoded search: one form in the sidebar (API key, GVA → LIS, fixed departure/return
+        dates), one round trip call to Ignav, one set of results. This plan turns it into a multi-search app —
+        searches are created and saved from the sidebar, each keeping its own history of refresh runs so price
+        movement over time becomes visible — following
+        <code class="inline">tarmac-backlog.html</code>.
+    </p>
+    <p class="overview">
+        The work is sequenced bottom-up: a new SwiftData schema for saved searches and run history first (Phase A),
+        then the Preferences window (Phase B), then the Ignav API client changes the new search types require —
+        a one-way call and a client-side "shape" search for round trips (Phase C) — and only then the sidebar,
+        new-search sheet, and results pane that put it all in front of the user (Phases D–E). Each milestone is
+        sized to be reviewed and committed on its own.
+    </p>
+</section>
+
+<section class="qa-section">
+    <h2>Questions &amp; answers</h2>
+    <div class="qa">
+        <div class="qa-item">
+            <p class="q">The round-trip backlog item searches over trip <em>shapes</em> (date range + duration ± flexibility + optional weekend constraint), not a fixed departure/return pair. Ignav's round-trip endpoint only accepts one fixed pair per request — how should the shape search be implemented?</p>
+            <p class="a">Client-side enumeration: call the existing round-trip endpoint once per candidate date pair implied by the range/duration/flexibility/weekend constraint, and keep the cheapest result. No API changes.</p>
+        </div>
+        <div class="qa-item">
+            <p class="q">One-way search needs a new Ignav API call that <code class="inline">IgnavClient</code> doesn't have today — what's the request/response contract?</p>
+            <p class="a">Provided directly by the user: <code class="inline">POST https://ignav.com/api/fares/one-way</code> with the same field shape as round-trip minus the return date. Full contract in the Appendix.</p>
+        </div>
+        <div class="qa-item">
+            <p class="q">"Luggage included (soute)" is a new checkbox in both search forms, with no matching field in today's <code class="inline">RoundTripRequest</code> — how should it be wired to the API?</p>
+            <p class="a">UI-only for this plan: captured and stored per saved search, but not sent as a request parameter yet. Flagged as a follow-up backlog item.</p>
+        </div>
+        <div class="qa-item">
+            <p class="q">Today's hardcoded default search (GVA → LIS, round trip, business, direct-only, LX+TP only) is the app's only search right now. Once the sidebar becomes a list of saved searches, what happens to it?</p>
+            <p class="a">Seed it as the first saved search on first launch after the upgrade, so the sidebar isn't empty and existing usage carries over.</p>
+        </div>
+        <div class="qa-item">
+            <p class="q">The backlog's one-way and round-trip option lists don't include an airline restriction, but today's hardcoded search always filters to LX+TP via <code class="inline">onlyLXTP</code>/<code class="inline">airlines_include</code>. Should the new forms keep that toggle?</p>
+            <p class="a">Neither drop it nor keep it per-search: add it to the new Preferences window as a global default (initially LX+TP), applied automatically to every search's request instead of being a per-search field.</p>
+        </div>
+    </div>
+</section>
+
+<section class="notes-section notes" id="notes">
+    <h2>Notes</h2>
+    <ul>
+        <li><strong>Key files:</strong> <code>Tarmac/ContentView.swift</code> (sidebar + detail UI), <code>Tarmac/SearchViewModel.swift</code> (today's form state, API key storage, and search execution — decomposed across the new sidebar/sheet/results views by this plan), <code>Tarmac/IgnavClient.swift</code> (API client, round-trip only today), <code>Tarmac/models.swift</code> (Ignav request/response DTOs), <code>Tarmac/PriceSnapshot.swift</code> (SwiftData model, redesigned in Milestone 2), <code>Tarmac/TarmacApp.swift</code> (<code>ModelContainer</code> + <code>WindowGroup</code>, gains a <code>Settings</code> scene in Milestone 4).</li>
+        <li><strong>Language:</strong> <s>existing UI strings are French ("Clé API", "Trajet", "Chercher", "Recherche…"). Keep new UI text in French for consistency.</s> <strong>Superseded during Milestone 4:</strong> per user feedback, the app's UI is now English throughout — the existing French strings were translated, and all new UI text in remaining milestones should be English.</li>
+        <li><strong>Billing:</strong> Ignav bills per request (per the existing copy, now "request valid… and billed"). This is why Milestone 6 caps how many calls a single round-trip shape search fires per refresh, and surfaces the cap rather than silently truncating.</li>
+        <li><strong><code>Item.swift</code></strong> is unused default SwiftData template boilerplate, unrelated to this backlog — left untouched.</li>
+        <li><strong>Code style:</strong> follow the project's existing conventions throughout — newline before <code>{</code>/<code>}</code>/<code>else</code>, <code>== false</code> over <code>!</code>, <code>isXxx</code> naming for booleans.</li>
+    </ul>
+</section>
+
+<section class="toc-section">
+    <h2>Table of contents</h2>
+    <ul class="toc">
+        <li class="toc-phase">Phase A — Data model foundation</li>
+        <li><a href="#m1">1. Add the SavedSearch model</a><span class="status completed">Completed</span></li>
+        <li><a href="#m2">2. Redesign SearchRun and PriceSnapshot around run history</a><span class="status completed">Completed</span></li>
+        <li><a href="#m3">3. Wire the new schema into the app and seed today's default search</a><span class="status completed">Completed</span></li>
+
+        <li class="toc-phase">Phase B — Preferences window</li>
+        <li><a href="#m4">4. Preferences window for API key and airline restriction</a><span class="status completed">Completed</span></li>
+
+        <li class="toc-phase">Phase C — Ignav API client</li>
+        <li><a href="#m5">5. One-way fares call</a><span class="status completed">Completed</span></li>
+        <li><a href="#m6">6. Round-trip shape search (client-side enumeration)</a><span class="status completed">Completed</span></li>
+
+        <li class="toc-phase">Phase D — Sidebar &amp; new-search flow</li>
+        <li><a href="#m7">7. Sidebar becomes a list of saved searches</a><span class="status completed">Completed</span></li>
+        <li><a href="#m8">8. "+" button and new-search sheet shell</a><span class="status completed">Completed</span></li>
+        <li><a href="#m9">9. One-way search options form</a><span class="status completed">Completed</span></li>
+        <li><a href="#m10">10. Round-trip search options form</a><span class="status completed">Completed</span></li>
+
+        <li class="toc-phase">Phase E — Results pane &amp; run history</li>
+        <li><a href="#m11">11. Refresh button runs the selected search</a><span class="status completed">Completed</span></li>
+        <li><a href="#m12">12. Show run history in the results pane</a><span class="status completed">Completed</span></li>
+    </ul>
+</section>
+
+<section class="milestones-section">
+    <h2>Milestones</h2>
+
+    <h3 class="phase">Phase A — Data model foundation</h3>
+
+    <div class="milestone" id="m1">
+        <div class="milestone-head">
+            <h4>1. Add the SavedSearch model</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal">Replace the single hardcoded trip parameters with a persisted, editable record per saved search, covering both one-way and round-trip shapes.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">SearchKind</code> enum (<code class="inline">oneWay</code>, <code class="inline">roundTrip</code>), string-backed so SwiftData can store it.</li>
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">SavedSearch</code> <code class="inline">@Model</code> class with: <code class="inline">id</code>, <code class="inline">createdAt</code>, <code class="inline">kind</code>, <code class="inline">origin</code>, <code class="inline">destination</code>, <code class="inline">rangeStart</code>, <code class="inline">rangeEnd</code>, <code class="inline">cabinClass</code>, <code class="inline">directOnly</code>, <code class="inline">luggageIncluded</code>.</li>
+            <li><input type="checkbox" checked disabled> Add round-trip-only fields on the same model: <code class="inline">tripDurationDays</code>, <code class="inline">flexibilityDays</code>, <code class="inline">mustIncludeWeekend</code> (ignored for one-way searches).</li>
+            <li><input type="checkbox" checked disabled> Add a computed summary/title property for sidebar rows (e.g. "GVA → LIS · round trip · 5–12 Oct").</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">Tarmac/SavedSearch.swift</code> with a string-backed <code class="inline">SearchKind: String, Codable</code> enum and a <code class="inline">SavedSearch</code> <code class="inline">@Model</code> class covering all fields listed in the tasks, plus the round-trip-only fields with defaults <code class="inline">directOnly = true</code>, <code class="inline">luggageIncluded = false</code>, <code class="inline">tripDurationDays = 3</code>, <code class="inline">flexibilityDays = 0</code>, <code class="inline">mustIncludeWeekend = false</code>.</li>
+            <li>The computed <code class="inline">summary</code> property renders in French (e.g. <code class="inline">"GVA → LIS · aller-retour · 5–12 oct."</code>) using an <code class="inline">fr_FR</code>-locale date range label, per the plan's note to keep new UI text in French for consistency with existing strings — the plan's own example text ("round trip") was illustrative English, not a literal string to reproduce.</li>
+            <li>The project had no unit test target at all. Since TDD was the chosen approach for this implementation, added a <code class="inline">TarmacTests</code> unit test target by hand-editing <code class="inline">Tarmac.xcodeproj/project.pbxproj</code> (Xcode 16's <code class="inline">PBXFileSystemSynchronizedRootGroup</code> mechanism, wired as a <code class="inline">TEST_HOST</code>/<code class="inline">BUNDLE_LOADER</code> unit test bundle against the <code class="inline">Tarmac</code> target via <code class="inline">TestTargetID</code>, using Swift Testing with <code class="inline">@testable import Tarmac</code>). This is one-time infrastructure enabling TDD for every later milestone, not itself a plan task.</li>
+            <li>TDD cycle: wrote <code class="inline">TarmacTests/SavedSearchTests.swift</code> first (red — failed to compile against a nonexistent <code class="inline">SavedSearch</code>), then implemented the model until all tests passed (green), verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code> of the app target.</li>
+            <li><code class="inline">SavedSearch</code> is intentionally <strong>not yet</strong> registered in <code class="inline">TarmacApp</code>'s <code class="inline">ModelContainer</code> <code class="inline">Schema([...])</code> — that update is explicitly Milestone 3's task, together with <code class="inline">SearchRun</code> (Milestone 2, doesn't exist yet) and <code class="inline">PriceSnapshot</code>.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent): 2 Medium findings, 1 Low, 3 Info.
+                <ul>
+                    <li><em>Medium — <code class="inline">SavedSearch</code> not registered in <code class="inline">TarmacApp</code>'s schema.</em> Resolution: <strong>no change needed</strong> — explicitly Milestone 3's task per the plan; re-confirmed reasonable in round 2.</li>
+                    <li><em>Medium — <code class="inline">dateRangeLabel</code> produced backwards-reading output when <code class="inline">rangeStart &gt; rangeEnd</code></em> (e.g. "12–5 oct." instead of "5–12 oct."), with no invariant enforced anywhere. Resolution: <strong>Fixed</strong> — <code class="inline">dateRangeLabel</code> now normalizes via <code class="inline">min</code>/<code class="inline">max</code> before formatting; added regression test <code class="inline">summaryReversedRange()</code>.</li>
+                    <li><em>Low — same-day range renders as "5–5 oct." instead of a single date.</em> Resolution: <strong>Deferred</strong> — left for review; not a plan requirement.</li>
+                    <li><em>Info — <code class="inline">directOnly</code>/<code class="inline">luggageIncluded</code>/<code class="inline">mustIncludeWeekend</code> don't follow the <code class="inline">isXxx</code> boolean naming convention.</em> Resolution: <strong>Deferred</strong> — mirrors the pre-existing <code class="inline">SearchViewModel.directOnly</code> field name, so renaming only the new model would create inconsistency; left for review.</li>
+                    <li><em>Info — redundant <code class="inline">.year</code> granularity check alongside <code class="inline">.month</code> in the same-month comparison.</em> Resolution: <strong>Fixed</strong> — dropped in the same edit as the reversed-range fix, since <code class="inline">.month</code> granularity already implies year equality.</li>
+                    <li><em>Info — testing under the Release configuration needs <code class="inline">-configuration Debug</code> explicitly, since <code class="inline">ENABLE_TESTABILITY</code> is Debug-only.</em> Resolution: <strong>Deferred</strong> — pre-existing project default, not introduced by this milestone; noted for awareness.</li>
+                </ul>
+            </li>
+            <li><strong>Round 2</strong> (new fresh sub-agent, independently re-ran the build and full test suite): verified the reversed-range fix against real Foundation/ICU behaviour (confirmed <code class="inline">.month</code> granularity does imply year equality, confirmed the new test isn't vacuous), re-confirmed the deferred schema-registration item is reasonable to leave for Milestone 3. No new Critical/High/Medium findings — loop converged after 2 of the allowed 3 iterations.</li>
+        </ul>
+        <h5>Review comments</h5>
+        <ul>
+            <li>User manually corrected the file headers on <code class="inline">Tarmac/SavedSearch.swift</code> and <code class="inline">TarmacTests/SavedSearchTests.swift</code> back to the project's MIT license header, overriding the DigiDNA proprietary header the Xcode Format hook had stamped on them.</li>
+        </ul>
+    </div>
+
+    <div class="milestone" id="m2">
+        <div class="milestone-head">
+            <h4>2. Redesign SearchRun and PriceSnapshot around run history</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal">Move from one flat snapshot per search to a model where each refresh produces a run containing the itineraries it found, so history accumulates instead of being overwritten.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">SearchRun</code> <code class="inline">@Model</code>: <code class="inline">id</code>, <code class="inline">runAt</code>, <code class="inline">rawJSON: String?</code>, <code class="inline">errorMessage: String?</code>, <code class="inline">requestCount: Int</code> (how many Ignav calls this run made — relevant to Milestone 6), plus a relationship back to its <code class="inline">SavedSearch</code>.</li>
+            <li><input type="checkbox" checked disabled> Add the inverse <code class="inline">runs: [SearchRun]</code> relationship (cascade delete) on <code class="inline">SavedSearch</code>.</li>
+            <li><input type="checkbox" checked disabled> Rework <code class="inline">PriceSnapshot</code> to represent one itinerary within a run: keep <code class="inline">amount</code>, <code class="inline">currency</code>, <code class="inline">ignavID</code>; add <code class="inline">outboundSummary</code>/<code class="inline">inboundSummary</code>/<code class="inline">outboundDuration</code> display strings; drop the now-redundant <code class="inline">origin</code>/<code class="inline">destination</code>/<code class="inline">departureDate</code>/<code class="inline">returnDate</code>/<code class="inline">cabinClass</code> fields (they live on <code class="inline">SavedSearch</code> now).</li>
+            <li><input type="checkbox" checked disabled> Add a relationship from <code class="inline">PriceSnapshot</code> back to its <code class="inline">SearchRun</code> (cascade delete), and the inverse <code class="inline">itineraries: [PriceSnapshot]</code> on <code class="inline">SearchRun</code>.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">Tarmac/SearchRun.swift</code>: a <code class="inline">SearchRun</code> <code class="inline">@Model</code> with <code class="inline">id</code>, <code class="inline">runAt</code> (defaults <code class="inline">.now</code>), <code class="inline">rawJSON</code>/<code class="inline">errorMessage</code> (optional, default nil), <code class="inline">requestCount</code>, a <code class="inline">savedSearch: SavedSearch?</code> back-reference, and a cascading <code class="inline">itineraries: [PriceSnapshot]</code> relationship.</li>
+            <li>Added a cascading <code class="inline">runs: [SearchRun]</code> relationship to <code class="inline">SavedSearch</code>.</li>
+            <li>Reworked <code class="inline">Tarmac/PriceSnapshot.swift</code>: kept <code class="inline">amount</code>/<code class="inline">currency</code>/<code class="inline">ignavID</code>, added <code class="inline">outboundSummary</code>/<code class="inline">inboundSummary</code>/<code class="inline">outboundDuration</code> and a <code class="inline">run: SearchRun?</code> back-reference, dropped <code class="inline">origin</code>/<code class="inline">destination</code>/<code class="inline">departureDate</code>/<code class="inline">returnDate</code>/<code class="inline">cabinClass</code>. Also dropped <code class="inline">checkedAt</code>, which the task list didn't explicitly call out — judged redundant with the new <code class="inline">SearchRun.runAt</code> by the same "it lives on &lt;the container&gt; now" logic the plan gives for the explicitly-dropped fields.</li>
+            <li>Cascade delete rule is placed on the two owning to-many relationship properties (<code class="inline">SavedSearch.runs</code>, <code class="inline">SearchRun.itineraries</code>) rather than the to-one back-references, matching standard SwiftData cascade semantics: deleting a <code class="inline">SavedSearch</code> cascades to its runs, deleting a <code class="inline">SearchRun</code> cascades to its itineraries — resolving an ambiguity in task 4's wording in favour of consistency with task 2's clearer wording.</li>
+            <li>No explicit <code class="inline">id</code> was added to <code class="inline">PriceSnapshot</code> (matching its pre-existing shape and the task list, which — unlike <code class="inline">SearchRun</code> — doesn't list one); SwiftData's implicit persistent identity is used instead.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/PriceSnapshotTests.swift</code> and <code class="inline">TarmacTests/SearchRunTests.swift</code> first (red — failed to compile against the old <code class="inline">PriceSnapshot</code> shape and a nonexistent <code class="inline">SearchRun</code>), including two cascade-delete tests exercising the relationship end to end (insert → save → delete parent → save → re-fetch child, asserting it's gone). Extracted a small <code class="inline">TarmacTests/TestSupport.swift</code> helper for building an in-memory <code class="inline">ModelContainer</code>/<code class="inline">ModelContext</code>, used by both new test files (Milestone 1's already-committed <code class="inline">SavedSearchTests.swift</code> was left untouched rather than retrofitted). Implemented until all 12 tests passed (green); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, and wrote its own standalone SwiftData reproduction to verify a claim empirically rather than by inspection): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — inconsistent whitespace after the two new <code class="inline">@Relationship(...)</code> attributes</em> (<code class="inline">SavedSearch.swift</code>/<code class="inline">SearchRun.swift</code>, 5 spaces before <code class="inline">var</code> instead of 1). Resolution: <strong>Deferred</strong> — left for review.</li>
+                    <li><em>Info — confirmed cascade delete placement is correct and functionally verified (not vacuous) at runtime.</em></li>
+                    <li><em>Info — confirmed dropping <code class="inline">checkedAt</code> is a sound inference; noted (non-blocking, for a possible future milestone) that a run issuing multiple Ignav calls means itineraries within one run could theoretically be fetched at slightly different times than a single <code class="inline">runAt</code> implies — not a current defect.</em></li>
+                    <li><em>Info — confirmed omitting an explicit <code class="inline">id</code> on <code class="inline">PriceSnapshot</code> is consistent and sufficient for current usage.</em></li>
+                    <li><em>Info — <code class="inline">TarmacApp.swift</code>'s <code class="inline">Schema([PriceSnapshot.self])</code> is still incomplete (unchanged by this milestone, confirmed still Milestone 3's job), but the reviewer verified — via its own synthetic reproduction — that SwiftData resolves the full relationship graph from a single "leaf" type in the schema array, so this is not currently broken by this rework; flagged as worth making explicit once Milestone 3 touches that file.</em></li>
+                </ul>
+            </li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <div class="milestone" id="m3">
+        <div class="milestone-head">
+            <h4>3. Wire the new schema into the app and seed today's default search</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal">Register the new models with SwiftData, and make sure the existing hardcoded GVA↔LIS search isn't lost when the app upgrades.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Update <code class="inline">TarmacApp</code>'s <code class="inline">Schema([...])</code> to include <code class="inline">SavedSearch.self</code>, <code class="inline">SearchRun.self</code>, <code class="inline">PriceSnapshot.self</code>.</li>
+            <li><input type="checkbox" checked disabled> On first launch (no <code class="inline">SavedSearch</code> rows exist yet), insert one matching today's hardcoded defaults: GVA → LIS, round trip, business, direct-only, <code class="inline">rangeStart</code>/<code class="inline">rangeEnd</code> = today + 60 days, <code class="inline">tripDurationDays</code> = 3, <code class="inline">flexibilityDays</code> = 0, <code class="inline">mustIncludeWeekend</code> = false — reproducing the current fixed departure/return pair as a zero-flexibility shape.</li>
+            <li><input type="checkbox" checked disabled> Confirm <code class="inline">Item.swift</code> (unused SwiftData template model) stays untouched — out of scope for this plan.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li><code class="inline">TarmacApp.swift</code>'s <code class="inline">Schema([...])</code> now lists <code class="inline">SavedSearch.self</code>, <code class="inline">SearchRun.self</code>, <code class="inline">PriceSnapshot.self</code> (previously <code class="inline">PriceSnapshot.self</code> only).</li>
+            <li>Added <code class="inline">Tarmac/DefaultSearchSeeder.swift</code>: a standalone <code class="inline">DefaultSearchSeeder.seedIfNeeded(in context: ModelContext, referenceDate: Date = .now)</code>, extracted out of <code class="inline">TarmacApp</code> so it's independently testable against an in-memory context rather than the app's real on-disk store. Inserts a search matching the original hardcoded defaults (GVA → LIS, round trip, business, direct-only, <code class="inline">tripDurationDays = 3</code>, <code class="inline">flexibilityDays = 0</code>, <code class="inline">mustIncludeWeekend = false</code>, <code class="inline">rangeStart == rangeEnd ==</code> today + 60 days) only when no <code class="inline">SavedSearch</code> rows exist yet.</li>
+            <li><code class="inline">TarmacApp.init()</code> calls <code class="inline">DefaultSearchSeeder.seedIfNeeded(in: self.container.mainContext)</code> — using the container's <code class="inline">mainContext</code> (the same context <code class="inline">.modelContainer(container)</code> publishes into the environment) rather than a separate <code class="inline">ModelContext(container)</code>, so later <code class="inline">@Query</code>/<code class="inline">@Environment(\.modelContext)</code> views see the seeded row immediately.</li>
+            <li><code class="inline">Item.swift</code> no longer exists in the repo — it was already removed in a prior commit, before this plan started — so this task was trivially satisfied; nothing to confirm or leave untouched.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/DefaultSearchSeederTests.swift</code> first (red — <code class="inline">DefaultSearchSeeder</code> didn't exist), covering both the empty-store seed case (asserting every field, including the date arithmetic against an independently-verified expected date) and the already-seeded no-duplicate case. Implemented until both passed (green) alongside all 13 pre-existing tests (15 total); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests and independently recomputed the date arithmetic): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — <code class="inline">seedIfNeeded</code> swallows all three of its failure paths (<code class="inline">fetchCount</code>, date-math, <code class="inline">save()</code>) via <code class="inline">try?</code>/silent early-return with no logging</em>, so a transient fetch error would be indistinguishable from "store is empty" and could seed a duplicate with no diagnostic trail. Resolution: <strong>Deferred</strong> — left for review; judged low-likelihood (local, first-launch, in-memory-free path) but noted for awareness.</li>
+                    <li><em>Info — confirmed seeder architecture is sound: no retain cycles, no actor-isolation issues, the existing <code class="inline">fatalError</code> path on container-creation failure is unaffected since it fires during property initialization before <code class="inline">init()</code>'s body runs, and <code class="inline">App.init()</code> runs exactly once per process so there's no realistic double-seed path from multi-window/scene reconnection.</em></li>
+                    <li><em>Info — confirmed schema is complete: a repo-wide grep for <code class="inline">@Model</code> finds exactly the three registered types, nothing missing or extraneous.</em></li>
+                    <li><em>Info (not new) — the seeded search's <code class="inline">rangeStart == rangeEnd</code> will be the first real-world trigger of the same-day-range rendering quirk in <code class="inline">SavedSearch.summary</code>, already flagged and deferred in Milestone 1.</em></li>
+                </ul>
+            </li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <h3 class="phase">Phase B — Preferences window</h3>
+
+    <div class="milestone" id="m4">
+        <div class="milestone-head">
+            <h4>4. Preferences window for API key and airline restriction</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal">Move configuration out of the search UI entirely, and give the LX+TP-only filter — which the backlog's new search forms don't include — a home as a global default instead of dropping it.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">Settings { }</code> scene to <code class="inline">TarmacApp</code>, reachable from the application menu via ⌘, (standard macOS Preferences window).</li>
+            <li><input type="checkbox" checked disabled> Move the "Clé API" field into the Preferences window, keeping it persisted under the existing <code class="inline">ignav_api_key</code> <code class="inline">UserDefaults</code> key so current users don't lose their saved key.</li>
+            <li><input type="checkbox" checked disabled> Add an "Airlines" section: a toggle to restrict results to specific carriers (default on) and a text field for IATA codes (default <code class="inline">LX, TP</code>), persisted via <code class="inline">UserDefaults</code>/<code class="inline">@AppStorage</code>.</li>
+            <li><input type="checkbox" checked disabled> Remove the "Clé API" section from <code class="inline">SearchForm</code> in <code class="inline">ContentView.swift</code>.</li>
+            <li><input type="checkbox" checked disabled> Every Ignav request (one-way and round-trip) reads the airline restriction from this shared preference when building <code class="inline">airlines_include</code>, rather than from a per-search field.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">Tarmac/AirlinePreference.swift</code>: pure <code class="inline">parseCodes(_:)</code>/<code class="inline">airlinesInclude(restrictAirlines:rawCodes:)</code> functions plus a <code class="inline">currentAirlinesInclude(defaults:)</code> that reads the two <code class="inline">UserDefaults</code> keys with an injectable <code class="inline">UserDefaults</code> instance for testability. Deliberately reads the restriction flag via <code class="inline">defaults.object(forKey:) as? Bool ?? true</code> rather than <code class="inline">.bool(forKey:)</code>, since the latter returns <code class="inline">false</code> — not the intended default — for a never-set key (<code class="inline">@AppStorage</code>'s default is a Swift-side fallback only, not written into the real store).</li>
+            <li>Added <code class="inline">Tarmac/PreferencesView.swift</code> with an "API Key" section (<code class="inline">@AppStorage(SearchViewModel.apiKeyDefaultsKey)</code>, keeping the existing <code class="inline">ignav_api_key</code> key) and an "Airlines" section (restrict toggle, default on; IATA codes field, default "LX, TP"). Wired via a new <code class="inline">Settings { PreferencesView() }</code> scene in <code class="inline">TarmacApp.swift</code>.</li>
+            <li>Removed the "Clé API" section from <code class="inline">SearchForm</code> and the per-search "Swiss + TAP seulement" toggle (<code class="inline">vm.onlyLXTP</code>) — the goal statement says the LX+TP filter should get "a home as a global default instead of dropping it", and task 5 says requests should read the restriction "rather than from a per-search field", so the per-search toggle is superseded rather than kept alongside the new global one.</li>
+            <li><code class="inline">SearchViewModel.search()</code> now builds <code class="inline">airlines_include</code> via <code class="inline">AirlinePreference.currentAirlinesInclude(defaults: self.defaults)</code>.</li>
+            <li><strong>Found and fixed a real bug this milestone would otherwise have introduced:</strong> <code class="inline">SearchViewModel.apiKey</code> used to cache its <code class="inline">UserDefaults</code>-read value once at property-init time (<code class="inline">storedAPIKey</code>), which was safe only because its own setter (via the sidebar's <code class="inline">SecureField</code>) was the sole writer keeping cache and store in sync. Moving API-key editing into <code class="inline">PreferencesView</code>'s independent <code class="inline">@AppStorage</code> — a second writer bypassing <code class="inline">SearchViewModel</code> entirely — would have made the cached value permanently stale after launch. Fixed by removing the cache: the getter now re-reads <code class="inline">UserDefaults</code> on every access, and <code class="inline">SearchViewModel</code> gained an <code class="inline">init(defaults: UserDefaults = .standard)</code> so this is testable against an isolated suite instead of the real global store.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/AirlinePreferenceTests.swift</code> and <code class="inline">TarmacTests/SearchViewModelTests.swift</code> first (red), including a regression test (<code class="inline">apiKeyReflectsExternalWrite</code>) that would fail against the old caching behavior. Implemented until all 24 tests passed (green); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+            <li>Attempted to visually verify the Preferences window by launching the built app and screenshotting it, but <code class="inline">screencapture</code> failed ("could not create image from display") — this session's process lacks the macOS Screen Recording TCC permission, which can't be granted programmatically. Verification for this milestone therefore relied on build/test success and code reading, not a rendered screenshot.</li>
+            <li><strong>Follow-up from user feedback</strong> (viewing the app directly): (1) fixed <code class="inline">PreferencesView</code>'s text fields rendering without their standard macOS bordered appearance — removed <code class="inline">.formStyle(.grouped)</code> (which renders inline/plain-looking fields, more suited to iOS-style list editing) and added explicit <code class="inline">.textFieldStyle(.roundedBorder)</code> to both fields; (2) translated the app's UI from French to English — all of <code class="inline">PreferencesView.swift</code>'s new labels, plus <code class="inline">ContentView.swift</code>'s existing sidebar/results-pane strings and <code class="inline">SearchViewModel.swift</code>'s two error strings and one doc comment — and updated the plan's <a href="#notes">Notes</a> section to reflect English as the ongoing convention for remaining milestones. Left a few pre-existing French code comments untouched in <code class="inline">IgnavClient.swift</code>/<code class="inline">models.swift</code> (developer-facing comments, not UI labels, and outside this milestone's file scope) — flagging in case those should be translated too later.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, verified the <code class="inline">apiKey</code> staleness-bug claim by reasoning through the pre-/post-diff writer topology, and independently confirmed the <code class="inline">.object(forKey:) as? Bool</code> vs. <code class="inline">.bool(forKey:)</code> distinction against documented <code class="inline">UserDefaults</code> behavior): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations. This round ran <em>before</em> the field-styling/language follow-up above, so it reviewed the French-labeled, <code class="inline">.formStyle(.grouped)</code> version of <code class="inline">PreferencesView</code>.
+                <ul>
+                    <li><em>Low — no user-facing feedback when the airline restriction is enabled but the codes field is empty</em> (silently falls back to unrestricted, which is deliberate and tested). Resolution: <strong>Deferred</strong> — left for review.</li>
+                    <li><em>Info — a write to <code class="inline">apiKey</code> from <code class="inline">PreferencesView</code>'s independent <code class="inline">@AppStorage</code> doesn't trigger <code class="inline">SearchViewModel</code>'s <code class="inline">@Observable</code> <code class="inline">withMutation</code>, so a live view bound to <code class="inline">vm.apiKey</code> wouldn't auto-refresh on a Preferences edit.</em> Not currently a problem — nothing in the UI binds to <code class="inline">vm.apiKey</code> any more — noted for if a future milestone adds one.</li>
+                    <li><em>Info — confirmed the <code class="inline">apiKey</code> staleness bug was real (an artifact this milestone's own change would have introduced, not pre-existing), the fix is correct, and the regression test is non-vacuous.</em></li>
+                    <li><em>Info — confirmed <code class="inline">onlyLXTP</code> has zero remaining references repo-wide, no duplicate/drifted key-string literals, correct access-level widening on <code class="inline">apiKeyDefaultsKey</code>, and consistent <code class="inline">self.defaults</code> wiring between <code class="inline">apiKey</code> and <code class="inline">AirlinePreference.currentAirlinesInclude</code>.</em></li>
+                </ul>
+            </li>
+        </ul>
+        <h5>Review comments</h5>
+        <ul>
+            <li>User (viewing the running Preferences window) reported: (1) the app's labels should be in English rather than French; (2) the <code class="inline">TextField</code>/<code class="inline">SecureField</code> controls in the Preferences window don't look like standard macOS controls — they render more like plain text labels than editable, bordered fields.</li>
+            <li>Clarified on follow-up: the English-labels request applies to the <strong>whole app</strong>, not just the new Preferences window — translate the existing French UI now and use English for all remaining milestones' new UI going forward, superseding the plan's <a href="#notes">Notes</a> section's French-UI convention.</li>
+            <li>User shared a screenshot of the Preferences window after the field-styling fix: "This preferences window looks so bad... it is horrible." The screenshot showed the API Key field correctly bordered, but a badly unbalanced layout — section titles floating without any grouping/box, a large empty gap on the left, and the "IATA codes" label clipped to "ATA codes" against the window's left edge.</li>
+            <li>After restoring <code class="inline">.formStyle(.grouped)</code> (kept alongside the explicit <code class="inline">.textFieldStyle(.roundedBorder)</code>) and widening the window to 420pt: "ok for now."</li>
+        </ul>
+    </div>
+
+    <h3 class="phase">Phase C — Ignav API client</h3>
+
+    <div class="milestone" id="m5">
+        <div class="milestone-head">
+            <h4>5. One-way fares call</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal"><code class="inline">IgnavClient</code> only supports round trips today; add the one-way endpoint using the confirmed contract (Appendix).</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Add a <code class="inline">OneWayRequest: Encodable</code> struct: <code class="inline">origin</code>, <code class="inline">destination</code>, <code class="inline">departure_date</code>, <code class="inline">cabin_class</code>, <code class="inline">max_stops</code>, <code class="inline">airlines_include: [String]?</code>, <code class="inline">market</code>.</li>
+            <li><input type="checkbox" checked disabled> Add <code class="inline">IgnavClient.oneWay(_:) async throws -> (FaresResponse, String)</code>, posting to <code class="inline">https://ignav.com/api/fares/one-way</code>, mirroring <code class="inline">roundTrip(_:)</code> (headers, timeout, pretty-printed raw JSON, <code class="inline">IgnavError.badStatus</code> handling).</li>
+            <li><input type="checkbox" checked disabled> Confirm <code class="inline">FaresResponse</code>/<code class="inline">Itinerary</code> decode one-way responses as-is (<code class="inline">inbound</code> stays <code class="inline">nil</code>) — no model changes expected.</li>
+            <li><input type="checkbox" checked disabled> Note for later: the contract also exposes <code class="inline">max_price</code>, <code class="inline">departure_time_range</code>, <code class="inline">min_checked_bags</code>/<code class="inline">min_carry_on_bags</code>, <code class="inline">allow_self_transfer</code>, and passenger counts. None are wired up by this plan (luggage stays UI-only per the Q&amp;A above) — leave as a documented follow-up.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">OneWayRequest: Encodable</code> to <code class="inline">Tarmac/models.swift</code> — the same 7 fields as <code class="inline">RoundTripRequest</code> minus <code class="inline">return_date</code>.</li>
+            <li>Refactored <code class="inline">Tarmac/IgnavClient.swift</code> so <code class="inline">roundTrip(_:)</code> and the new <code class="inline">oneWay(_:)</code> share a private generic <code class="inline">post&lt;Body: Encodable&gt;(_:to:)</code> and a pure, testable <code class="inline">static func makeRequest&lt;Body: Encodable&gt;(apiKey:body:path:) throws -> URLRequest</code>, rather than duplicating the URL/header/timeout/status-check/decode logic — guarantees <code class="inline">oneWay</code> genuinely mirrors <code class="inline">roundTrip</code>'s behavior instead of just resembling it.</li>
+            <li>Translated the French comments/MARK headers in both touched files to English (continuing Milestone 4's whole-app English decision, applied here since these files were already being edited): <code class="inline">models.swift</code>'s two <code class="inline">// MARK:</code> headers and the <code class="inline">Price</code> decoding comment; <code class="inline">IgnavClient.swift</code>'s doc comment and the <code class="inline">"&lt;binaire&gt;"</code> fallback string.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/IgnavClientTests.swift</code> first (red). Deliberately did <strong>not</strong> add <code class="inline">URLSession</code> mocking/injection — tested only the pure, previously-untestable parts: <code class="inline">makeRequest</code>'s URL/headers/timeout/body-encoding for both request types (including a regression check that the <code class="inline">roundTrip</code> refactor didn't change its request shape), and that <code class="inline">FaresResponse</code>/<code class="inline">Itinerary</code> decode a one-way-shaped JSON fixture (no <code class="inline">inbound</code> key) correctly. The live network call inside <code class="inline">post</code> remains untested, matching <code class="inline">roundTrip</code>'s pre-existing (also untested) coverage. Implemented until all 27 tests passed (green); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, traced the <code class="inline">roundTrip</code> refactor line-by-line against the pre-diff version for behavioral equivalence, and grepped the repo to confirm no network-mocking infrastructure exists anywhere): 1 High finding, 1 Info — loop converged after 1 of the allowed 3 iterations (the High finding was already resolved by standing user policy, not left open).
+                <ul>
+                    <li><em>High — the three files this milestone touched (<code class="inline">IgnavClient.swift</code>, <code class="inline">models.swift</code>, the new <code class="inline">IgnavClientTests.swift</code>) carry the DigiDNA proprietary header instead of this project's MIT header.</em> Resolution: <strong>No action needed</strong> — this is the same Xcode Format hook behavior flagged in Milestone 1, where the user explicitly decided "Ignore headers entirely" for the remainder of this implementation. The reviewer (reviewing without that conversation history) couldn't know this was already adjudicated; not treated as a blocking finding.</li>
+                    <li><em>Info — confirmed the lack of <code class="inline">URLSession</code> mocking is proportionate, not a regression: <code class="inline">roundTrip</code>'s live network call was equally untested before this diff, and no mocking infrastructure exists anywhere in the repo.</em></li>
+                </ul>
+            </li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <div class="milestone" id="m6">
+        <div class="milestone-head">
+            <h4>6. Round-trip shape search (client-side enumeration)</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal">Implement "search over trip shapes" by calling the existing round-trip endpoint once per candidate date pair implied by the range/duration/flexibility/weekend constraint, since Ignav has no dedicated shape endpoint.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Add a search-runner function that, given a round-trip <code class="inline">SavedSearch</code>, enumerates candidate departure dates across <code class="inline">[rangeStart, rangeEnd]</code> and candidate durations across <code class="inline">[tripDurationDays − flexibilityDays, tripDurationDays + flexibilityDays]</code> (minimum 1 night).</li>
+            <li><input type="checkbox" checked disabled> When <code class="inline">mustIncludeWeekend</code> is set, drop candidates whose <code class="inline">[departure, departure + duration]</code> span includes no Saturday/Sunday.</li>
+            <li><input type="checkbox" checked disabled> Cap the number of Ignav calls per refresh (e.g. 25), since each call is billed. If enumeration produces more candidates than the cap, sample evenly across the range rather than truncating from one end, and surface the truncation on the run (e.g. "18 of 40 date combinations checked") via <code class="inline">SearchRun.requestCount</code>.</li>
+            <li><input type="checkbox" checked disabled> Fire the capped candidate requests, aggregate all returned itineraries, de-duplicate by <code class="inline">ignav_id</code>, sort by price.</li>
+            <li><input type="checkbox" checked disabled> Store the raw JSON of the response that produced the cheapest itinerary on <code class="inline">SearchRun.rawJSON</code> (storing every candidate's raw response isn't practical for the history view).</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">Tarmac/RoundTripShapeSearch.swift</code>: a <code class="inline">RoundTripShapeSearch</code> namespace with two pure functions — <code class="inline">candidates(for:)</code> (enumerates departure day × duration combinations across the search's range/flexibility, clamping duration to a 1-night minimum, dropping non-weekend spans when <code class="inline">mustIncludeWeekend</code> is set) and <code class="inline">sample(_:cap:)</code> (even index-based sampling to at most <code class="inline">cap</code> candidates, keeping the first and last) — plus an orchestrating <code class="inline">run(for:apiKey:cap:defaults:fetch:) async -> ShapeSearchResult</code> that fires one <code class="inline">IgnavClient.roundTrip(_:)</code> call per sampled candidate, aggregates itineraries, de-duplicates by <code class="inline">ignav_id</code> (never the unstable computed <code class="inline">Itinerary.id</code>), sorts by price, and keeps the raw JSON of whichever response contained the single cheapest itinerary.</li>
+            <li><code class="inline">candidates(for:)</code> normalizes a reversed <code class="inline">rangeStart</code>/<code class="inline">rangeEnd</code> via <code class="inline">min</code>/<code class="inline">max</code>, mirroring the defensive fix already applied to <code class="inline">SavedSearch.dateRangeLabel</code> in Milestone 1.</li>
+            <li>Calls are fired <strong>sequentially</strong>, not concurrently — a deliberate simplicity/determinism/testability tradeoff (also makes the dedup/cheapest-JSON bookkeeping trivially race-free with no synchronization needed), at the cost of wall-clock time on a large candidate set (up to <code class="inline">defaultCallCap</code> = 25 sequential network round-trips).</li>
+            <li><code class="inline">requestCount</code> in the returned <code class="inline">ShapeSearchResult</code> is the number of calls actually fired (<code class="inline">sampled.count</code>), matching <code class="inline">SearchRun.requestCount</code>'s documented meaning and the billing-awareness framing — a failed call still counts, since it was still billed. This milestone deliberately does <strong>not</strong> create or touch a <code class="inline">SearchRun</code>/<code class="inline">PriceSnapshot</code> at all — that mapping is explicitly Milestone 11's job ("Refresh button runs the selected search"); the pre-cap total candidate count (the "40" in "18 of 40") isn't stored anywhere since it's trivially recomputable later via <code class="inline">candidates(for:).count</code> on the same <code class="inline">SavedSearch</code>.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/RoundTripShapeSearchTests.swift</code> first (red) — 13 tests covering enumeration (zero-flexibility, range × flexibility, minimum-1-night clamp, weekend filtering, reversed-range normalization), sampling (under/over cap, cap of 1, cap of 0/empty), and the async runner (single candidate, price-sort + cheapest-JSON tracking, dedup, cap enforcement, partial failure tolerance, all-fail error surfacing) via an injectable <code class="inline">fetch</code> closure rather than <code class="inline">URLSession</code> mocking. Implemented until all 13 new tests passed alongside the 27 pre-existing ones (40 total); verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests after a clean <code class="inline">DerivedData</code> wipe, and independently re-derived the date arithmetic for every count-sensitive test with its own Python cross-check): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — sequential (not concurrent) request firing could make a large-candidate-set refresh take tens of seconds.</em> Resolution: <strong>Deferred</strong> — confirmed as a deliberate, reasonable tradeoff for this milestone; flagged as a possible future optimization once a UI exists to show progress.</li>
+                    <li><em>Low — when the final itinerary list is empty because one candidate legitimately found nothing while an unrelated candidate call failed, the surfaced <code class="inline">errorMessage</code> attributes the "empty" outcome to that unrelated failure, which can misrepresent a normal zero-fares result as an error.</em> Resolution: <strong>Deferred</strong> — left for review; a <code class="inline">hadAnySuccess</code>-based fix was suggested but not applied since this is orchestration logic with no UI consumer yet.</li>
+                    <li><em>Info — <code class="inline">sample</code>'s duplicate-index guard (the <code class="inline">Set&lt;Int&gt;</code>) is unreachable given the preceding guards, since the sampling ratio is always &gt; 1; harmless defensive code, not a bug.</em></li>
+                </ul>
+            </li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <h3 class="phase">Phase D — Sidebar &amp; new-search flow</h3>
+
+    <div class="milestone" id="m7">
+        <div class="milestone-head">
+            <h4>7. Sidebar becomes a list of saved searches</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal">Replace the sidebar form with a history of the searches that have been set up, one row per search, exclusive selection driving the detail pane.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Replace <code class="inline">SearchForm</code> in <code class="inline">ContentView.swift</code> with a <code class="inline">List</code>/<code class="inline">Table</code> driven by <code class="inline">@Query var searches: [SavedSearch]</code> (newest first).</li>
+            <li><input type="checkbox" checked disabled> Each row shows the search's summary (type, origin → destination, date/duration info at a glance).</li>
+            <li><input type="checkbox" checked disabled> Selection is exclusive (single optional binding); the selected search drives <code class="inline">ResultsPane</code>.</li>
+            <li><input type="checkbox" checked disabled> <code class="inline">ResultsPane</code> now takes the selected <code class="inline">SavedSearch?</code> (was the whole <code class="inline">SearchViewModel</code>); show an empty state when nothing is selected.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Rewrote <code class="inline">Tarmac/ContentView.swift</code>: <code class="inline">SearchForm</code> is replaced by a new <code class="inline">SearchSidebar</code> using <code class="inline">@Query(sort: \SavedSearch.createdAt, order: .reverse)</code> and <code class="inline">List(searches, selection: $selection)</code>, with each row rendered by a new <code class="inline">SearchRow</code> as <code class="inline">Text(search.summary)</code> — <code class="inline">summary</code> already composes type/origin→destination/date-range into one string, so no separate duplicate header line was added. <code class="inline">ContentView</code> now holds <code class="inline">@State private var selectedSearch: SavedSearch?</code> (was <code class="inline">SearchViewModel</code>) and passes it down; the navigation title changed from the now-inapplicable hardcoded <code class="inline">"Ignav — GVA ↔ LIS"</code> to <code class="inline">"Tarmac"</code>.</li>
+            <li><code class="inline">ResultsPane</code> now takes <code class="inline">search: SavedSearch?</code>: shows the search's summary plus a <code class="inline">ContentUnavailableView("No results yet", ...)</code> when a search is selected, or <code class="inline">ContentUnavailableView("No search selected", ...)</code> otherwise. The old itinerary <code class="inline">Table</code>/raw-JSON tab and its <code class="inline">flights(_:)</code> helper were removed entirely — they operated on <code class="inline">vm.itineraries: [Itinerary]</code>, which has no equivalent once <code class="inline">ResultsPane</code> no longer holds a <code class="inline">SearchViewModel</code>; the real data source going forward is <code class="inline">SearchRun.itineraries: [PriceSnapshot]</code> (a structurally different, flatter shape), which doesn't exist until Milestone 11 creates <code class="inline">SearchRun</code>s — Milestone 12 explicitly re-adds an adapted itinerary table against that real data.</li>
+            <li><code class="inline">Tarmac/SearchViewModel.swift</code> was deliberately <strong>left untouched</strong>, even though nothing in <code class="inline">ContentView.swift</code> references it any more after this change — it's still actively used by <code class="inline">PreferencesView.swift</code> (Milestone 4) and has its own passing test suite; the plan's own Notes section describes it as being "decomposed... by this plan" gradually rather than deleted in one milestone, and this milestone's task list doesn't mention removing it.</li>
+            <li><strong>Fixed a gap left over from Milestone 4's English-UI decision:</strong> <code class="inline">SavedSearch.summary</code> (added in Milestone 1) was never actually rendered anywhere in the app until this milestone puts it in <code class="inline">SearchRow</code>/<code class="inline">ResultsPane</code> — so it never had a chance to comply with the "whole app switches to English" decision made partway through Milestone 4. Translated it now: kind labels <code class="inline">"aller-retour"</code>/<code class="inline">"aller simple"</code> → <code class="inline">"round trip"</code>/<code class="inline">"one-way"</code>, date-formatter locale <code class="inline">fr_FR</code> → <code class="inline">en_US</code> (e.g. <code class="inline">"5–12 oct."</code> → <code class="inline">"5–12 Oct"</code>). Updated the three <code class="inline">summary</code>-asserting tests in the already-completed <code class="inline">TarmacTests/SavedSearchTests.swift</code> (Milestone 1) to match — only the expected string literals changed, not the test scenarios/dates/inputs.</li>
+            <li>TDD cycle: updated <code class="inline">SavedSearchTests.swift</code>'s expected strings first (red against the still-French implementation), then translated <code class="inline">SavedSearch.swift</code> (green). <code class="inline">ContentView.swift</code>'s new views (<code class="inline">SearchSidebar</code>/<code class="inline">SearchRow</code>/<code class="inline">ResultsPane</code>) are pure declarative composition with no extractable logic beyond the already-tested <code class="inline">summary</code> property and SwiftUI's own <code class="inline">@Query</code>/<code class="inline">List</code> machinery, so no new test file was added for them — matching the precedent set by Milestone 4's <code class="inline">PreferencesView.swift</code>. All 40 pre-existing tests still pass; verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>. Could not visually verify the rendered UI myself (still no Screen Recording permission in this environment).</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, traced <code class="inline">List</code>'s actual resolved SDK initializer to confirm the <code class="inline">@Model</code>/<code class="inline">Identifiable</code>/<code class="inline">Hashable</code> selection-typing claim rather than trusting that it merely compiled, and independently verified the <code class="inline">en_US</code> month-abbreviation output via a standalone script): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations. No Low findings either; only confirmatory Info notes, all judgment calls endorsed as reasonable with no objections.</li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <div class="milestone" id="m8">
+        <div class="milestone-head">
+            <h4>8. "+" button and new-search sheet shell</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-24">2026-08-24</time></p>
+        <p class="goal">A "+" button in the sidebar starts a new search via a modal sheet, first asking which kind of search to run.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Add a "+" button (toolbar or sidebar footer) that presents a modal sheet over the main window.</li>
+            <li><input type="checkbox" checked disabled> Sheet's first step offers "One-way" and "Round trip"; choosing one advances to that type's options form (Milestone 9/10).</li>
+            <li><input type="checkbox" checked disabled> Sheet has a way back to the type chooser and a Cancel action that discards the in-progress search.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">Tarmac/NewSearchSheet.swift</code>: a <code class="inline">NewSearchSheet</code> view driven by <code class="inline">@State private var chosenKind: SearchKind?</code> — <code class="inline">nil</code> shows a kind chooser ("One-way"/"Round Trip" buttons), non-nil shows a placeholder for that kind's options form (a <code class="inline">ContentUnavailableView</code>, matching the empty-state pattern established in Milestone 7's <code class="inline">ResultsPane</code>). A header shows "Back" (resets to the chooser) only once a kind is chosen, and "Cancel" (dismisses via <code class="inline">@Environment(\.dismiss)</code>) always. Reused the existing <code class="inline">SearchKind</code> model enum directly as the step-selection type rather than introducing a parallel navigation-only enum, since the two wizard steps correspond exactly to "no kind chosen" (nil) vs. "chose this kind."</li>
+            <li>Wired a "+" toolbar button into <code class="inline">SearchSidebar</code> (<code class="inline">Tarmac/ContentView.swift</code>) presenting <code class="inline">NewSearchSheet()</code> via <code class="inline">.sheet(isPresented:)</code>.</li>
+            <li>Deliberately did <strong>not</strong> add an <code class="inline">onCreate</code>/completion-closure parameter to <code class="inline">NewSearchSheet</code> for a future options form to report back a newly-created <code class="inline">SavedSearch</code> — no <code class="inline">SavedSearch</code> is created anywhere in this milestone (that's explicitly Milestones 9/10's job), and guessing at that future API now would be speculative; the seam is a small, additive change to make when it's actually needed.</li>
+            <li>No new tests: this is pure declarative SwiftUI navigation-state UI with no extractable logic beyond trivial <code class="inline">@State</code> assignment, matching the precedent established in Milestones 4 and 7. Verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> (all pre-existing tests unaffected) and a full <code class="inline">xcodebuild build</code>. Could not visually verify the rendered sheet myself (still no Screen Recording permission in this environment).</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, attempted to verify SwiftUI's <code class="inline">.automatic</code> toolbar-placement resolution against Apple's documentation but could only retrieve page titles, not body text, from the (JS-rendered) docs — flagged as an honestly-unverified claim rather than asserted either way): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — the "+" toolbar button uses implicit <code class="inline">.automatic</code> placement rather than an explicit one (e.g. <code class="inline">.primaryAction</code>), which is harmless today (only one toolbar item exists) but could behave less predictably once a later milestone adds toolbar items elsewhere.</em> Resolution: <strong>Deferred</strong> — left for review, polish suggestion only.</li>
+                    <li><em>Low — the sheet's Cancel button has no <code class="inline">.keyboardShortcut(.cancelAction)</code>, so Esc likely doesn't dismiss it, unlike standard macOS sheet behavior.</em> Resolution: <strong>Deferred</strong> — left for review.</li>
+                </ul>
+            </li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <div class="milestone" id="m9">
+        <div class="milestone-head">
+            <h4>9. One-way search options form</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-25">2026-08-25</time></p>
+        <p class="goal">Capture the fields that define a one-way search, per the backlog: origin, destination, date range, cabin class, direct-only, luggage included.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Build the form with origin/destination (IATA), date range, cabin class picker, direct-only checkbox, luggage-included checkbox.</li>
+            <li><input type="checkbox" checked disabled> "Save" creates a <code class="inline">SavedSearch(kind: .oneWay, ...)</code>, inserts it into the model context, dismisses the sheet, and selects the new search in the sidebar.</li>
+            <li><input type="checkbox" checked disabled> Validate IATA codes are non-empty 3-letter codes before enabling Save; mirror the existing uppercasing/<code class="inline">.autocorrectionDisabled()</code> conventions from <code class="inline">SearchViewModel</code>.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li><strong>Resolved an ambiguity in the task wording before coding:</strong> "date range" for a one-way search wasn't explained, and a later milestone (Refresh) dispatches one-way searches to a single <code class="inline">IgnavClient.oneWay(_:)</code> call — seemingly at odds with capturing a range at all. Checked the original source backlog document (<code class="inline">tarmac-backlog.html</code>), which explicitly says a one-way search's date range is "the window to search for the best price within" — the same range-search intent as round-trip, just not resolved by this milestone. Built a genuine two-date-picker range accordingly; how a later milestone executes a ranged one-way search is out of this milestone's scope.</li>
+            <li>Added <code class="inline">Tarmac/IATACode.swift</code>: a small, standalone <code class="inline">IATACode.isValid(_:)</code> (exactly three letters, any case) — extracted as a shared utility rather than inlined, since Milestone 10's own task list says "Same IATA validation as Milestone 9."</li>
+            <li>Added <code class="inline">Tarmac/OneWaySearchForm.swift</code>: a <code class="inline">Form</code> with origin/destination fields, an "Earliest departure"/"Latest departure" date-range pair (the second constrained via <code class="inline">in: rangeStart...</code>), the existing cabin-class picker options, direct-only and luggage-included toggles, and a Save button gated on <code class="inline">IATACode.isValid</code> for both fields. Save uppercases origin/destination at save time (not live as typed) before constructing and persisting the <code class="inline">SavedSearch</code>, since <code class="inline">SavedSearch.summary</code> never itself uppercases — this mirrors <code class="inline">SearchViewModel.search()</code>'s pattern of uppercasing only at the point of use, applied here at the point of persistence instead.</li>
+            <li>Wired an <code class="inline">onCreate: (SavedSearch) -> Void</code> parameter through <code class="inline">NewSearchSheet</code> (the seam explicitly deferred in Milestone 8) so <code class="inline">SearchSidebar</code> can select the newly-created search after Save.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/IATACodeTests.swift</code> first (red), implemented until green. No dedicated test for <code class="inline">OneWaySearchForm</code>'s <code class="inline">save()</code> itself — pure <code class="inline">@Environment</code>/<code class="inline">@State</code>-coupled view code with a simple, directly-labeled field mapping, matching the precedent from Milestones 4/7/8. All 40 tests pass; verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>. Could not visually verify the rendered form myself (still no Screen Recording permission).</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li>Round 1's reviewer stalled mid-review (no progress for 10 minutes) and was retried from scratch with a fresh sub-agent.</li>
+            <li><strong>Round 1 (retry)</strong> (fresh sub-agent, independently re-ran build + tests, cross-checked field mappings against <code class="inline">SavedSearch.init</code> and <code class="inline">DefaultSearchSeeder</code>'s identical call pattern, traced the <code class="inline">onCreate</code> closure chain end-to-end, and used <code class="inline">git log -p</code> to confirm the <code class="inline">.autocorrectionDisabled()</code>-on-Form placement matches the original, now-removed <code class="inline">SearchForm</code>): no Critical/High/Medium findings — loop converged after 1 of the allowed 3 iterations.
+                <ul>
+                    <li><em>Low — <code class="inline">IATACode.isValid</code> accepts any Unicode letter, not just ASCII A-Z</code></em> (e.g. accented or non-Latin letters would pass). Resolution: <strong>Deferred</strong> — left for review; cheap to tighten later, propagates to Milestone 10 since it reuses this function.</li>
+                    <li><em>Low — no inline feedback (red border, caption) when IATA input is invalid, only a disabled Save button with no explanation.</em> Resolution: <strong>Deferred</strong> — technically satisfies the task's literal wording, flagged as a UX polish gap.</li>
+                    <li><em>Low — nothing clamps or normalizes an inverted date range if the user moves "Earliest departure" past the current "Latest departure" after setting it; <code class="inline">isValid</code>/Save's disabled state don't check date ordering.</em> Resolution: <strong>Deferred</strong> — the codebase's established <code class="inline">min</code>/<code class="inline">max</code> defensive-normalization convention (from <code class="inline">SavedSearch.dateRangeLabel</code>/<code class="inline">RoundTripShapeSearch.candidates(for:)</code>) means display and likely future dispatch logic won't corrupt or crash on this, but the form itself doesn't prevent persisting a reversed range.</li>
+                    <li><em>Info — <code class="inline">save()</code> doesn't call <code class="inline">context.save()</code> after <code class="inline">insert()</code>, unlike <code class="inline">DefaultSearchSeeder</code>'s <code class="inline">try? context.save()</code>; not a functional bug (the container autosaves, and <code class="inline">@Query</code> reflects pending inserts immediately, which is why <code class="inline">onCreate</code>/selection works), just a minor style inconsistency.</em></li>
+                    <li><em>Info — reasoned (not visually confirmed) that the sheet's 420pt height is plausible for the form's row count; not a real risk either way since <code class="inline">Form</code> scrolls internally and Save lives in a fixed footer outside it.</em></li>
+                </ul>
+            </li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <div class="milestone" id="m10">
+        <div class="milestone-head">
+            <h4>10. Round-trip search options form</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-25">2026-08-25</time></p>
+        <p class="goal">Capture the fields that define a round-trip shape, per the backlog: origin, destination, date range, trip duration, flexibility, must-include-weekend, cabin class, direct-only, luggage included.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Build the form with origin/destination, date range, trip duration stepper, flexibility stepper, must-include-weekend checkbox, cabin class picker, direct-only checkbox, luggage-included checkbox.</li>
+            <li><input type="checkbox" checked disabled> "Save" creates a <code class="inline">SavedSearch(kind: .roundTrip, ...)</code>, inserts it, dismisses the sheet, selects the new search.</li>
+            <li><input type="checkbox" checked disabled> Same IATA validation as Milestone 9.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Checked the original backlog source doc again for the round-trip section's exact field descriptions (trip duration, ± flexibility, must-include-weekend) to keep field labels/wording consistent with the source intent.</li>
+            <li>Added <code class="inline">Tarmac/RoundTripSearchForm.swift</code>, structurally parallel to Milestone 9's <code class="inline">OneWaySearchForm.swift</code>: same origin/destination/date-range/cabin/direct-only/luggage-included fields and Save/validation pattern, plus a "Trip duration" stepper (1–30 nights), a "Flexibility" stepper (±0–14 days), and a "Must include a weekend" toggle, all passed into <code class="inline">SavedSearch(kind: .roundTrip, ...)</code>. Deliberately built as a mostly-independent file rather than sharing a "common fields" component with <code class="inline">OneWaySearchForm.swift</code> up front, since the plan's task list lists round-trip's full field set independently and only explicitly calls for reusing IATA validation (already shared via <code class="inline">IATACode</code>).</li>
+            <li>Wired the <code class="inline">.roundTrip</code> case in <code class="inline">NewSearchSheet</code>'s step switch to <code class="inline">RoundTripSearchForm</code>, removed the now-fully-unused <code class="inline">NewSearchOptionsPlaceholder</code> (both wizard branches now show real forms), and grew the sheet's shared fixed frame from 420pt to 480pt to fit round-trip's three extra rows.</li>
+            <li>No new tests: same <code class="inline">@Environment</code>/<code class="inline">@State</code>-coupled view code as <code class="inline">OneWaySearchForm</code>, reusing the already-tested <code class="inline">IATACode</code>. All 41 tests pass; verified via <code class="inline">xcodebuild test -only-testing:TarmacTests</code> and a full <code class="inline">xcodebuild build</code>. Could not visually verify the rendered form myself (still no Screen Recording permission).</li>
+            <li><strong>Follow-up from the automated review's Medium finding:</strong> extracted a shared <code class="inline">Tarmac/CabinClassPicker.swift</code> and updated both <code class="inline">OneWaySearchForm.swift</code> (Milestone 9, already committed) and <code class="inline">RoundTripSearchForm.swift</code> to use it, removing the duplicated four-tag cabin-class <code class="inline">Picker</code> that the review flagged as a real two-sources-of-truth risk.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, independently re-ran build + tests, verified the <code class="inline">onCreate</code>/selection chain end-to-end for round-trip the same way it was traced for one-way in Milestone 9, cross-checked Stepper ranges against <code class="inline">RoundTripShapeSearch.candidates(for:)</code>'s implicit assumptions, and hand-verified <code class="inline">save()</code>'s 10-argument field mapping): 1 Medium finding, 1 Low, 2 Info.
+                <ul>
+                    <li><em>Medium — <code class="inline">OneWaySearchForm.swift</code> and <code class="inline">RoundTripSearchForm.swift</code> duplicated the cabin-class <code class="inline">Picker</code> verbatim (all four hardcoded tag rows) — a concrete, already-existing two-sources-of-truth risk, not speculative.</em> Resolution: <strong>Fixed</strong> — extracted <code class="inline">CabinClassPicker</code>, used by both forms.</li>
+                    <li><em>Low — the sheet's shared fixed frame size has grown every milestone that added a step (360→420→480) to fit whichever form currently needs the most room.</em> Resolution: <strong>Deferred</strong> — no action needed now per the reviewer; noted as a pattern that won't scale indefinitely if a future step needs even more room.</li>
+                    <li><em>Info — confirmed the Stepper ranges (1–30 nights, ±0–14 days) don't violate any implicit assumption in <code class="inline">RoundTripShapeSearch.candidates(for:)</code>, and confirmed <code class="inline">save()</code>'s field mapping has no swapped parameters.</em></li>
+                </ul>
+            </li>
+            <li><strong>Round 2</strong> (new fresh sub-agent, independently re-ran build + tests, grepped the whole tree to confirm no duplicate inline cabin <code class="inline">Picker</code> remained anywhere, and did a full independent re-review rather than only checking the one fix): no Medium/Critical/High findings — confirmed the extraction is correct and complete, confirmed no regression in either form's Save/validation/<code class="inline">onCreate</code> behavior or in the wizard's Back/Cancel navigation, and confirmed omitting a Doxygen doc comment on <code class="inline">CabinClassPicker</code> is consistent with this codebase's established convention (no <code class="inline">View</code>-conforming struct anywhere carries one). Loop converged after 2 of the allowed 3 iterations.</li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+    <h3 class="phase">Phase E — Results pane &amp; run history</h3>
+
+    <div class="milestone" id="m11">
+        <div class="milestone-head">
+            <h4>11. Refresh button runs the selected search</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-25">2026-08-25</time></p>
+        <p class="goal">The results panel re-runs the selected search on demand and pulls current prices, without discarding earlier runs.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Replace the old "Chercher" button (previously in the sidebar form) with a refresh button on <code class="inline">ResultsPane</code>, acting on the currently selected <code class="inline">SavedSearch</code>.</li>
+            <li><input type="checkbox" checked disabled> Dispatch to <code class="inline">IgnavClient.oneWay(_:)</code> or the Milestone 6 shape-search runner based on <code class="inline">search.kind</code>.</li>
+            <li><input type="checkbox" checked disabled> On completion, create a new <code class="inline">SearchRun</code> (itineraries, rawJSON, errorMessage, requestCount, runAt = now) and append it to <code class="inline">search.runs</code> — never overwrite or replace a previous run.</li>
+            <li><input type="checkbox" checked disabled> Reuse the existing loading/error UI patterns (<code class="inline">isLoading</code>, <code class="inline">errorMessage</code>) from <code class="inline">SearchViewModel</code>.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">Tarmac/SearchRunner.swift</code>: a <code class="inline">SearchRunner</code> namespace with a static <code class="inline">run(for:apiKey:defaults:cap:oneWayFetch:roundTripFetch:)</code> that dispatches by <code class="inline">search.kind</code>, builds a <code class="inline">SearchRun</code> (mapping <code class="inline">Itinerary</code> → <code class="inline">PriceSnapshot</code>, with <code class="inline">outboundSummary</code>/<code class="inline">inboundSummary</code> built by joining each leg's segments' <code class="inline">carrier_code</code>+<code class="inline">flight_number</code> — the same format the original, now-removed itinerary table used), appends it to <code class="inline">search.runs</code>, and returns it. Round-trip dispatches to the existing <code class="inline">RoundTripShapeSearch.run</code> (Milestone 6); one-way fires a single <code class="inline">IgnavClient.oneWay(_:)</code> call.</li>
+            <li>Both dispatch paths synthesize the same "No flights for these filters (request valid… and billed)." message on a successful-but-empty result (no underlying error), matching the original <code class="inline">SearchViewModel.search()</code>'s UX for this case — <code class="inline">RoundTripShapeSearch.run</code> itself doesn't set this (that mapping was explicitly left to this milestone per Milestone 6's notes).</li>
+            <li><code class="inline">Tarmac/ContentView.swift</code>'s <code class="inline">ResultsPane</code> now delegates to a new <code class="inline">SearchDetailView</code>, which owns the Refresh button and calls <code class="inline">SearchRunner.run</code> then <code class="inline">modelContext.insert(run)</code>.</li>
+            <li>TDD cycle: added <code class="inline">TarmacTests/SearchRunnerTests.swift</code> first (red — <code class="inline">SearchRunner</code> didn't exist), covering dispatch-by-kind, request field mapping, airline-preference/defaults forwarding, the no-fares/error-message logic for both paths, and <code class="inline">Itinerary</code> → <code class="inline">PriceSnapshot</code> mapping including leg summaries. Implemented until all tests passed (green); verified via <code class="inline">xcodebuild test</code> and a full <code class="inline">xcodebuild build</code>. Two ambiguous-trailing-closure test bugs were caught and fixed during this cycle (see Automated review round 1, finding 3-equivalent) — every test call site now uses an explicit <code class="inline">oneWayFetch:</code>/<code class="inline">roundTripFetch:</code> label rather than relying on Swift's trailing-closure resolution between two same-shaped optional closure parameters.</li>
+            <li><strong>Follow-up from user-reported compiler warning:</strong> "Main actor-isolated static property 'defaultCallCap' can not be referenced from a nonisolated context", surfaced in the new <code class="inline">SearchRunner.swift</code>. Investigated and found the same warning already existed (pre-existing, unnoticed) in Milestone 6's <code class="inline">RoundTripShapeSearch.swift</code> — this project builds with <code class="inline">SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor</code>, so an unannotated <code class="inline">static let</code> is implicitly MainActor-isolated, and referencing it as a default-parameter-value expression (a nonisolated context) doesn't type-check. Fixed at the root by marking <code class="inline">RoundTripShapeSearch.defaultCallCap</code> <code class="inline">nonisolated</code> (a plain immutable <code class="inline">Int</code> constant, safe to exempt from actor isolation), which cleared both call sites' warnings without touching either one directly. Confirmed behavior-neutral and verified by both automated-review rounds below.</li>
+            <li><strong>Follow-up from automated review round 1's Medium findings</strong> (all three fixed in the same pass): (1) documented — via a Doxygen paragraph on <code class="inline">SearchRunner.run</code> plus a UI caption on <code class="inline">SearchDetailView</code> shown only for one-way searches ("Refresh checks the earliest date in the range.") — that a one-way refresh only ever checks <code class="inline">search.rangeStart</code> and does not sweep <code class="inline">search.rangeEnd</code> the way round-trip's shape search does; a full one-way date-range sweep was judged out of this milestone's scope (the task list only calls for a single <code class="inline">IgnavClient.oneWay(_:)</code> dispatch) and left as a documented follow-up rather than a silent gap. (2) <code class="inline">runOneWay</code> now sorts itineraries by price before mapping to snapshots, matching round-trip's and the original <code class="inline">SearchViewModel</code>'s convention. (3) Added <code class="inline">Tarmac/RefreshState.swift</code>, an <code class="inline">@Observable</code> class tracking per-search <code class="inline">isLoading</code>/<code class="inline">errorMessage</code> keyed by <code class="inline">SavedSearch.id</code>, owned once by <code class="inline">ContentView</code> (so it survives sidebar selection changes) and threaded down through <code class="inline">ResultsPane</code>/<code class="inline">SearchDetailView</code>; this replaces <code class="inline">SearchDetailView</code>'s previous local <code class="inline">@State</code> (which was torn down mid-refresh whenever the sidebar selection changed, via the <code class="inline">.id(search.id)</code> modifier this fix removes — orphaning the in-flight <code class="inline">Task</code>'s UI feedback and allowing a duplicate concurrent refresh for the same search) and adds an explicit <code class="inline">beginRefresh(for:)</code> duplicate guard. (4) <code class="inline">snapshot(for:)</code> now takes the owning <code class="inline">SearchRun</code> and sets <code class="inline">PriceSnapshot.run</code> explicitly, matching the codebase's only other precedent for this relationship (<code class="inline">SearchRunTests.searchRunItinerariesCascade</code>) instead of relying on unverified implicit inverse-relationship sync.</li>
+            <li>Also fixed, as a drive-by, a two-comma-condition <code class="inline">guard</code> on one line in the new <code class="inline">legSummary</code> (a Low finding, but a direct violation of the user's explicit style rule for the file being actively edited) — split onto two lines, matching the alignment convention already established in <code class="inline">IgnavClient.pretty(_:)</code>.</li>
+            <li>TDD cycle for the fixes: added <code class="inline">TarmacTests/RefreshStateTests.swift</code> first (red — <code class="inline">RefreshState</code> didn't exist), covering the duplicate-refresh guard, independent per-search tracking, and error/loading transitions. Extended <code class="inline">SearchRunnerTests.swift</code> with a price-sort regression test and <code class="inline">PriceSnapshot.run</code> inverse assertions. Implemented until all tests passed (green); verified via <code class="inline">xcodebuild test</code> and a full <code class="inline">xcodebuild build</code> (zero warnings) after every round of changes.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent): no Critical/High findings; 3 Medium, 2 Low, 1 Info.
+                <ul>
+                    <li><em>Medium — one-way refresh silently ignores <code class="inline">search.rangeEnd</code>, making the date-range field dead for that search type.</em> Resolution: <strong>Fixed</strong> — documented in code and surfaced in the UI (see Implementation notes); functional range-sweep judged out of scope.</li>
+                    <li><em>Medium — one-way <code class="inline">SearchRun.itineraries</code> weren't price-sorted, unlike round-trip and the original <code class="inline">SearchViewModel</code>.</em> Resolution: <strong>Fixed</strong> — sort added, regression test added.</li>
+                    <li><em>Medium — the refresh <code class="inline">Task</code> wasn't tied to the view's lifecycle; switching sidebar selection during a refresh could orphan UI feedback and allow a duplicate concurrent Ignav call for the same search.</em> Resolution: <strong>Fixed</strong> — <code class="inline">RefreshState</code> added, tested, wired through.</li>
+                    <li><em>Low — <code class="inline">PriceSnapshot.run</code> inverse not set explicitly, deviating from the only existing precedent and left unverified by any test.</em> Note: this was actually <strong>fixed</strong> alongside the Mediums above rather than deferred, since the required change was small and directly adjacent.</li>
+                    <li><em>Low — two comma-separated <code class="inline">guard</code> conditions on one line in <code class="inline">legSummary</code>, against the user's style rule (though matching pre-existing precedent elsewhere in the codebase).</em> Resolution: <strong>Fixed</strong> as a drive-by in the same file.</li>
+                    <li><em>Info — minor <code class="inline">DateFormatter</code> duplication between <code class="inline">SearchRunner.swift</code> and <code class="inline">RoundTripShapeSearch.swift</code>.</em> Resolution: <strong>Deferred</strong> — left for review; small, low-risk, worth an extraction if the pattern grows further.</li>
+                </ul>
+            </li>
+            <li><strong>Round 2</strong> (new fresh sub-agent, independently re-ran the build and full test suite, traced the <code class="inline">RefreshState</code>/Observation mechanics and the duplicate-refresh guard end to end rather than assuming correctness, and verified the <code class="inline">nonisolated</code> fix against the project's actual <code class="inline">SWIFT_DEFAULT_ACTOR_ISOLATION</code> build setting): confirmed all four addressed findings are correct and complete, confirmed the deferred Info item is unchanged and not worse, and found no new issues introduced by the fix cycle. No new Critical/High/Medium findings — loop converged after 2 of the allowed 3 iterations.</li>
+        </ul>
+        <h5>Review comments</h5>
+        <ul>
+            <li>User reported a compiler warning: "Main actor-isolated static property 'defaultCallCap' can not be referenced from a nonisolated context", surfaced in <code class="inline">SearchRunner.swift</code>. See Implementation notes for the fix (also applied to Milestone 6's <code class="inline">RoundTripShapeSearch.swift</code>, where the same underlying issue pre-existed).</li>
+        </ul>
+    </div>
+
+    <div class="milestone" id="m12">
+        <div class="milestone-head">
+            <h4>12. Show run history in the results pane</h4>
+            <span class="status completed">Completed</span>
+        </div>
+        <p class="meta">Completed <time datetime="2026-08-25">2026-08-25</time></p>
+        <p class="goal">Keep every result run for the selected search visible, not only the most recent one, so price movement over time is legible.</p>
+
+        <h5>Tasks</h5>
+        <ul class="tasks">
+            <li><input type="checkbox" checked disabled> Add a run picker (list of past runs by timestamp + cheapest price) above the existing itineraries table, defaulting to the most recent run.</li>
+            <li><input type="checkbox" checked disabled> Selecting an older run shows that run's itineraries in the existing <code class="inline">Table</code> (price/outbound/inbound/duration/ignav_id columns) and its "JSON brut" tab.</li>
+            <li><input type="checkbox" checked disabled> Show price movement at a glance (e.g. cheapest-price delta vs. the previous run) so a search's history is legible without opening every run individually.</li>
+        </ul>
+
+        <h5>Implementation notes</h5>
+        <ul>
+            <li>Added <code class="inline">SearchRun.cheapestFare: PriceSnapshot?</code> (the lowest-<code class="inline">amount</code> itinerary, or nil) and <code class="inline">SearchRun.priceDelta(previous:) -> Double?</code> (this run's cheapest minus <code class="inline">previous</code>'s, nil if either has no fares or there's no previous run), plus <code class="inline">SavedSearch.runsNewestFirst: [SearchRun]</code> (<code class="inline">runs</code> sorted by <code class="inline">runAt</code> descending) — all as tested computed properties/methods on the models, following the same pattern as <code class="inline">SavedSearch.summary</code>/<code class="inline">dateRangeLabel</code>.</li>
+            <li>Added <code class="inline">Tarmac/RunHistoryView.swift</code>: <code class="inline">RunHistoryView</code> (public) takes a newest-first <code class="inline">runs: [SearchRun]</code> and a <code class="inline">selection</code> binding; renders a horizontally-scrolling <code class="inline">RunPicker</code> of tappable <code class="inline">RunChip</code>s (timestamp, cheapest fare, colored up/down delta vs. the previous run) above a <code class="inline">RunDetailView</code> for the selected run — a segmented "Itineraries"/"Raw JSON" tab, the Itineraries tab being the adapted <code class="inline">Table</code> (Price/Outbound/Inbound/Duration/ignav_id columns) that Milestone 7 removed pending this milestone re-adding it against the new <code class="inline">PriceSnapshot</code> shape. The plan's task-list wording "JSON brut" was the original French UI's tab name, quoted descriptively, not literally — per the app's English-UI convention (Milestone 4 onward) this ships as "Raw JSON".</li>
+            <li><code class="inline">Tarmac/ContentView.swift</code>'s <code class="inline">SearchDetailView</code> gained <code class="inline">@State private var selectedRun: SearchRun?</code>, computes <code class="inline">let runs = self.search.runsNewestFirst</code>, and shows the existing "No results yet" empty state when empty or <code class="inline">RunHistoryView</code> otherwise, defaulting <code class="inline">selectedRun</code> to the newest run on first appearance. <code class="inline">ResultsPane</code> re-applies <code class="inline">.id(search.id)</code> to <code class="inline">SearchDetailView</code> (removed during Milestone 11's duplicate-refresh fix) specifically to reset this new, purely-synchronous local <code class="inline">@State</code> when the sidebar selection changes — safe to reintroduce because Milestone 11 moved the one piece of state an in-flight async <code class="inline">Task</code> writes into (<code class="inline">isLoading</code>/<code class="inline">errorMessage</code>) out into the externally-owned <code class="inline">RefreshState</code>, which isn't affected by this view's teardown.</li>
+            <li>TDD cycle: extended <code class="inline">TarmacTests/SearchRunTests.swift</code> and <code class="inline">TarmacTests/SavedSearchTests.swift</code> first (red — the new model members didn't exist), covering <code class="inline">cheapestFare</code> tie-breaking, all four <code class="inline">priceDelta</code> nil-propagation cases plus the difference computation, and <code class="inline">runsNewestFirst</code> ordering. Implemented until green; verified via <code class="inline">xcodebuild test</code> and a full <code class="inline">xcodebuild build</code>. <code class="inline">RunHistoryView</code>/<code class="inline">RunPicker</code>/<code class="inline">RunChip</code>/<code class="inline">RunDetailView</code> are pure declarative SwiftUI with no extractable logic beyond the already-tested model members, matching the precedent from Milestones 4/7/8/9/10 — no dedicated view tests added.</li>
+            <li><strong>Follow-up from automated review round 1</strong> (all three findings fixed): (1) <em>Medium</em> — <code class="inline">.onChange(of: runs.count)</code> was unconditionally resetting <code class="inline">selectedRun</code> to the newest run on every refresh, discarding a manual selection of an older run mid-comparison. Fixed with a second piece of state, <code class="inline">isFollowingLatestRun: Bool</code> (default <code class="inline">true</code>), threaded down to <code class="inline">RunPicker</code> and cleared to <code class="inline">false</code> on any manual chip tap; the reset now only fires when still following latest, or when the current selection has actually become invalid — preserving "defaults to the most recent run" across repeated refreshes while no longer yanking away a deliberate older-run selection. (2) <em>Low</em> — the price-delta arrow's suppression check compared the untruncated <code class="inline">Double</code> to zero while the displayed magnitude used <code class="inline">Int(...)</code> truncation, so a sub-1.0 delta (e.g. 0.4) could render an arrow next to a "0". Fixed by gating on <code class="inline">Int(delta) != 0</code>, matching the display truncation exactly. (3) <em>Low</em> — the "pair each run with its chronological predecessor" indexing lived untested, inline in <code class="inline">RunPicker</code>. Extracted to a tested <code class="inline">Array&lt;SearchRun&gt;.pairedWithPrevious()</code> in <code class="inline">SearchRun.swift</code>, used by <code class="inline">RunPicker</code> via <code class="inline">ForEach(self.runs.pairedWithPrevious(), id: \.run.id)</code>.</li>
+        </ul>
+        <h5>Automated review</h5>
+        <ul>
+            <li><strong>Round 1</strong> (fresh sub-agent, built and ran the full suite independently): no Critical/High findings; 1 Medium, 2 Low (a third Low — file headers, already-adjudicated per Milestone 5 — not treated as a live finding).
+                <ul>
+                    <li><em>Medium — <code class="inline">.onChange(of: runs.count)</code> discards a valid manual run selection on every refresh.</em> Resolution: <strong>Fixed</strong> — see Implementation notes.</li>
+                    <li><em>Low — price-delta arrow could render alongside a "0" for sub-1.0-magnitude deltas.</em> Resolution: <strong>Fixed</strong>.</li>
+                    <li><em>Low — previous-run pairing logic untested, inline in view code.</em> Resolution: <strong>Fixed</strong> — extracted and tested.</li>
+                </ul>
+            </li>
+            <li><strong>Round 2</strong> (new fresh sub-agent, independently re-ran build + full test suite, traced the <code class="inline">isFollowingLatestRun</code>/<code class="inline">selectedRun</code> interaction through a concrete multi-refresh/manual-selection sequence, and verified the truncation-guard fix algebraically for near-zero deltas in both directions): confirmed all three fixes correct and complete, no new Critical/High/Medium/Low findings. Two Info-level observations, both pre-existing (not introduced by this milestone or its fix cycle) and left as-is: <code class="inline">RunDetailView</code>'s Itineraries/Raw JSON tab selection isn't reset when switching which run is selected (plausibly intentional — lets you compare the same tab across runs); the run picker doesn't auto-scroll to keep the newest chip visible if the user has manually scrolled it while still "following latest". Loop converged after 2 of the allowed 3 iterations.</li>
+        </ul>
+        <h5>Review comments</h5>
+        <p class="field empty">Not started.</p>
+    </div>
+
+</section>
+
+<section class="appendix-section appendix">
+    <h2>Appendix</h2>
+    <p>Ignav one-way fares contract, as provided for Milestone 5:</p>
+    <pre>curl -X POST "https://ignav.com/api/fares/one-way" \
+  -H "X-Api-Key: TA_CLE_API" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "origin": "GVA",
+    "destination": "LIS",
+    "departure_date": "2026-10-05",
+    "cabin_class": "business",
+    "max_stops": 0,
+    "airlines_include": ["LX", "TP"],
+    "market": "CH"
+  }'</pre>
+    <p>Additional parameters the endpoint accepts, not used by this plan (see Milestone 5's last task):</p>
+    <table>
+        <thead>
+            <tr><th>Parameter</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><code>max_price</code></td><td>Strict maximum price in the market's currency — only itineraries under this threshold are returned.</td></tr>
+            <tr><td><code>departure_time_range</code></td><td>Object with <code>earliest_hour</code>, <code>latest_hour</code>, <code>arrival_earliest_hour</code>, <code>arrival_latest_hour</code> (0–23, local airport time).</td></tr>
+            <tr><td><code>min_checked_bags</code> / <code>min_carry_on_bags</code></td><td>Minimum included baggage — the field the "Luggage included" checkbox would eventually map to.</td></tr>
+            <tr><td><code>allow_self_transfer</code></td><td>Defaults to true; set to false to avoid self-transfer (separate ticket) itineraries.</td></tr>
+            <tr><td><code>adults</code>, <code>children</code>, <code>infants_in_seat</code>, <code>infants_on_lap</code></td><td>Passenger counts, 9 total maximum.</td></tr>
+        </tbody>
+    </table>
+</section>
+
+</main>
+</body>
+</html>
