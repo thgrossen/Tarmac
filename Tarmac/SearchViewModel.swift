@@ -78,8 +78,7 @@ final class SearchViewModel
             cabin_class: self.cabin,
             max_stops: self.directOnly ? 0 : 2,
             airlines_include: AirlinePreference.currentAirlinesInclude( defaults: self.defaults ),
-            market: MarketPreference.currentMarket( defaults: self.defaults ),
-            passengers: 1
+            market: MarketPreference.currentMarket( defaults: self.defaults )
         )
 
         do

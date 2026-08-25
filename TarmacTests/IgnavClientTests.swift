@@ -27,8 +27,7 @@ struct IgnavClientTests
             cabin_class: "business",
             max_stops: 0,
             airlines_include: [ "LX", "TP" ],
-            market: "CH",
-            passengers: 1
+            market: "CH"
         )
         let req = try IgnavClient.makeRequest( apiKey: "s3cr3t", body: body, path: "one-way" )
 
@@ -46,7 +45,6 @@ struct IgnavClientTests
         #expect( json[ "max_stops" ] as? Int == 0 )
         #expect( json[ "airlines_include" ] as? [ String ] == [ "LX", "TP" ] )
         #expect( json[ "market" ] as? String == "CH" )
-        #expect( json[ "passengers" ] as? Int == 1 )
         #expect( json[ "return_date" ] == nil )
     }
 
@@ -61,8 +59,7 @@ struct IgnavClientTests
             cabin_class: "business",
             max_stops: 0,
             airlines_include: nil,
-            market: "CH",
-            passengers: 2
+            market: "CH"
         )
         let req = try IgnavClient.makeRequest( apiKey: "s3cr3t", body: body, path: "round-trip" )
 
@@ -72,7 +69,6 @@ struct IgnavClientTests
         let json = Self.decodedBody( req )
         #expect( json[ "return_date" ] as? String == "2026-10-08" )
         #expect( json[ "airlines_include" ] == nil )
-        #expect( json[ "passengers" ] as? Int == 2 )
     }
 
     @Test( "Decodes a one-way response (no inbound leg)" )
