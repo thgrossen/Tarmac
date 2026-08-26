@@ -55,12 +55,13 @@ struct SearchSidebar: View
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedID: SavedSearch.ID?
+    @State private var isPresentingClearAllConfirmation = false
 
     var body: some View
     {
         List( searches, selection: $selectedID )
         { search in
-            SearchRow( search: search )
+            SearchRow( search: search, onDelete: { self.deleteSearch( search ) } )
         }
         .onAppear
         {
@@ -95,6 +96,16 @@ struct SearchSidebar: View
                 self.selection = match
             }
         }
+        .onDeleteCommand
+        {
+            guard let selectedID = self.selectedID,
+                  let search = self.searches.first( where: { $0.id == selectedID } )
+            else
+            {
+                return
+            }
+            self.deleteSearch( search )
+        }
         .toolbar
         {
             ToolbarItem
@@ -106,6 +117,20 @@ struct SearchSidebar: View
                     Label( "New Search", systemImage: "plus" )
                 }
             }
+
+            ToolbarItem
+            {
+                Menu
+                {
+                    Button( "Clear All Searches", role: .destructive )
+                    {
+                        self.isPresentingClearAllConfirmation = true
+                    }
+                    .disabled( self.searches.isEmpty )
+                } label: {
+                    Label( "More", systemImage: "ellipsis.circle" )
+                }
+            }
         }
         .sheet( isPresented: $isPresentingNewSearchSheet )
         {
@@ -115,6 +140,16 @@ struct SearchSidebar: View
                 self.selectedID = newSearch.id
                 Task { await self.runInitialSearch( for: newSearch ) }
             }
+        }
+        .alert( "Clear All Searches?", isPresented: $isPresentingClearAllConfirmation )
+        {
+            Button( "Clear All Searches", role: .destructive )
+            {
+                self.clearAllSearches()
+            }
+            Button( "Cancel", role: .cancel ) {}
+        } message: {
+            Text( "This permanently deletes every saved search and its run history. This can't be undone." )
         }
     }
 
@@ -138,11 +173,47 @@ struct SearchSidebar: View
         self.modelContext.insert( run )
         self.refreshState.endRefresh( for: search.id, errorMessage: run.errorMessage )
     }
+
+    /**
+     * Deletes a single search, reassigning the sidebar's selection if it was the one deleted.
+     *
+     * @param search Search to delete.
+     */
+    private func deleteSearch( _ search: SavedSearch )
+    {
+        let wasSelected = search.id == self.selectedID
+        self.modelContext.delete( search )
+
+        guard wasSelected
+        else
+        {
+            return
+        }
+
+        let remaining = self.searches.filter { $0.id != search.id }
+        let restored  = SearchSelectionPreference.restoreSelection( from: remaining )
+        self.selectedID = restored?.id
+        self.selection = restored
+    }
+
+    /**
+     * Deletes every saved search, clearing the sidebar's selection.
+     */
+    private func clearAllSearches()
+    {
+        for search in self.searches
+        {
+            self.modelContext.delete( search )
+        }
+        self.selectedID = nil
+        self.selection = nil
+    }
 }
 
 struct SearchRow: View
 {
     var search: SavedSearch
+    var onDelete: () -> Void
 
     var body: some View
     {
@@ -167,6 +238,10 @@ struct SearchRow: View
         .padding( .vertical, 4 )
         .frame( maxWidth: .infinity, alignment: .leading )
         .contentShape( Rectangle() )
+        .contextMenu
+        {
+            Button( "Delete", role: .destructive, action: self.onDelete )
+        }
     }
 }
 

@@ -173,4 +173,76 @@ struct SavedSearchTests
 
         #expect( search.runsNewestFirst.map( \.id ) == [ newest.id, middle.id, oldest.id ] )
     }
+
+    @Test( "Deleting a search cascades through its runs to their itineraries" )
+    func deletingSearchCascadesToItineraries() throws
+    {
+        let context  = try TestSupport.makeInMemoryContext( for: SavedSearch.self, SearchRun.self, PriceSnapshot.self )
+        let search   = SavedSearch(
+            kind: .oneWay,
+            origin: "GVA",
+            destination: "LIS",
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 12 ),
+            cabinClass: "economy"
+        )
+        let run      = SearchRun( requestCount: 1 )
+        let snapshot = PriceSnapshot( amount: 300, currency: "CHF" )
+        snapshot.run = run
+        run.itineraries.append( snapshot )
+        run.savedSearch = search
+        search.runs.append( run )
+        context.insert( search )
+        try context.save()
+
+        #expect( try context.fetch( FetchDescriptor< SearchRun >() ).count == 1 )
+        #expect( try context.fetch( FetchDescriptor< PriceSnapshot >() ).count == 1 )
+
+        context.delete( search )
+        try context.save()
+
+        #expect( try context.fetch( FetchDescriptor< SavedSearch >() ).isEmpty )
+        #expect( try context.fetch( FetchDescriptor< SearchRun >() ).isEmpty )
+        #expect( try context.fetch( FetchDescriptor< PriceSnapshot >() ).isEmpty )
+    }
+
+    @Test( "Deleting every search (clear all) leaves no searches, runs, or itineraries behind" )
+    func deletingEverySearchClearsAll() throws
+    {
+        let context = try TestSupport.makeInMemoryContext( for: SavedSearch.self, SearchRun.self, PriceSnapshot.self )
+        let searches = ( 0 ..< 3 ).map
+        { index in
+            SavedSearch(
+                kind: .oneWay,
+                origin: "GVA",
+                destination: "LIS",
+                rangeStart: Self.utcDate( 2026, 10, 5 + index ),
+                rangeEnd: Self.utcDate( 2026, 10, 12 + index ),
+                cabinClass: "economy"
+            )
+        }
+        for search in searches
+        {
+            let run      = SearchRun( requestCount: 1 )
+            let snapshot = PriceSnapshot( amount: 300, currency: "CHF" )
+            snapshot.run = run
+            run.itineraries.append( snapshot )
+            run.savedSearch = search
+            search.runs.append( run )
+            context.insert( search )
+        }
+        try context.save()
+
+        #expect( try context.fetch( FetchDescriptor< SavedSearch >() ).count == 3 )
+
+        for search in try context.fetch( FetchDescriptor< SavedSearch >() )
+        {
+            context.delete( search )
+        }
+        try context.save()
+
+        #expect( try context.fetch( FetchDescriptor< SavedSearch >() ).isEmpty )
+        #expect( try context.fetch( FetchDescriptor< SearchRun >() ).isEmpty )
+        #expect( try context.fetch( FetchDescriptor< PriceSnapshot >() ).isEmpty )
+    }
 }
