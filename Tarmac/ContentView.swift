@@ -9,17 +9,37 @@ import SwiftUI
 
 struct ContentView: View
 {
+    @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var searches: [ SavedSearch ]
     @State private var selectedSearch: SavedSearch?
     @State private var refreshState = RefreshState()
+    @State private var isPresentingNewSearchSheet = false
+
+    // Falls back to the restored/newest search declaratively, so the very first render
+    // already shows the right detail pane instead of a `nil`-selection empty state that
+    // flips over once `SearchSidebar`'s `onAppear` runs.
+    private var currentSelection: SavedSearch?
+    {
+        self.selectedSearch ?? SearchSelectionPreference.restoreSelection( from: self.searches )
+    }
 
     var body: some View
     {
         NavigationSplitView
         {
-            SearchSidebar( selection: $selectedSearch, refreshState: self.refreshState )
-                .navigationSplitViewColumnWidth( min: 220, ideal: 260, max: 340 )
+            SearchSidebar(
+                searches: self.searches,
+                selection: $selectedSearch,
+                refreshState: self.refreshState,
+                isPresentingNewSearchSheet: $isPresentingNewSearchSheet
+            )
+            .navigationSplitViewColumnWidth( min: 220, ideal: 260, max: 340 )
         } detail: {
-            ResultsPane( search: selectedSearch, refreshState: self.refreshState )
+            ResultsPane(
+                search: self.currentSelection,
+                hasSearches: self.searches.isEmpty == false,
+                refreshState: self.refreshState,
+                onNewSearch: { self.isPresentingNewSearchSheet = true }
+            )
         }
     }
 }
@@ -28,13 +48,13 @@ struct ContentView: View
 
 struct SearchSidebar: View
 {
-    @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var searches: [ SavedSearch ]
+    var searches: [ SavedSearch ]
     @Binding var selection: SavedSearch?
     var refreshState: RefreshState
+    @Binding var isPresentingNewSearchSheet: Bool
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedID: SavedSearch.ID?
-    @State private var isPresentingNewSearchSheet = false
 
     var body: some View
     {
@@ -42,8 +62,24 @@ struct SearchSidebar: View
         { search in
             SearchRow( search: search )
         }
+        .onAppear
+        {
+            guard self.selectedID == nil
+            else
+            {
+                return
+            }
+
+            if let restored = SearchSelectionPreference.restoreSelection( from: self.searches )
+            {
+                self.selectedID = restored.id
+                self.selection = restored
+            }
+        }
         .onChange( of: self.selectedID )
         {
+            SearchSelectionPreference.persist( self.selectedID )
+
             guard let selectedID = self.selectedID
             else
             {
@@ -139,7 +175,9 @@ struct SearchRow: View
 struct ResultsPane: View
 {
     var search: SavedSearch?
+    var hasSearches: Bool
     var refreshState: RefreshState
+    var onNewSearch: () -> Void
 
     var body: some View
     {
@@ -147,6 +185,18 @@ struct ResultsPane: View
         {
             SearchDetailView( search: search, refreshState: self.refreshState )
                 .id( search.id )
+        }
+        else if self.hasSearches == false
+        {
+            ContentUnavailableView
+            {
+                Label( "No searches yet", systemImage: "airplane" )
+            } description: {
+                Text( "Create a search to start tracking prices." )
+            } actions: {
+                Button( "New Search", action: self.onNewSearch )
+            }
+            .frame( minWidth: 620, minHeight: 420 )
         }
         else
         {
