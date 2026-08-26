@@ -88,7 +88,7 @@ struct SearchRunnerTests
         let ( response, raw ) = try Self.fares( itineraries: """
             { "ignav_id": "AB1", "price": { "amount": 350, "currency": "CHF" },
               "outbound": { "carrier": "SWISS", "duration_minutes": 155,
-                "segments": [ { "carrier_code": "LX", "flight_number": "123",
+                "segments": [ { "carrier_code": "LX", "marketing_carrier_code": "LX", "flight_number": "123",
                   "departure_time_local": "2026-10-05T08:00:00", "arrival_time_local": "2026-10-05T10:35:00" } ] } }
             """ )
 
@@ -121,7 +121,7 @@ struct SearchRunnerTests
         #expect( run.itineraries.first?.amount == 350 )
         #expect( run.itineraries.first?.currency == "CHF" )
         #expect( run.itineraries.first?.ignavID == "AB1" )
-        #expect( run.itineraries.first?.outboundSummary == "LX123" )
+        #expect( run.itineraries.first?.outboundSummary == "LX 123" )
         #expect( run.itineraries.first?.outboundDuration == "2h35" )
         #expect( run.itineraries.first?.carrier == "SWISS" )
         #expect( run.itineraries.first?.departureTime == "08:00" )
@@ -347,13 +347,35 @@ struct SearchRunnerTests
         )
 
         let snapshot = try #require( run.itineraries.first )
-        #expect( snapshot.outboundSummary == "LX100 → TP200" )
-        #expect( snapshot.inboundSummary == "TP201" )
+        #expect( snapshot.outboundSummary == "LX 100 → TP 200" )
+        #expect( snapshot.inboundSummary == "TP 201" )
         #expect( snapshot.outboundDuration == "5h00" )
         #expect( snapshot.carrier == "SWISS" )
         #expect( snapshot.departureTime == "06:00" )
         #expect( snapshot.arrivalTime == "11:00" )
         #expect( snapshot.run === run )
+    }
+
+    @Test( "Prefers marketing_carrier_code over carrier_code when both are present" )
+    func legSummaryPrefersMarketingCarrierCode() async throws
+    {
+        let search = Self.makeOneWaySearch()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                try Self.fares( itineraries: """
+                    { "ignav_id": "MK1", "price": { "amount": 250, "currency": "CHF" },
+                      "outbound": { "segments": [
+                        { "carrier_code": "XX", "marketing_carrier_code": "LX", "flight_number": "789" }
+                      ] } }
+                    """ )
+            }
+        )
+
+        #expect( run.itineraries.first?.outboundSummary == "LX 789" )
     }
 
     @Test( "An itinerary with no leg data maps to nil summaries" )

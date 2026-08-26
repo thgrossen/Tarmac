@@ -86,6 +86,7 @@ struct IgnavClientTests
                             "segments": [
                                 {
                                     "carrier_code": "LX",
+                                    "marketing_carrier_code": "LX",
                                     "flight_number": "1234",
                                     "departure_time_local": "2026-08-26T14:30:00",
                                     "arrival_time_local": "2026-08-26T17:55:00"
@@ -106,6 +107,7 @@ struct IgnavClientTests
         #expect( itinerary.outbound?.carrier == "SWISS" )
         #expect( itinerary.outbound?.duration == "2h25" )
         #expect( itinerary.outbound?.segments?.first?.carrier_code == "LX" )
+        #expect( itinerary.outbound?.segments?.first?.marketing_carrier_code == "LX" )
         #expect( itinerary.outbound?.segments?.first?.departure_time == "14:30" )
         #expect( itinerary.outbound?.segments?.first?.arrival_time == "17:55" )
         #expect( itinerary.inbound == nil )

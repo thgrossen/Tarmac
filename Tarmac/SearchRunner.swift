@@ -152,7 +152,7 @@ enum SearchRunner
             return nil
         }
         return segments
-            .map { "\( $0.carrier_code ?? "" )\( $0.flight_number ?? "" )" }
+            .map { "\( $0.marketing_carrier_code ?? $0.carrier_code ?? "" ) \( $0.flight_number ?? "" )" }
             .joined( separator: " → " )
     }
 }

@@ -365,7 +365,7 @@
 
     <li class="phase-label">Phase C &middot; Results Table</li>
     <li><a href="#m7">7. Fix empty Duration; add carrier, departure, and arrival columns</a><span class="status completed">Completed</span></li>
-    <li><a href="#m8">8. marketing_carrier_code and standard flight-number format</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m8">8. marketing_carrier_code and standard flight-number format</a><span class="status completed">Completed</span></li>
     <li><a href="#m9">9. Sortable results table, default sort by Price</a><span class="status not-started">Not started</span></li>
 
     <li class="phase-label">Phase D &middot; Exploration</li>
@@ -673,7 +673,7 @@
   <div class="milestone" id="m8">
     <div class="milestone-head">
       <h3>8. marketing_carrier_code and standard flight-number format</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p><strong>Goal:</strong> Flight numbers currently render as e.g. "LX1234"; they should use the marketing carrier code and standard IATA spacing, e.g. "LX 1234".</p>
     <div class="field-label">Tasks</div>
@@ -683,13 +683,25 @@
       <li>Verify displayed flight numbers read like "LX 1234" in the results table.</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>TDD cycle: added <code>marketing_carrier_code: String?</code> to <code>Segment</code> (models.swift), decoded directly from the literal key (no <code>CodingKeys</code> remap needed, unlike <code>departure_time</code>/<code>arrival_time</code>) &mdash; confirmed present in real Ignav responses by Milestone 7's direct inspection of recorded API data.</li>
+      <li>Updated <code>SearchRunner.legSummary</code> to <code>"\( marketing_carrier_code ?? carrier_code ?? "" ) \( flight_number )"</code>, preferring the real, working field with a fallback to the legacy <code>carrier_code</code> (expected to almost always be nil against the real API, kept as a defensive fallback per the plan's own wording).</li>
+      <li>Updated <code>IgnavClientTests.swift</code>'s and <code>SearchRunnerTests.swift</code>'s fixtures/assertions to the new space-separated format (red, then green). The round-trip test (<code>roundTripMapsLegSummaries</code>) deliberately omits <code>marketing_carrier_code</code> from its fixture, so it doubles as coverage for the <code>carrier_code</code> fallback path. Added a new dedicated test, <code>legSummaryPrefersMarketingCarrierCode</code>, using <em>differing</em> codes (<code>carrier_code: "XX"</code>, <code>marketing_carrier_code: "LX"</code>) to prove precedence, not just presence.</li>
+      <li>Verified live against the real API: refreshed a real search and confirmed flight numbers now read like "LX 1234" in the results table.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent, independently verified the <code>??</code> precedence with a standalone Swift snippet, confirmed no other code reads <code>Segment.carrier_code</code> or constructs a <code>Segment</code> literal, and confirmed every <code>outboundSummary</code>/<code>inboundSummary</code> assertion flowing through <code>legSummary</code> was updated consistently): no Critical/High/Medium findings &mdash; loop converged after 1 of the allowed 3 iterations.
+        <ul>
+          <li><em>Low &mdash; when neither <code>marketing_carrier_code</code> nor <code>carrier_code</code> is present, the format now produces a stray leading/lone space (<code>" 123"</code> or <code>" "</code>) instead of the old empty string &mdash; only reachable if the API returns a segment with no carrier code at all, which per Milestone 7's findings should essentially never happen.</em> Resolution: <strong>Deferred</strong> &mdash; left for review.</li>
+          <li><em>Low &mdash; the new <code>marketing_carrier_code</code> line in <code>Segment.init</code> breaks the file's vertical <code>=</code>-alignment convention for the surrounding <code>self.x = try? c.decode(...)</code> lines.</em> Resolution: <strong>Deferred</strong> &mdash; left for review.</li>
+        </ul>
+      </li>
+    </ul>
     <div class="field-label">Review comments</div>
     <p class="empty">None yet.</p>
   </div>

@@ -98,6 +98,7 @@ struct Leg: Decodable
 struct Segment: Decodable
 {
     let carrier_code: String?
+    let marketing_carrier_code: String?
     let flight_number: String?
     let origin: String?
     let destination: String?
@@ -107,6 +108,7 @@ struct Segment: Decodable
     enum CodingKeys: String, CodingKey
     {
         case carrier_code
+        case marketing_carrier_code
         case flight_number
         case origin
         case destination
@@ -132,6 +134,7 @@ struct Segment: Decodable
     {
         let c = try decoder.container( keyedBy: CodingKeys.self )
         self.carrier_code   = try? c.decode( String.self, forKey: .carrier_code )
+        self.marketing_carrier_code = try? c.decode( String.self, forKey: .marketing_carrier_code )
         self.flight_number  = try? c.decode( String.self, forKey: .flight_number )
         self.origin         = try? c.decode( String.self, forKey: .origin )
         self.destination    = try? c.decode( String.self, forKey: .destination )
