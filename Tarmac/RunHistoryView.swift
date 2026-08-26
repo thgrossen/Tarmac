@@ -120,12 +120,43 @@ private struct RunChip: View
     }
 }
 
+// MARK: - Sortable columns
+
+// Table's sortable-column initializer doesn't resolve for Optional<String> keypaths, so the
+// sortable columns sort by these non-optional keys instead, still displaying the real optional value.
+private extension PriceSnapshot
+{
+    var outboundSummarySortKey: String { self.outboundSummary ?? "" }
+    var inboundSummarySortKey: String { self.inboundSummary ?? "" }
+
+    // Sorts by total minutes rather than the "<h>h<mm>" display string itself, since the
+    // unpadded hour component (e.g. "10h30" vs. "2h05") doesn't compare correctly as text.
+    var outboundDurationSortKey: Int
+    {
+        guard let duration = self.outboundDuration,
+              let hourIndex = duration.firstIndex( of: "h" ),
+              let hours = Int( duration[ duration.startIndex ..< hourIndex ] ),
+              let minutes = Int( duration[ duration.index( after: hourIndex )... ] )
+        else
+        {
+            return 0
+        }
+        return hours * 60 + minutes
+    }
+
+    var carrierSortKey: String { self.carrier ?? "" }
+    var departureTimeSortKey: String { self.departureTime ?? "" }
+    var arrivalTimeSortKey: String { self.arrivalTime ?? "" }
+    var ignavIDSortKey: String { self.ignavID ?? "" }
+}
+
 // MARK: - Run detail
 
 private struct RunDetailView: View
 {
     var run: SearchRun
     @State private var tab = 0
+    @State private var sortOrder = [ KeyPathComparator( \PriceSnapshot.amount ) ]
 
     var body: some View
     {
@@ -162,6 +193,15 @@ private struct RunDetailView: View
                 self.rawJSONView
             }
         }
+        .onChange( of: self.run.id )
+        {
+            self.sortOrder = [ KeyPathComparator( \PriceSnapshot.amount ) ]
+        }
+    }
+
+    private var sortedItineraries: [ PriceSnapshot ]
+    {
+        self.run.itineraries.sorted( using: self.sortOrder )
     }
 
     @ViewBuilder     private var itineraryTable: some View
@@ -177,9 +217,9 @@ private struct RunDetailView: View
         }
         else
         {
-            Table( self.run.itineraries )
+            Table( self.sortedItineraries, sortOrder: self.$sortOrder )
             {
-                TableColumn( "Price" )
+                TableColumn( "Price", value: \.amount )
                 { snapshot in
                     Text( "\( Int( snapshot.amount )) \( snapshot.currency )" )
                         .fontWeight( .semibold )
@@ -187,13 +227,22 @@ private struct RunDetailView: View
                 }
                 .width( 110 )
 
-                TableColumn( "Outbound" ) { Text( $0.outboundSummary ?? "—" ) }
-                TableColumn( "Inbound" ) { Text( $0.inboundSummary ?? "—" ) }
-                TableColumn( "Duration" ) { Text( $0.outboundDuration ?? "—" ) }.width( 90 )
-                TableColumn( "Carrier" ) { Text( $0.carrier ?? "—" ) }
-                TableColumn( "Departure" ) { Text( $0.departureTime ?? "—" ) }.width( 80 )
-                TableColumn( "Arrival" ) { Text( $0.arrivalTime ?? "—" ) }.width( 80 )
-                TableColumn( "ignav_id" )
+                TableColumn( "Outbound", value: \.outboundSummarySortKey )
+                { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundSummary ?? "—" ) }
+                TableColumn( "Inbound", value: \.inboundSummarySortKey )
+                { ( snapshot: PriceSnapshot ) in Text( snapshot.inboundSummary ?? "—" ) }
+                TableColumn( "Duration", value: \.outboundDurationSortKey )
+                { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundDuration ?? "—" ) }
+                .width( 90 )
+                TableColumn( "Carrier", value: \.carrierSortKey )
+                { ( snapshot: PriceSnapshot ) in Text( snapshot.carrier ?? "—" ) }
+                TableColumn( "Departure", value: \.departureTimeSortKey )
+                { ( snapshot: PriceSnapshot ) in Text( snapshot.departureTime ?? "—" ) }
+                .width( 80 )
+                TableColumn( "Arrival", value: \.arrivalTimeSortKey )
+                { ( snapshot: PriceSnapshot ) in Text( snapshot.arrivalTime ?? "—" ) }
+                .width( 80 )
+                TableColumn( "ignav_id", value: \.ignavIDSortKey )
                 { snapshot in
                     Text( snapshot.ignavID ?? "—" ).font( .caption.monospaced() )
                 }

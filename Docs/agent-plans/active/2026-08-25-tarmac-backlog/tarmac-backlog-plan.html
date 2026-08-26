@@ -366,7 +366,7 @@
     <li class="phase-label">Phase C &middot; Results Table</li>
     <li><a href="#m7">7. Fix empty Duration; add carrier, departure, and arrival columns</a><span class="status completed">Completed</span></li>
     <li><a href="#m8">8. marketing_carrier_code and standard flight-number format</a><span class="status completed">Completed</span></li>
-    <li><a href="#m9">9. Sortable results table, default sort by Price</a><span class="status not-started">Not started</span></li>
+    <li><a href="#m9">9. Sortable results table, default sort by Price</a><span class="status completed">Completed</span></li>
 
     <li class="phase-label">Phase D &middot; Exploration</li>
     <li><a href="#m10">10. Investigate a "buy ticket" link</a><span class="status not-started">Not started</span></li>
@@ -709,7 +709,7 @@
   <div class="milestone" id="m9">
     <div class="milestone-head">
       <h3>9. Sortable results table, default sort by Price</h3>
-      <span class="status not-started">Not started</span>
+      <span class="status completed">Completed</span>
     </div>
     <p><strong>Goal:</strong> The itinerary results table isn't sortable. Make it sortable, defaulting to cheapest-first.</p>
     <div class="field-label">Tasks</div>
@@ -719,15 +719,32 @@
       <li>Verify clicking column headers re-sorts the table, and a freshly opened run defaults to cheapest-first.</li>
     </ul>
     <div class="field-label">Status</div>
-    <p>Not started</p>
+    <p>Completed</p>
     <div class="field-label">Completed</div>
-    <p class="completed-date empty">&mdash;</p>
+    <p class="completed-date"><time datetime="2026-08-25">2026-08-25</time></p>
     <div class="field-label">Implementation notes</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><code>RunDetailView</code> gained <code>@State private var sortOrder = [KeyPathComparator(\PriceSnapshot.amount)]</code> (Price ascending default) and a <code>sortedItineraries</code> computed property; <code>Table</code> now reads <code>Table(self.sortedItineraries, sortOrder: self.$sortOrder)</code>. A <code>.onChange(of: self.run.id)</code> resets the sort back to the default whenever a different run is opened (e.g. via the run-picker chips), so a manual sort choice on one run doesn't carry over to another &mdash; deliberately does not reset the separate Itineraries/Raw&nbsp;JSON tab state, which stays preserved across run switches as before.</li>
+      <li>User asked for all columns to be sortable, not just Price (see Review comments).</li>
+      <li><strong>Hit and worked around a real SwiftUI/SDK limitation:</strong> confirmed via several isolated minimal reproductions outside the app that <code>TableColumn(_:value:content:)</code> with a <code>KeyPath&lt;PriceSnapshot, String?&gt;</code> and a custom content closure reliably fails to type-check ("no exact matches in call to initializer") in this Xcode/SDK version, even though the interface declares a matching <code>String?</code> overload &mdash; the compiler instead resolves to a different, non-optional-only generic overload and correctly rejects the optional argument against it. Worked around via a file-scoped <code>private extension PriceSnapshot</code> in <code>RunHistoryView.swift</code> adding non-optional "sort key" computed properties (e.g. <code>outboundSummarySortKey: String { self.outboundSummary ?? "" }</code>) for the six <code>String?</code>-backed columns (Outbound, Inbound, Duration, Carrier, Departure, Arrival, plus <code>ignav_id</code>); each column sorts by its non-optional key while still displaying the real optional value with its existing <code>?? "—"</code> fallback. Purely computed properties, no SwiftData schema/migration impact.</li>
+      <li><strong>Automated-review fix:</strong> the Duration column's sort key initially forwarded the display string ("2h25", "10h30") as-is, sorted as plain text &mdash; since the hour component isn't zero-padded, "10h30" sorted before "2h05" (character '1' &lt; '2'). Fixed by deriving a numeric total-minutes sort key instead (parses the "&lt;h&gt;h&lt;mm&gt;" string back into an <code>Int</code>), leaving the displayed duration format unchanged. Verified correctness with a standalone script confirming "10h30" now sorts after "9h59", not before "2h05"; this parsing logic is <code>private</code> to the view file (matching the reviewed, intentionally file-scoped architecture) so isn't reachable for a `TarmacTests` unit test without widening its visibility beyond what the sorting concern needs.</li>
+      <li>Verified live: full test suite and app build both pass; the user confirmed the table defaults to cheapest-first and that clicking any column header (not just Price) re-sorts the table.</li>
+    </ul>
     <div class="field-label">Automated review</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li><strong>Round 1</strong> (fresh sub-agent, independently confirmed the reset-on-run-change logic fires correctly by tracing <code>RunDetailView</code>'s structural identity and <code>SearchRun.id</code>'s stability, confirmed the new <code>PriceSnapshot</code> extension has no schema/migration impact, and confirmed no other consumer of <code>run.itineraries</code> is affected): 1 Medium, 3 Low, several Info &mdash; loop converged after 1 of the allowed 3 iterations.
+        <ul>
+          <li><em>Medium &mdash; Duration column's sort key sorted the unpadded display string as plain text, putting "10h30" before "2h05".</em> Resolution: <strong>Fixed</strong> &mdash; see Implementation notes above.</li>
+          <li><em>Low &mdash; sorting by <code>amount</code> directly is exposed to a known NaN case (an itinerary with an unparseable price), though currently unreachable in practice since rendering that same NaN price already crashes via a separate, pre-existing, out-of-scope bug in the Price cell's display code.</em> Resolution: <strong>Deferred</strong> &mdash; left for review; worth revisiting only if that pre-existing display crash is fixed first.</li>
+          <li><em>Low &mdash; Carrier/Outbound/Inbound sort by plain <code>String</code> comparison rather than <code>.localizedStandard</code>, losing case-insensitive/locale-aware ordering; inconsequential given these values are built from consistently-uppercase carrier codes and flight numbers today.</em> Resolution: <strong>Deferred</strong> &mdash; left for review.</li>
+          <li><em>Low &mdash; six of the seven text columns use an explicit <code>{ (snapshot: PriceSnapshot) in ... }</code> closure while <code>ignav_id</code>, using the identical overload shape, compiles fine with inferred typing &mdash; suggesting the explicit annotations may not be load-bearing and are just extra verbosity.</em> Resolution: <strong>Deferred</strong> &mdash; left for review.</li>
+        </ul>
+      </li>
+    </ul>
     <div class="field-label">Review comments</div>
-    <p class="empty">None yet.</p>
+    <ul>
+      <li>User asked for all columns to be sortable, not just Price (the plan's "at minimum Price" was satisfied first, then extended per this feedback).</li>
+    </ul>
   </div>
 
   <div class="phase-heading">Phase D &middot; Exploration</div>
