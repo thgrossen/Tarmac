@@ -104,6 +104,7 @@ struct Segment: Decodable
     let destination: String?
     let departure_time: String?
     let arrival_time: String?
+    let departure_date: Date?
 
     enum CodingKeys: String, CodingKey
     {
@@ -138,14 +139,26 @@ struct Segment: Decodable
         self.flight_number  = try? c.decode( String.self, forKey: .flight_number )
         self.origin         = try? c.decode( String.self, forKey: .origin )
         self.destination    = try? c.decode( String.self, forKey: .destination )
-        self.departure_time = Self.formatTime( try? c.decode( String.self, forKey: .departure_time ) )
-        self.arrival_time   = Self.formatTime( try? c.decode( String.self, forKey: .arrival_time ) )
+
+        let departureDate   = Self.parseDate( try? c.decode( String.self, forKey: .departure_time ) )
+        self.departure_time = Self.formatTime( departureDate )
+        self.departure_date = departureDate
+        self.arrival_time   = Self.formatTime( Self.parseDate( try? c.decode( String.self, forKey: .arrival_time ) ) )
     }
 
-    private static func formatTime( _ raw: String? ) -> String?
+    private static func parseDate( _ raw: String? ) -> Date?
     {
-        guard let raw,
-              let date = Self.isoFormatter.date( from: raw )
+        guard let raw
+        else
+        {
+            return nil
+        }
+        return Self.isoFormatter.date( from: raw )
+    }
+
+    private static func formatTime( _ date: Date? ) -> String?
+    {
+        guard let date
         else
         {
             return nil

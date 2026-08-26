@@ -139,6 +139,7 @@ enum SearchRunner
             carrier: itinerary.outbound?.carrier,
             departureTime: itinerary.outbound?.segments?.first?.departure_time,
             arrivalTime: itinerary.outbound?.segments?.last?.arrival_time,
+            departureDate: itinerary.outbound?.segments?.first?.departure_date,
             run: run
         )
     }

@@ -24,12 +24,14 @@ struct PriceSnapshotTests
         #expect( snapshot.carrier == nil )
         #expect( snapshot.departureTime == nil )
         #expect( snapshot.arrivalTime == nil )
+        #expect( snapshot.departureDate == nil )
         #expect( snapshot.run == nil )
     }
 
     @Test( "Stores required and display fields" )
     func storesFields()
     {
+        let departureDate = Date( timeIntervalSince1970: 1_759_000_200 )     // 2025-09-27T19:10:00Z
         let snapshot = PriceSnapshot(
             amount: 542.0,
             currency: "CHF",
@@ -39,7 +41,8 @@ struct PriceSnapshotTests
             outboundDuration: "2h35",
             carrier: "SWISS",
             departureTime: "14:30",
-            arrivalTime: "17:55"
+            arrivalTime: "17:55",
+            departureDate: departureDate
         )
 
         #expect( snapshot.amount == 542.0 )
@@ -51,6 +54,7 @@ struct PriceSnapshotTests
         #expect( snapshot.carrier == "SWISS" )
         #expect( snapshot.departureTime == "14:30" )
         #expect( snapshot.arrivalTime == "17:55" )
+        #expect( snapshot.departureDate == departureDate )
     }
 
     @Test( "Formatted amount for a finite price" )

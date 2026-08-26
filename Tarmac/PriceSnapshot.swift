@@ -19,6 +19,7 @@ final class PriceSnapshot
     var carrier: String?
     var departureTime: String?
     var arrivalTime: String?
+    var departureDate: Date?
 
     var run: SearchRun?
 
@@ -32,6 +33,7 @@ final class PriceSnapshot
         carrier: String? = nil,
         departureTime: String? = nil,
         arrivalTime: String? = nil,
+        departureDate: Date? = nil,
         run: SearchRun? = nil
     )
     {
@@ -44,6 +46,7 @@ final class PriceSnapshot
         self.carrier = carrier
         self.departureTime = departureTime
         self.arrivalTime = arrivalTime
+        self.departureDate = departureDate
         self.run = run
     }
 

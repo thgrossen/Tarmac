@@ -128,6 +128,12 @@ struct SearchRunnerTests
         #expect( run.itineraries.first?.arrivalTime == "10:35" )
         #expect( run.itineraries.first?.inboundSummary == nil )
         #expect( run.itineraries.first?.run === run )
+
+        let departureDate = try #require( run.itineraries.first?.departureDate )
+        let components = Calendar.current.dateComponents( [ .year, .month, .day ], from: departureDate )
+        #expect( components.year == 2026 )
+        #expect( components.month == 10 )
+        #expect( components.day == 5 )
     }
 
     @Test( "Sorts one-way itineraries by price" )
@@ -354,6 +360,12 @@ struct SearchRunnerTests
         #expect( snapshot.departureTime == "06:00" )
         #expect( snapshot.arrivalTime == "11:00" )
         #expect( snapshot.run === run )
+
+        let departureDate = try #require( snapshot.departureDate )
+        let components = Calendar.current.dateComponents( [ .year, .month, .day ], from: departureDate )
+        #expect( components.year == 2026 )
+        #expect( components.month == 10 )
+        #expect( components.day == 5 )
     }
 
     @Test( "Prefers marketing_carrier_code over carrier_code when both are present" )
@@ -398,5 +410,6 @@ struct SearchRunnerTests
         #expect( snapshot.outboundSummary == nil )
         #expect( snapshot.inboundSummary == nil )
         #expect( snapshot.outboundDuration == nil )
+        #expect( snapshot.departureDate == nil )
     }
 }

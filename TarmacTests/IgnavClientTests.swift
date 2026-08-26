@@ -111,6 +111,12 @@ struct IgnavClientTests
         #expect( itinerary.outbound?.segments?.first?.departure_time == "14:30" )
         #expect( itinerary.outbound?.segments?.first?.arrival_time == "17:55" )
         #expect( itinerary.inbound == nil )
+
+        let departureDate = try #require( itinerary.outbound?.segments?.first?.departure_date )
+        let components = Calendar.current.dateComponents( [ .year, .month, .day ], from: departureDate )
+        #expect( components.year == 2026 )
+        #expect( components.month == 8 )
+        #expect( components.day == 26 )
     }
 
     @Test( "A malformed segment time string decodes to nil, not the raw value" )
@@ -136,5 +142,6 @@ struct IgnavClientTests
 
         #expect( segment.departure_time == nil )
         #expect( segment.arrival_time == nil )
+        #expect( segment.departure_date == nil )
     }
 }

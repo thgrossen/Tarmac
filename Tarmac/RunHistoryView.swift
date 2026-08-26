@@ -147,7 +147,7 @@ private extension PriceSnapshot
     var carrierSortKey: String { self.carrier ?? "" }
     var departureTimeSortKey: String { self.departureTime ?? "" }
     var arrivalTimeSortKey: String { self.arrivalTime ?? "" }
-    var ignavIDSortKey: String { self.ignavID ?? "" }
+    var departureDateSortKey: Date { self.departureDate ?? .distantPast }
 }
 
 // MARK: - Run detail
@@ -204,6 +204,11 @@ private struct RunDetailView: View
         self.run.itineraries.sorted( using: self.sortOrder )
     }
 
+    private var isOneWaySearch: Bool
+    {
+        self.run.savedSearch?.kind == .oneWay
+    }
+
     @ViewBuilder     private var itineraryTable: some View
     {
         if self.run.itineraries.isEmpty
@@ -227,24 +232,51 @@ private struct RunDetailView: View
                 }
                 .width( 110 )
 
-                TableColumn( "Outbound", value: \.outboundSummarySortKey )
-                { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundSummary ?? "—" ) }
-                TableColumn( "Inbound", value: \.inboundSummarySortKey )
-                { ( snapshot: PriceSnapshot ) in Text( snapshot.inboundSummary ?? "—" ) }
-                TableColumn( "Duration", value: \.outboundDurationSortKey )
-                { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundDuration ?? "—" ) }
-                .width( 90 )
-                TableColumn( "Carrier", value: \.carrierSortKey )
-                { ( snapshot: PriceSnapshot ) in Text( snapshot.carrier ?? "—" ) }
-                TableColumn( "Departure", value: \.departureTimeSortKey )
-                { ( snapshot: PriceSnapshot ) in Text( snapshot.departureTime ?? "—" ) }
-                .width( 80 )
-                TableColumn( "Arrival", value: \.arrivalTimeSortKey )
-                { ( snapshot: PriceSnapshot ) in Text( snapshot.arrivalTime ?? "—" ) }
-                .width( 80 )
-                TableColumn( "ignav_id", value: \.ignavIDSortKey )
-                { snapshot in
-                    Text( snapshot.ignavID ?? "—" ).font( .caption.monospaced() )
+                if self.isOneWaySearch
+                {
+                    TableColumn( "Date", value: \.departureDateSortKey )
+                    { ( snapshot: PriceSnapshot ) in
+                        if let departureDate = snapshot.departureDate
+                        {
+                            Text( departureDate, format: .dateTime.day().month( .abbreviated ) )
+                        }
+                        else
+                        {
+                            Text( "—" )
+                        }
+                    }
+                    .width( 80 )
+                    TableColumn( "Carrier", value: \.carrierSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.carrier ?? "—" ) }
+                    TableColumn( "Flight n°", value: \.outboundSummarySortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundSummary ?? "—" ) }
+                    TableColumn( "Departure", value: \.departureTimeSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.departureTime ?? "—" ) }
+                    .width( 80 )
+                    TableColumn( "Arrival", value: \.arrivalTimeSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.arrivalTime ?? "—" ) }
+                    .width( 80 )
+                    TableColumn( "Duration", value: \.outboundDurationSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundDuration ?? "—" ) }
+                    .width( 90 )
+                }
+                else
+                {
+                    TableColumn( "Outbound", value: \.outboundSummarySortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundSummary ?? "—" ) }
+                    TableColumn( "Inbound", value: \.inboundSummarySortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.inboundSummary ?? "—" ) }
+                    TableColumn( "Duration", value: \.outboundDurationSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundDuration ?? "—" ) }
+                    .width( 90 )
+                    TableColumn( "Carrier", value: \.carrierSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.carrier ?? "—" ) }
+                    TableColumn( "Departure", value: \.departureTimeSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.departureTime ?? "—" ) }
+                    .width( 80 )
+                    TableColumn( "Arrival", value: \.arrivalTimeSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.arrivalTime ?? "—" ) }
+                    .width( 80 )
                 }
             }
             .tableStyle( .inset( alternatesRowBackgrounds: true ) )
