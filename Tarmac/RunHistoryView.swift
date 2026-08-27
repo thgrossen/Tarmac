@@ -173,6 +173,17 @@ private struct RunDetailView: View
                     .background( .red.opacity( 0.08 ) )
             }
 
+            if let partialFailureMessage = self.run.partialFailureMessage
+            {
+                Text( partialFailureMessage )
+                    .font( .callout.monospaced() )
+                    .foregroundStyle( .orange )
+                    .textSelection( .enabled )
+                    .padding( 10 )
+                    .frame( maxWidth: .infinity, alignment: .leading )
+                    .background( .orange.opacity( 0.08 ) )
+            }
+
             Picker( "", selection: self.$tab )
             {
                 Text( "Itineraries (\( self.run.itineraries.count ))" ).tag( 0 )

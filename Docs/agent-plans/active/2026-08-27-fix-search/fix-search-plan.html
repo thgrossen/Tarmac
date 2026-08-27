@@ -281,7 +281,7 @@
             <li><a href="#m1">1. Add a user-configurable cap on one-way sweep requests</a><span class="status completed">Completed</span></li>
             <li><a href="#m2">2. Build the one-way date-range sweep engine</a><span class="status completed">Completed</span></li>
             <li><a href="#m3">3. Wire the sweep into SearchRunner and track partial failures</a><span class="status completed">Completed</span></li>
-            <li><a href="#m4">4. Surface the partial-failure warning in the results view</a><span class="status not-started">Not started</span></li>
+            <li><a href="#m4">4. Surface the partial-failure warning in the results view</a><span class="status completed">Completed</span></li>
         </ul>
     </section>
 
@@ -520,8 +520,9 @@
     <div class="milestone" id="m4">
         <div class="milestone-header">
             <h3>4. Surface the partial-failure warning in the results view</h3>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p><strong>Completed</strong> 2026-08-27</p>
         <p>
             <strong>Goal.</strong> Make a partial-failure one-way run visibly different from both a fully healthy
             run and a fully failed run in <code>RunHistoryView</code>, without disturbing the existing red
@@ -534,9 +535,50 @@
             <li>Manually verify in the running app: create/run a one-way search spanning several days and confirm the itinerary table now shows multiple distinct departure dates (via the existing Date column) instead of just one; spot-check the new warning banner by temporarily forcing one day's stubbed <code>oneWayFetch</code> to fail (e.g. via a scratch edit or a SwiftUI preview with a mock <code>SearchRun</code>) since a live partial Ignav failure isn't reproducible on demand.</li>
         </ul>
         <h4>Implementation Notes</h4>
-        <p class="empty">Not started.</p>
+        <p>
+            Added a second, independent <code>if let partialFailureMessage = self.run.partialFailureMessage</code>
+            banner to <code>RunDetailView</code> in <code>Tarmac/RunHistoryView.swift</code>, right after the
+            existing red <code>errorMessage</code> banner and before the itineraries/raw-JSON
+            <code>Picker</code>, structurally mirroring the error banner's styling (font, padding, frame,
+            <code>.textSelection(.enabled)</code>) but in amber/orange (<code>.orange</code> foreground,
+            <code>.orange.opacity(0.08)</code> background) to stay visually distinct from the red total-failure
+            banner. Rendered as its own <code>if let</code>, not nested in or coupled to the error banner's
+            condition, so the two are independent per the milestone's requirement.
+        </p>
+        <p>
+            <strong>Manual verification</strong> (no automated UI test infrastructure exists in this project, so
+            this milestone was verified by hand as its own task specifies): built a scratch variant of the app
+            (temporary, reverted edit to <code>TarmacApp.swift</code> gated behind a
+            <code>TARMAC_UI_PREVIEW_SEED</code> environment variable, using an in-memory SwiftData store seeded
+            with mock data &mdash; never touching the real on-disk store or making any live Ignav calls), built
+            with a separate <code>-derivedDataPath</code>, and launched it via <code>open</code> with that env var
+            set. Screenshots confirmed both scenarios: (1) a healthy multi-day one-way run showing three distinct
+            departure dates (27/28/29 Aug) in the Date column with no banners; (2) a partial-failure run showing
+            the new amber "1 of 4 day requests failed." banner above the itinerary table, with its one successful
+            itinerary still visible beneath. The scratch <code>TarmacApp.swift</code> change was reverted
+            (<code>git checkout</code>) immediately after; only <code>RunHistoryView.swift</code> remains changed
+            for this milestone. Full build and full test suite re-confirmed green afterward.
+        </p>
         <h4>Automated Review</h4>
-        <p class="empty">Not started.</p>
+        <p>
+            One round, fresh-context sub-agent, no Critical/High/Medium findings &mdash; loop converged after
+            iteration 1.
+        </p>
+        <ul>
+            <li><strong>Mutual exclusivity is not actually guaranteed &mdash; but the code already handles it
+                correctly</strong> (Info, correctness/design assumption) &mdash; the reviewer pointed out that a
+                partial failure where the successful days find zero fares (the exact case milestone 3's
+                <code>oneWayPartialFailureNoItinerariesSurfacesNoFaresMessage</code> test covers) sets
+                <em>both</em> <code>errorMessage</code> and <code>partialFailureMessage</code> simultaneously,
+                contrary to the plan's "never has both set at once" wording. Because the banners were implemented
+                as two independent <code>if let</code> blocks (as required) rather than coupled/nested, this
+                real case already renders correctly &mdash; both banners stack, which is the right combined
+                message. No code change needed; noted for the record. <em>No action required.</em></li>
+            <li><strong>No visual separation when both banners render together</strong> (Low, visual polish,
+                <code>RunHistoryView.swift:161-185</code>) &mdash; in the dual-banner case above, the red and
+                orange blocks abut directly with no gap under the parent <code>VStack( spacing: 0 )</code>,
+                reading as one two-tone stripe. Not broken, not requested by the milestone. <em>Deferred.</em></li>
+        </ul>
         <h4>Review Comments</h4>
         <p class="empty">None yet.</p>
     </div>
