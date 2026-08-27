@@ -21,6 +21,9 @@ struct PreferencesView: View
 
             AirlinesPane()
                 .tabItem { Label( "Airlines", systemImage: "airplane" ) }
+
+            LimitsPane()
+                .tabItem { Label( "Limits", systemImage: "gauge" ) }
         }
         .frame( width: 420 )
         .background
@@ -95,6 +98,23 @@ private struct AirlinesPane: View
                     .textFieldStyle( .roundedBorder )
                     .autocorrectionDisabled()
                     .disabled( self.restrictAirlines == false )
+            }
+        }
+        .formStyle( .grouped )
+    }
+}
+
+private struct LimitsPane: View
+{
+    @AppStorage( OneWaySweepPreference.capDefaultsKey ) private var oneWaySweepCap = OneWaySweepPreference.defaultCap
+
+    var body: some View
+    {
+        Form
+        {
+            Section
+            {
+                Stepper( "One-way sweep cap: \( self.oneWaySweepCap )", value: $oneWaySweepCap, in: 1 ... 100 )
             }
         }
         .formStyle( .grouped )

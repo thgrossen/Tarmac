@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fix Search Plan</title>
+<style>
+    :root {
+        color-scheme: dark;
+    }
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 3rem 1.5rem;
+        background: #16181d;
+        color: #e6e8eb;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        line-height: 1.55;
+    }
+
+    .page {
+        max-width: 860px;
+        margin: 0 auto;
+    }
+
+    header {
+        margin-bottom: 2.5rem;
+        border-bottom: 1px solid #2a2d34;
+        padding-bottom: 1.5rem;
+    }
+
+    h1 {
+        font-size: 2rem;
+        margin: 0 0 0.4rem 0;
+        letter-spacing: -0.01em;
+    }
+
+    .meta {
+        color: #8b909a;
+        font-size: 0.9rem;
+    }
+
+    .meta div {
+        margin-top: 0.15rem;
+    }
+
+    .meta code {
+        color: #a9c6ff;
+        background: #1d2027;
+        padding: 0.1rem 0.35rem;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+
+    h2.section-title {
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #8b909a;
+        margin: 2.5rem 0 1.25rem 0;
+    }
+
+    section.block {
+        background: #1d2027;
+        border: 1px solid #2a2d34;
+        border-radius: 10px;
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    p {
+        margin: 0 0 0.75rem 0;
+        color: #c4c8ce;
+    }
+
+    p:last-child {
+        margin-bottom: 0;
+    }
+
+    code {
+        background: #262a33;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.9em;
+        color: #a9c6ff;
+    }
+
+    ul, ol {
+        margin: 0.5rem 0;
+        padding-left: 1.4rem;
+        color: #c4c8ce;
+    }
+
+    li {
+        margin-bottom: 0.4rem;
+    }
+
+    .qa {
+        margin-bottom: 1.1rem;
+    }
+
+    .qa:last-child {
+        margin-bottom: 0;
+    }
+
+    .qa .q {
+        font-weight: 600;
+        color: #f1f2f4;
+        margin-bottom: 0.3rem;
+    }
+
+    .qa .a {
+        color: #9fd3a8;
+        padding-left: 1rem;
+        border-left: 2px solid #2f4a34;
+    }
+
+    .toc {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .toc li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.55rem 0;
+        border-bottom: 1px solid #262a33;
+    }
+
+    .toc li:last-child {
+        border-bottom: none;
+    }
+
+    .toc a {
+        color: #a9c6ff;
+        text-decoration: none;
+        font-size: 0.95rem;
+    }
+
+    .toc a:hover {
+        text-decoration: underline;
+    }
+
+    .milestone {
+        background: #1d2027;
+        border: 1px solid #2a2d34;
+        border-radius: 10px;
+        padding: 1.5rem 1.75rem;
+        margin-bottom: 1.25rem;
+        scroll-margin-top: 2rem;
+    }
+
+    .milestone-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .milestone h3 {
+        margin: 0;
+        font-size: 1.15rem;
+        color: #f1f2f4;
+    }
+
+    .milestone h4 {
+        margin: 1.1rem 0 0.4rem 0;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #8b909a;
+    }
+
+    .milestone h4:first-of-type {
+        margin-top: 1rem;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .status.not-started {
+        background: #33363e;
+        color: #b7bbc4;
+    }
+
+    .status.in-progress {
+        background: #4a3a1a;
+        color: #f0b94d;
+    }
+
+    .status.completed {
+        background: #1e3d2a;
+        color: #6fd393;
+    }
+
+    .empty {
+        color: #5f6570;
+        font-style: italic;
+        font-size: 0.9rem;
+    }
+
+    footer {
+        margin-top: 3rem;
+        color: #5f6570;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>Fix Search Plan</h1>
+        <div class="meta">
+            <div><strong>Generated</strong> 2026-08-27</div>
+            <div><strong>Source</strong> <code>Docs/agent-plans/active/2026-08-27-fix-search/fix-search.html</code></div>
+        </div>
+    </header>
+
+    <h2 class="section-title">Overview</h2>
+    <section class="block">
+        <p>
+            The one-way itinerary search only ever queries <code>search.rangeStart</code>, even though the search
+            form already lets a user pick a full departure date range (<code>rangeStart</code> &hellip;
+            <code>rangeEnd</code>) and the results table already has a sortable "Date" column built to show
+            multiple departure dates at once. This plan fixes <code>SearchRunner.runOneWay</code> to sweep the
+            whole range, issuing one Ignav <code>one-way</code> request per day and merging the results &mdash;
+            mirroring the request-per-candidate, cap-and-sample, dedupe-and-price-sort pattern that
+            <code>RoundTripShapeSearch.swift</code> already uses for round-trip searches.
+        </p>
+        <p>
+            The work is split into four independently committable milestones: a new user-configurable cap on how
+            many Ignav calls a one-way sweep may make (defaulting to 25, matching round-trip's existing hardcoded
+            cap), the sweep engine itself plus a shared sampling helper, wiring the sweep into
+            <code>SearchRunner</code> together with a new partial-failure indicator on <code>SearchRun</code>, and
+            finally surfacing that partial-failure indicator in <code>RunHistoryView</code>.
+        </p>
+    </section>
+
+    <h2 class="section-title">Questions &amp; Answers</h2>
+    <section class="block">
+        <div class="qa">
+            <div class="q">Should sweeping a one-way date range cap the number of Ignav API calls it makes, like round-trip's shape search already does (<code>RoundTripShapeSearch.defaultCallCap = 25</code>)?</div>
+            <div class="a">Yes &mdash; add a user-configurable preference for the cap, defaulting to 25.</div>
+        </div>
+        <div class="qa">
+            <div class="q">If some days' requests succeed and others fail during the sweep, how should the run report that?</div>
+            <div class="a">Keep the successful itineraries, but note the partial failure &mdash; don't just drop it silently the way round-trip's shape search currently does.</div>
+        </div>
+    </section>
+
+    <h2 class="section-title">Notes</h2>
+    <section class="block">
+        <ul>
+            <li>The one-way search form already collects a full range (<code>OneWaySearchForm.swift</code>: "Earliest departure" / "Latest departure" <code>DatePicker</code>s feeding <code>SavedSearch.rangeStart</code>/<code>rangeEnd</code>), and <code>RunHistoryView.swift</code>'s itinerary table already has a sortable "Date" column for one-way runs. No UI changes are needed to expose the range or display multiple dates &mdash; this is a backend-only fix in <code>SearchRunner.swift</code> (plus the new preference and the partial-failure banner from milestones 1 and 4).</li>
+            <li><code>RoundTripShapeSearch.swift</code> already solves the same shape of problem for round-trip: enumerate candidates, evenly sample down to a cap via <code>sample(_:cap:)</code>, fire one request per candidate, dedupe itineraries by <code>ignav_id</code>, sort by price, and track the raw JSON of the cheapest result. Milestone 2 mirrors this for a one-way date sweep rather than departure/return date pairs.</li>
+            <li><strong>Assumption (milestone 2):</strong> <code>RoundTripShapeSearch.sample(_:cap:)</code>'s evenly-spaced thinning algorithm will be extracted into a small generic helper shared by both the round-trip candidate sampler and the new one-way date sampler, rather than duplicated. Flag in review if a fully independent one-way implementation is preferred instead.</li>
+            <li><strong>Assumption (milestone 1):</strong> the new cap preference is a <code>Stepper</code> ranging 1&ndash;100, defaulting to 25, added as its own pane in <code>PreferencesView.swift</code> (label/icon left to implementation, e.g. "Limits" / <code>gauge</code>). Adjust in review if a different range or an existing pane is preferred.</li>
+            <li><code>SearchRunnerTests.oneWayDispatchesSingleCall</code> currently asserts today's buggy behavior by name ("Dispatches a one-way search to a single call, using the range's earliest date") &mdash; milestone 3 must rewrite it, not just extend it, since the fixed behavior is a multi-call sweep.</li>
+            <li>The no-fares message in <code>SearchRunner.swift</code> ("request valid&hellip; and billed") confirms Ignav calls cost money per request, which is presumably why round-trip already caps its call count &mdash; the same reasoning motivates making the one-way cap explicit and user-configurable rather than hardcoded.</li>
+            <li><code>SearchRun</code> is a SwiftData <code>@Model</code>; milestone 3 adds a new <code>partialFailureMessage: String?</code> stored property to it. As an optional property with no existing data depending on it, this should be picked up by SwiftData's automatic lightweight migration without a manual migration plan &mdash; confirm this holds when implementing.</li>
+        </ul>
+    </section>
+
+    <h2 class="section-title">Table of Contents</h2>
+    <section class="block">
+        <ul class="toc">
+            <li><a href="#m1">1. Add a user-configurable cap on one-way sweep requests</a><span class="status completed">Completed</span></li>
+            <li><a href="#m2">2. Build the one-way date-range sweep engine</a><span class="status not-started">Not started</span></li>
+            <li><a href="#m3">3. Wire the sweep into SearchRunner and track partial failures</a><span class="status not-started">Not started</span></li>
+            <li><a href="#m4">4. Surface the partial-failure warning in the results view</a><span class="status not-started">Not started</span></li>
+        </ul>
+    </section>
+
+    <h2 class="section-title">Milestones</h2>
+
+    <div class="milestone" id="m1">
+        <div class="milestone-header">
+            <h3>1. Add a user-configurable cap on one-way sweep requests</h3>
+            <span class="status completed">Completed</span>
+        </div>
+        <p><strong>Completed</strong> 2026-08-27</p>
+        <p>
+            <strong>Goal.</strong> Give the user control over how many Ignav <code>one-way</code> calls a single
+            date-range sweep may make, following the existing <code>AirlinePreference</code>/<code>MarketPreference</code>
+            pattern, defaulting to 25 (matching round-trip's current hardcoded <code>defaultCallCap</code>).
+        </p>
+        <h4>Tasks</h4>
+        <ul>
+            <li>Add <code>Tarmac/OneWaySweepPreference.swift</code>: a static enum with a defaults key, a <code>defaultCap = 25</code>, and a <code>currentCap(defaults: UserDefaults = .standard) -&gt; Int</code> reader, documented with the repo's Doxygen-style <code>/** &hellip; */</code> comment convention (see <code>MarketPreference.swift</code>).</li>
+            <li>Add a new pane to <code>PreferencesView.swift</code>'s <code>TabView</code> (alongside API Key / Market / Airlines) exposing the cap via <code>@AppStorage</code> and a <code>Stepper</code>, matching <code>MarketPane</code>/<code>AirlinesPane</code>'s <code>Form</code>/<code>Section</code> structure.</li>
+            <li>Add <code>TarmacTests/OneWaySweepPreferenceTests.swift</code> mirroring <code>MarketPreferenceTests.swift</code>/<code>AirlinePreferenceTests.swift</code>: default value when unset, reading a persisted value, isolated via a fresh <code>UserDefaults(suiteName: UUID)</code> per test.</li>
+        </ul>
+        <h4>Implementation Notes</h4>
+        <p>
+            Implemented via TDD. Added <code>Tarmac/OneWaySweepPreference.swift</code>: a static enum with
+            <code>capDefaultsKey = "one_way_sweep_cap"</code>, <code>defaultCap = 25</code>, and
+            <code>currentCap(defaults:)</code>, mirroring <code>MarketPreference</code>/<code>AirlinePreference</code>.
+            Added a new "Limits" pane (<code>gauge</code> icon) to <code>PreferencesView.swift</code>'s
+            <code>TabView</code>, with a <code>LimitsPane</code> exposing the cap via <code>@AppStorage</code> and a
+            <code>Stepper</code> ranging 1&ndash;100, matching the <code>MarketPane</code>/<code>AirlinesPane</code>
+            <code>Form</code>/<code>Section</code> structure. Added
+            <code>TarmacTests/OneWaySweepPreferenceTests.swift</code> mirroring
+            <code>MarketPreferenceTests.swift</code>: default-when-unset and reflects-a-persisted-value, each
+            isolated via a fresh <code>UserDefaults(suiteName: UUID)</code>. Both tests pass; the full app target
+            builds cleanly.
+        </p>
+        <p>
+            <strong>Note:</strong> this session has the DigiDNA <code>imazing</code> plugin's format hook enabled
+            globally, which force-runs Xcode Format with the DigiDNA config on every Swift file write/edit,
+            overwriting this repo's MIT license header with DigiDNA's proprietary one. Per your instruction, headers
+            were manually restored (via a non-Edit/Write shell step, since the hook re-fires on the fixing edit
+            itself) after each file's content was finalized. Worth confirming the final files on disk still carry
+            the correct MIT header before committing.
+        </p>
+        <h4>Automated Review</h4>
+        <p>
+            One round, fresh-context sub-agent, no Critical/High/Medium findings &mdash; loop converged after
+            iteration 1.
+        </p>
+        <ul>
+            <li><strong>Test suite doesn't exercise the 0/negative-persisted-value branch explicitly</strong>
+                (Low, test coverage, <code>OneWaySweepPreference.swift:20-24</code>) &mdash; no test sets a
+                persisted value of <code>0</code> to directly exercise the <code>&gt; 0</code> fallback guard.
+                <em>Deferred.</em></li>
+            <li><strong>Doc comment doesn't spell out the "unset vs. explicitly zero/negative" fallback
+                semantics</strong> (Info, documentation, <code>OneWaySweepPreference.swift:14-19</code>) &mdash;
+                the <code>@return</code> doc could more precisely note that a non-positive persisted value also
+                falls back to the default. <em>Deferred.</em></li>
+            <li><strong>Forward note: <code>defaultCap</code>/<code>currentCap</code> are not
+                <code>nonisolated</code>, unlike <code>RoundTripShapeSearch.defaultCallCap</code></strong> (Info,
+                concurrency, forward-looking) &mdash; milestone 3 should double-check whether
+                <code>nonisolated</code> is needed once <code>defaultCap</code> becomes a default-parameter value
+                for the sweep function. <em>Deferred to milestone 3.</em></li>
+        </ul>
+        <h4>Review Comments</h4>
+        <p class="empty">None yet.</p>
+    </div>
+
+    <div class="milestone" id="m2">
+        <div class="milestone-header">
+            <h3>2. Build the one-way date-range sweep engine</h3>
+            <span class="status not-started">Not started</span>
+        </div>
+        <p>
+            <strong>Goal.</strong> Add the core logic that turns a one-way <code>SavedSearch</code>'s date range
+            into one Ignav request per day (capped and evenly sampled when the range is longer than the cap),
+            aggregates the results, and reports how many day-requests failed &mdash; without yet touching
+            <code>SearchRunner</code> or the UI.
+        </p>
+        <h4>Tasks</h4>
+        <ul>
+            <li>Extract <code>RoundTripShapeSearch.sample(_:cap:)</code>'s evenly-spaced thinning algorithm into a small generic helper (e.g. an <code>Array</code> extension) usable by both round-trip candidates and one-way dates; update <code>RoundTripShapeSearch</code> to call through it. (See the assumption above &mdash; confirm this is the preferred approach during review.)</li>
+            <li>Add <code>Tarmac/OneWayDateSweep.swift</code> mirroring <code>RoundTripShapeSearch.swift</code>'s structure: a <code>dates(for search: SavedSearch) -&gt; [Date]</code> enumerating every day from <code>min(rangeStart, rangeEnd)</code> to <code>max(rangeStart, rangeEnd)</code> inclusive (UTC calendar, matching <code>RoundTripShapeSearch</code>'s existing date handling).</li>
+            <li>Add a result type (e.g. <code>OneWaySweepResult</code>) carrying the aggregated, deduped (by <code>ignav_id</code>), price-sorted itineraries; <code>requestCount</code> (the number of day-requests actually issued, i.e. the sampled/capped count); the raw JSON of the cheapest itinerary found; and enough information for the caller to tell "some days failed" from "all days failed" (e.g. a <code>failedRequestCount</code> alongside <code>requestCount</code>, plus the last error for the all-failed case).</li>
+            <li>Add <code>Tarmac/OneWayDateSweep.run(for:apiKey:cap:defaults:fetch:) async -&gt; OneWaySweepResult</code>, issuing one <code>IgnavClient.oneWay(_:)</code> call per sampled date (via an injectable <code>fetch</code> override for tests, matching <code>RoundTripShapeSearch.run</code>'s signature shape) and aggregating as above.</li>
+            <li>Add <code>TarmacTests/OneWayDateSweepTests.swift</code> mirroring <code>RoundTripShapeSearchTests.swift</code>: date enumeration across a range (including a single-day range), cap/sampling behavior on a long range, one request per sampled date with the correct <code>departure_date</code> per request, dedupe-by-<code>ignav_id</code>, price sort, all-days-fail vs. some-days-fail vs. no-days-fail result shape, and (if extracted) the shared sampling helper's own behavior.</li>
+        </ul>
+        <h4>Implementation Notes</h4>
+        <p class="empty">Not started.</p>
+        <h4>Automated Review</h4>
+        <p class="empty">Not started.</p>
+        <h4>Review Comments</h4>
+        <p class="empty">None yet.</p>
+    </div>
+
+    <div class="milestone" id="m3">
+        <div class="milestone-header">
+            <h3>3. Wire the sweep into SearchRunner and track partial failures</h3>
+            <span class="status not-started">Not started</span>
+        </div>
+        <p>
+            <strong>Goal.</strong> Make <code>SearchRunner.runOneWay</code> actually use the milestone 2 sweep
+            engine instead of a single <code>rangeStart</code>-only request, reading the milestone 1 cap
+            preference, and record when a run's results are incomplete due to some (but not all) day-requests
+            failing.
+        </p>
+        <h4>Tasks</h4>
+        <ul>
+            <li>Add <code>partialFailureMessage: String?</code> to <code>SearchRun</code> (<code>Tarmac/SearchRun.swift</code>), following the existing optional-property/init pattern used by <code>errorMessage</code>.</li>
+            <li>Rewrite <code>SearchRunner.runOneWay</code> to call <code>OneWayDateSweep.run(for:apiKey:cap: OneWaySweepPreference.currentCap(defaults:),defaults:fetch:)</code> instead of building and sending a single <code>OneWayRequest</code> directly.</li>
+            <li>From the sweep result, set <code>run.requestCount</code> to the actual number of day-requests issued; set <code>run.errorMessage</code> to the existing <code>noFaresMessage</code>/underlying-error handling (mirroring <code>runRoundTrip</code>'s <code>result.errorMessage ?? (itineraries.isEmpty ? noFaresMessage : nil)</code>) for the "zero itineraries" case; and set the new <code>run.partialFailureMessage</code> (e.g. "N of M day requests failed.") only when itineraries are non-empty but at least one day-request failed.</li>
+            <li>Update <code>SearchRunner.run</code>'s doc comment, which currently states a one-way search "only ever checks <code>search.rangeStart</code>&hellip; does not sweep through <code>search.rangeEnd</code>&hellip; a possible future improvement" &mdash; this is no longer true once this milestone lands.</li>
+            <li>Rewrite <code>SearchRunnerTests.oneWayDispatchesSingleCall</code> (and add new cases) to cover: one request per day across a multi-day range with the correct <code>departure_date</code> per request; requests capped/sampled per the preference when the range exceeds it; <code>run.requestCount</code> matching the actual call count; a partial failure producing a non-nil <code>partialFailureMessage</code> while keeping the successful itineraries; and an all-days-fail run still producing the existing error/no-fares behavior with <code>partialFailureMessage == nil</code>.</li>
+        </ul>
+        <h4>Implementation Notes</h4>
+        <p class="empty">Not started.</p>
+        <h4>Automated Review</h4>
+        <p class="empty">Not started.</p>
+        <h4>Review Comments</h4>
+        <p class="empty">None yet.</p>
+    </div>
+
+    <div class="milestone" id="m4">
+        <div class="milestone-header">
+            <h3>4. Surface the partial-failure warning in the results view</h3>
+            <span class="status not-started">Not started</span>
+        </div>
+        <p>
+            <strong>Goal.</strong> Make a partial-failure one-way run visibly different from both a fully healthy
+            run and a fully failed run in <code>RunHistoryView</code>, without disturbing the existing red
+            error banner used for total failures.
+        </p>
+        <h4>Tasks</h4>
+        <ul>
+            <li>In <code>RunDetailView</code> (<code>Tarmac/RunHistoryView.swift</code>), add a banner shown when <code>run.partialFailureMessage</code> is set, styled distinctly (e.g. amber/warning) from the existing red <code>errorMessage</code> banner, displayed above the itinerary table so the (still-present) successful itineraries stay visible underneath.</li>
+            <li>Confirm the two banners are mutually exclusive in practice given milestone 3's logic (a run never has both <code>errorMessage</code> and <code>partialFailureMessage</code> set at once) but don't assume it structurally &mdash; render each independently based on its own optional.</li>
+            <li>Manually verify in the running app: create/run a one-way search spanning several days and confirm the itinerary table now shows multiple distinct departure dates (via the existing Date column) instead of just one; spot-check the new warning banner by temporarily forcing one day's stubbed <code>oneWayFetch</code> to fail (e.g. via a scratch edit or a SwiftUI preview with a mock <code>SearchRun</code>) since a live partial Ignav failure isn't reproducible on demand.</li>
+        </ul>
+        <h4>Implementation Notes</h4>
+        <p class="empty">Not started.</p>
+        <h4>Automated Review</h4>
+        <p class="empty">Not started.</p>
+        <h4>Review Comments</h4>
+        <p class="empty">None yet.</p>
+    </div>
+
+    <footer>Fix Search implementation plan</footer>
+</div>
+</body>
+</html>
