@@ -112,33 +112,7 @@ enum RoundTripShapeSearch
      */
     static func sample( _ candidates: [ Candidate ], cap: Int ) -> [ Candidate ]
     {
-        guard cap > 0, candidates.isEmpty == false
-        else
-        {
-            return []
-        }
-        guard candidates.count > cap
-        else
-        {
-            return candidates
-        }
-        guard cap > 1
-        else
-        {
-            return [ candidates[ 0 ] ]
-        }
-
-        var indices: [ Int ] = []
-        var seen = Set< Int >()
-        for i in 0 ..< cap
-        {
-            let index = ( i * ( candidates.count - 1 ) ) / ( cap - 1 )
-            if seen.insert( index ).inserted
-            {
-                indices.append( index )
-            }
-        }
-        return indices.map { candidates[ $0 ] }
+        candidates.sampled( cap: cap )
     }
 
     /**

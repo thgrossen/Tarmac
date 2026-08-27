@@ -9,7 +9,7 @@ import Foundation
 enum OneWaySweepPreference
 {
     static let capDefaultsKey = "one_way_sweep_cap"
-    static let defaultCap = 25
+    nonisolated static let defaultCap = 25
 
     /**
      * Reads the current one-way sweep call cap preference.

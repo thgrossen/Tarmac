@@ -279,7 +279,7 @@
     <section class="block">
         <ul class="toc">
             <li><a href="#m1">1. Add a user-configurable cap on one-way sweep requests</a><span class="status completed">Completed</span></li>
-            <li><a href="#m2">2. Build the one-way date-range sweep engine</a><span class="status not-started">Not started</span></li>
+            <li><a href="#m2">2. Build the one-way date-range sweep engine</a><span class="status completed">Completed</span></li>
             <li><a href="#m3">3. Wire the sweep into SearchRunner and track partial failures</a><span class="status not-started">Not started</span></li>
             <li><a href="#m4">4. Surface the partial-failure warning in the results view</a><span class="status not-started">Not started</span></li>
         </ul>
@@ -353,8 +353,9 @@
     <div class="milestone" id="m2">
         <div class="milestone-header">
             <h3>2. Build the one-way date-range sweep engine</h3>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p><strong>Completed</strong> 2026-08-27</p>
         <p>
             <strong>Goal.</strong> Add the core logic that turns a one-way <code>SavedSearch</code>'s date range
             into one Ignav request per day (capped and evenly sampled when the range is longer than the cap),
@@ -370,9 +371,63 @@
             <li>Add <code>TarmacTests/OneWayDateSweepTests.swift</code> mirroring <code>RoundTripShapeSearchTests.swift</code>: date enumeration across a range (including a single-day range), cap/sampling behavior on a long range, one request per sampled date with the correct <code>departure_date</code> per request, dedupe-by-<code>ignav_id</code>, price sort, all-days-fail vs. some-days-fail vs. no-days-fail result shape, and (if extracted) the shared sampling helper's own behavior.</li>
         </ul>
         <h4>Implementation Notes</h4>
-        <p class="empty">Not started.</p>
+        <p>
+            Implemented via TDD (tests written first, confirmed failing to build against the not-yet-existing
+            symbols, then made to pass). Extracted <code>RoundTripShapeSearch.sample(_:cap:)</code>'s evenly-spaced
+            thinning algorithm into a generic <code>Array.sampled(cap:)</code> extension
+            (<code>Tarmac/Array+Sampling.swift</code>); <code>RoundTripShapeSearch.sample(_:cap:)</code> now
+            delegates to it, keeping its old public signature/doc comment so existing callers and tests are
+            untouched. Added <code>Tarmac/OneWayDateSweep.swift</code> mirroring
+            <code>RoundTripShapeSearch.swift</code>'s structure: <code>dates(for:)</code> (UTC calendar,
+            min/max-normalized, end-inclusive), <code>OneWaySweepResult</code> (itineraries, requestCount,
+            <code>failedRequestCount</code>, rawJSON, errorMessage), and
+            <code>run(for:apiKey:cap:defaults:fetch:)</code> issuing one <code>IgnavClient.oneWay(_:)</code> call
+            per sampled date, deduping by <code>ignav_id</code>, price-sorting, and tracking the cheapest raw JSON
+            &mdash; matching <code>RoundTripShapeSearch.run</code>'s shape. <code>errorMessage</code> is set only
+            when every day fails (itineraries empty); a partial failure instead leaves <code>errorMessage</code>
+            nil with <code>failedRequestCount &gt; 0</code>, giving the future <code>SearchRunner</code> caller
+            (milestone 3) what it needs to distinguish the two cases.
+        </p>
+        <p>
+            Also marked <code>OneWaySweepPreference.defaultCap</code> as <code>nonisolated</code>
+            (<code>Tarmac/OneWaySweepPreference.swift</code>), needed because <code>OneWayDateSweep.run</code> uses
+            it as a default-parameter value (<code>cap: Int = OneWaySweepPreference.defaultCap</code>) and the
+            project builds with <code>SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor</code> &mdash; this is exactly the
+            forward-looking gap milestone 1's automated review flagged (see its Automated Review section), and it
+            surfaced here as expected once the preference was actually used as a default-parameter value.
+        </p>
+        <p>
+            Added <code>TarmacTests/Array+SamplingTests.swift</code> (generic helper: under-cap, over-cap with
+            exact index sequence, cap-of-one, cap-zero/empty) and
+            <code>TarmacTests/OneWayDateSweepTests.swift</code> mirroring
+            <code>RoundTripShapeSearchTests.swift</code>'s conventions: date enumeration (single-day, multi-day,
+            reversed range), one request per sampled date with correct <code>departure_date</code>, cap
+            enforcement, price sort + cheapest-JSON tracking, dedupe by <code>ignav_id</code>, and all three
+            failure shapes (no-fail / partial-fail / all-fail). All 36 relevant tests pass (11 new sweep tests, 4
+            new sampling-helper tests, plus the pre-existing 15 <code>RoundTripShapeSearchTests</code>
+            unchanged and still green, confirming the extraction didn't regress round-trip). Full app target
+            builds cleanly.
+        </p>
         <h4>Automated Review</h4>
-        <p class="empty">Not started.</p>
+        <p>
+            One round, fresh-context sub-agent, no Critical/High/Medium findings &mdash; loop converged after
+            iteration 1. Reviewer also independently confirmed the <code>nonisolated</code> change is correct and
+            necessary, and that the round-trip regression tests still pass unchanged against the extracted helper.
+        </p>
+        <ul>
+            <li><strong>Duplicate-index dedup logic in <code>sampled(cap:)</code> is unreachable given its own
+                guards</strong> (Low, code smell, <code>Array+Sampling.swift:34-43</code>) &mdash; the
+                <code>Set&lt;Int&gt;</code> dedup can never actually trigger given the surrounding guards; harmless,
+                and pre-existing in the code being extracted rather than introduced by this milestone.
+                <em>Deferred.</em></li>
+            <li><strong>Multi-condition <code>guard</code> combines conditions on one line</strong> (Low, style,
+                <code>Array+Sampling.swift:18</code>) &mdash; deviates from the repo's one-condition-per-line
+                convention for comma-separated guards, but is a verbatim copy of pre-existing code from
+                <code>RoundTripShapeSearch.swift</code>, not a new violation. <em>Deferred.</em></li>
+            <li><strong>No explicit test for the <code>count == cap</code> boundary</strong> (Info, test coverage)
+                &mdash; inherited gap from the original <code>sample(_:cap:)</code> test suite, not introduced
+                here; the branch itself is trivially correct. <em>Deferred.</em></li>
+        </ul>
         <h4>Review Comments</h4>
         <p class="empty">None yet.</p>
     </div>
