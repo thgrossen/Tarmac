@@ -4,27 +4,67 @@
  * Copyright (c) 2026, Thomas Grossen
  ******************************************************************************/
 
+import AppKit
 import SwiftUI
 
 struct PreferencesView: View
 {
+    var body: some View
+    {
+        TabView
+        {
+            APIKeyPane()
+                .tabItem { Label( "API Key", systemImage: "key" ) }
+
+            MarketPane()
+                .tabItem { Label( "Market", systemImage: "globe" ) }
+
+            AirlinesPane()
+                .tabItem { Label( "Airlines", systemImage: "airplane" ) }
+        }
+        .frame( width: 420 )
+        .background
+        {
+            // TabView/Settings doesn't forward Escape to close the window on its own.
+            // `@Environment(\.dismiss)` isn't documented to affect a Settings scene's
+            // window (it's scoped to sheets/NavigationStack/openWindow-opened windows),
+            // so this closes the key window directly instead, via a hidden button with
+            // the cancel-action shortcut, which doesn't affect layout.
+            Button( "Close" ) { NSApplication.shared.keyWindow?.close() }
+                .keyboardShortcut( .cancelAction )
+                .hidden()
+        }
+    }
+}
+
+private struct APIKeyPane: View
+{
     @AppStorage( SearchViewModel.apiKeyDefaultsKey ) private var apiKey = ""
-    @AppStorage( AirlinePreference.restrictAirlinesDefaultsKey ) private var restrictAirlines = true
-    @AppStorage( AirlinePreference.airlineCodesDefaultsKey ) private var airlineCodes = AirlinePreference.defaultAirlineCodes
+
+    var body: some View
+    {
+        Form
+        {
+            Section
+            {
+                SecureField( "X-Api-Key", text: $apiKey )
+                    .textFieldStyle( .roundedBorder )
+                    .autocorrectionDisabled()
+            }
+        }
+        .formStyle( .grouped )
+    }
+}
+
+private struct MarketPane: View
+{
     @AppStorage( MarketPreference.marketDefaultsKey ) private var market = MarketPreference.defaultMarket
 
     var body: some View
     {
         Form
         {
-            Section( "API Key" )
-            {
-                SecureField( "X-Api-Key", text: $apiKey )
-                    .textFieldStyle( .roundedBorder )
-                    .autocorrectionDisabled()
-            }
-
-            Section( "Market" )
+            Section
             {
                 Picker( "Market", selection: $market )
                 {
@@ -34,8 +74,21 @@ struct PreferencesView: View
                     }
                 }
             }
+        }
+        .formStyle( .grouped )
+    }
+}
 
-            Section( "Airlines" )
+private struct AirlinesPane: View
+{
+    @AppStorage( AirlinePreference.restrictAirlinesDefaultsKey ) private var restrictAirlines = true
+    @AppStorage( AirlinePreference.airlineCodesDefaultsKey ) private var airlineCodes = AirlinePreference.defaultAirlineCodes
+
+    var body: some View
+    {
+        Form
+        {
+            Section
             {
                 Toggle( "Restrict to specific carriers", isOn: $restrictAirlines )
                 TextField( "IATA codes (comma-separated)", text: $airlineCodes )
@@ -45,6 +98,5 @@ struct PreferencesView: View
             }
         }
         .formStyle( .grouped )
-        .frame( width: 420 )
     }
 }
