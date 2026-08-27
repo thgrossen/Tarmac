@@ -10,28 +10,20 @@ enum SearchRunner
 {
     private static let noFaresMessage = "No flights for these filters (request valid… and billed)."
 
-    private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone( identifier: "UTC" )
-        f.locale = Locale( identifier: "en_US_POSIX" )
-        return f
-    }()
-
     /**
-     * Runs a saved search — dispatching to a single Ignav one-way call or to the
-     * round-trip shape search based on `search.kind` — and records the outcome as a
-     * new SearchRun appended to `search.runs`. Earlier runs are never modified or
-     * removed, so history accumulates across refreshes.
+     * Runs a saved search — dispatching to the one-way date sweep or to the round-trip
+     * shape search based on `search.kind` — and records the outcome as a new SearchRun
+     * appended to `search.runs`. Earlier runs are never modified or removed, so history
+     * accumulates across refreshes.
      *
-     * A one-way search only ever checks `search.rangeStart`: unlike round-trip, which
-     * sweeps its whole date range via the shape search, this dispatches a single
-     * `IgnavClient.oneWay(_:)` call and does not sweep through `search.rangeEnd`.
-     * Sweeping the one-way range the same way is a possible future improvement.
+     * Both kinds sweep their whole date range: one-way issues one Ignav
+     * `IgnavClient.oneWay(_:)` call per day in `search.rangeStart...search.rangeEnd`
+     * (capped and sampled per `OneWaySweepPreference`), and round-trip issues one call
+     * per departure/return candidate via the shape search.
      *
      * @param search Saved search to run.
      * @param apiKey Ignav API key.
-     * @param defaults UserDefaults suite to read the airline restriction preference from.
+     * @param defaults UserDefaults suite to read the airline restriction / cap preferences from.
      * @param cap Maximum number of Ignav calls a round-trip shape search may make; ignored for one-way.
      * @param oneWayFetch Override for the one-way network call, used by tests.
      * @param roundTripFetch Override for the round-trip network call, used by tests.
@@ -69,36 +61,30 @@ enum SearchRunner
         fetch: ( ( OneWayRequest ) async throws -> ( FaresResponse, String ) )?
     ) async -> SearchRun
     {
-        let performFetch = fetch ?? { request in
-            try await IgnavClient( apiKey: apiKey ).oneWay( request )
-        }
-
-        let body = OneWayRequest(
-            origin: search.origin.uppercased(),
-            destination: search.destination.uppercased(),
-            departure_date: self.dateFormatter.string( from: search.rangeStart ),
-            cabin_class: search.cabinClass,
-            max_stops: search.directOnly ? 0 : 2,
-            airlines_include: AirlinePreference.currentAirlinesInclude( defaults: defaults ),
-            market: MarketPreference.currentMarket( defaults: defaults )
+        let result = await OneWayDateSweep.run(
+            for: search,
+            apiKey: apiKey,
+            cap: OneWaySweepPreference.currentCap( defaults: defaults ),
+            defaults: defaults,
+            fetch: fetch
         )
 
-        do
-        {
-            let ( response, raw ) = try await performFetch( body )
-            let itineraries = response.itineraries.sorted { $0.price.amount < $1.price.amount }
-            let run = SearchRun(
-                rawJSON: raw,
-                errorMessage: itineraries.isEmpty ? self.noFaresMessage : nil,
-                requestCount: 1
-            )
-            run.itineraries = itineraries.map { self.snapshot( for: $0, run: run ) }
-            return run
-        }
-        catch
-        {
-            return SearchRun( errorMessage: error.localizedDescription, requestCount: 1 )
-        }
+        let isAllRequestsFailed = result.failedRequestCount == result.requestCount && result.requestCount > 0
+        let errorMessage = result.itineraries.isEmpty
+            ? ( isAllRequestsFailed ? result.errorMessage : self.noFaresMessage )
+            : nil
+        let partialFailureMessage = result.failedRequestCount > 0 && isAllRequestsFailed == false
+            ? "\( result.failedRequestCount ) of \( result.requestCount ) day requests failed."
+            : nil
+
+        let run = SearchRun(
+            rawJSON: result.rawJSON,
+            errorMessage: errorMessage,
+            partialFailureMessage: partialFailureMessage,
+            requestCount: result.requestCount
+        )
+        run.itineraries = result.itineraries.map { self.snapshot( for: $0, run: run ) }
+        return run
     }
 
     private static func runRoundTrip(

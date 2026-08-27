@@ -280,7 +280,7 @@
         <ul class="toc">
             <li><a href="#m1">1. Add a user-configurable cap on one-way sweep requests</a><span class="status completed">Completed</span></li>
             <li><a href="#m2">2. Build the one-way date-range sweep engine</a><span class="status completed">Completed</span></li>
-            <li><a href="#m3">3. Wire the sweep into SearchRunner and track partial failures</a><span class="status not-started">Not started</span></li>
+            <li><a href="#m3">3. Wire the sweep into SearchRunner and track partial failures</a><span class="status completed">Completed</span></li>
             <li><a href="#m4">4. Surface the partial-failure warning in the results view</a><span class="status not-started">Not started</span></li>
         </ul>
     </section>
@@ -435,8 +435,9 @@
     <div class="milestone" id="m3">
         <div class="milestone-header">
             <h3>3. Wire the sweep into SearchRunner and track partial failures</h3>
-            <span class="status not-started">Not started</span>
+            <span class="status completed">Completed</span>
         </div>
+        <p><strong>Completed</strong> 2026-08-27</p>
         <p>
             <strong>Goal.</strong> Make <code>SearchRunner.runOneWay</code> actually use the milestone 2 sweep
             engine instead of a single <code>rangeStart</code>-only request, reading the milestone 1 cap
@@ -452,9 +453,66 @@
             <li>Rewrite <code>SearchRunnerTests.oneWayDispatchesSingleCall</code> (and add new cases) to cover: one request per day across a multi-day range with the correct <code>departure_date</code> per request; requests capped/sampled per the preference when the range exceeds it; <code>run.requestCount</code> matching the actual call count; a partial failure producing a non-nil <code>partialFailureMessage</code> while keeping the successful itineraries; and an all-days-fail run still producing the existing error/no-fares behavior with <code>partialFailureMessage == nil</code>.</li>
         </ul>
         <h4>Implementation Notes</h4>
-        <p class="empty">Not started.</p>
+        <p>
+            Implemented via TDD (tests rewritten/added first, confirmed failing against the still-single-request
+            <code>runOneWay</code>, then made to pass). Added <code>partialFailureMessage: String?</code> to
+            <code>SearchRun</code> (<code>Tarmac/SearchRun.swift</code>), following the existing
+            <code>errorMessage</code> optional-property/init pattern. Rewrote
+            <code>SearchRunner.runOneWay</code> (<code>Tarmac/SearchRunner.swift</code>) to call
+            <code>OneWayDateSweep.run(for:apiKey:cap: OneWaySweepPreference.currentCap(defaults:),defaults:fetch:)</code>
+            instead of building a single <code>OneWayRequest</code>; removed the now-unused
+            <code>dateFormatter</code> that only <code>runOneWay</code> had used. Updated
+            <code>SearchRunner.run</code>'s doc comment to describe both search kinds sweeping their date range,
+            replacing the stale "only checks rangeStart... future improvement" text.
+        </p>
+        <p>
+            <code>run.requestCount</code> is set from the sweep's actual issued-call count. The
+            <code>errorMessage</code>/<code>partialFailureMessage</code> decision distinguishes three cases: no
+            failures (existing no-fares/success handling, mirroring <code>runRoundTrip</code>); a partial failure
+            (itineraries non-empty or empty) sets <code>partialFailureMessage</code> ("N of M day requests
+            failed.") and keeps <code>errorMessage</code> friendly rather than the raw underlying error; and a
+            total failure (every sampled day failed) surfaces the underlying error as <code>errorMessage</code>
+            with no <code>partialFailureMessage</code>.
+        </p>
+        <p>
+            Rewrote <code>oneWayDispatchesSingleCall</code> into <code>oneWaySingleDayRange</code> (single-day
+            range, same rich field-mapping assertions as before) and added
+            <code>oneWaySweepsWholeDateRange</code> (per-day dispatch with correct <code>departure_date</code>),
+            <code>oneWaySweepRespectsCapPreference</code>, <code>oneWayPartialFailureSetsMessage</code>, and
+            <code>oneWayPartialFailureNoItinerariesSurfacesNoFaresMessage</code>. Updated
+            <code>oneWayEmptyResultSurfacesMessage</code> and <code>oneWayFailureSurfacesError</code> for the new
+            8-day default sweep (<code>makeOneWaySearch()</code>'s Oct 5&ndash;12 range) and the sweep's
+            raw-JSON-of-cheapest semantics (<code>rawJSON</code> is now nil, not the single response, when no
+            itinerary is ever found). Gave <code>makeOneWaySearch</code> optional <code>rangeStart</code>/
+            <code>rangeEnd</code> parameters, mirroring <code>makeRoundTripSearch</code>'s existing shape. All
+            other pre-existing one-way tests were re-verified against the new multi-day-sweep default and left
+            unchanged (still valid; several now incidentally rely on dedupe-by-<code>ignav_id</code> across
+            identical daily responses). Full suite and app build pass throughout.
+        </p>
         <h4>Automated Review</h4>
-        <p class="empty">Not started.</p>
+        <p>
+            Two rounds, fresh-context sub-agent each time.
+        </p>
+        <ul>
+            <li><strong>Round 1</strong> found one Medium finding, fixed before continuing:
+                <strong>partial failure with zero itineraries silently surfaced the raw network error and hid the
+                partial-failure signal</strong> (Medium, correctness/UX, <code>SearchRunner.swift</code>) &mdash;
+                when some days failed and the rest succeeded but genuinely found no fares, the run showed the raw
+                error instead of the no-fares message, and <code>partialFailureMessage</code> stayed nil because
+                its guard required non-empty itineraries. <em>Fixed:</em> reworked the decision logic to
+                distinguish "all requests failed" from "some failed," so a partial failure with no fares now shows
+                the friendly no-fares message plus a non-nil <code>partialFailureMessage</code>; added
+                <code>oneWayPartialFailureNoItinerariesSurfacesNoFaresMessage</code> to cover it. Also noted
+                (Low, not required to fix, addressed anyway): no test covered this exact branch &mdash; addressed
+                by the same new test.</li>
+            <li><strong>Round 2</strong> (fresh sub-agent, re-verifying the round-1 fix independently) found no
+                Critical/High/Medium findings &mdash; confirmed the fix is genuinely correct across the full
+                case matrix, confirmed <code>requestCount == 0</code> is unreachable in practice (the
+                defensive guard is still correct to keep), and confirmed no regressions elsewhere. One Low style
+                nit: the local <code>allRequestsFailed</code> didn't follow the repo's <code>isXxx</code> boolean
+                naming convention. <em>Fixed</em> (renamed to <code>isAllRequestsFailed</code>); loop converged
+                after this round, no further iteration needed.</li>
+        </ul>
         <h4>Review Comments</h4>
         <p class="empty">None yet.</p>
     </div>

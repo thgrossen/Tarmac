@@ -19,14 +19,18 @@ struct SearchRunnerTests
         return calendar.date( from: components )!
     }
 
-    private static func makeOneWaySearch( directOnly: Bool = true ) -> SavedSearch
+    private static func makeOneWaySearch(
+        rangeStart: Date = Self.utcDate( 2026, 10, 5 ),
+        rangeEnd: Date = Self.utcDate( 2026, 10, 12 ),
+        directOnly: Bool = true
+    ) -> SavedSearch
     {
         SavedSearch(
             kind: .oneWay,
             origin: "gva",
             destination: "lis",
-            rangeStart: Self.utcDate( 2026, 10, 5 ),
-            rangeEnd: Self.utcDate( 2026, 10, 12 ),
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
             cabinClass: "business",
             directOnly: directOnly
         )
@@ -79,10 +83,14 @@ struct SearchRunnerTests
 
     // MARK: - One-way dispatch
 
-    @Test( "Dispatches a one-way search to a single call, using the range's earliest date" )
-    func oneWayDispatchesSingleCall() async throws
+    @Test( "A single-day range produces one call with the correct departure_date" )
+    func oneWaySingleDayRange() async throws
     {
-        let search   = Self.makeOneWaySearch( directOnly: true )
+        let search   = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 5 ),
+            directOnly: true
+        )
         let log      = FetchLog< OneWayRequest >()
         let defaults = Self.freshDefaults()
         let ( response, raw ) = try Self.fares( itineraries: """
@@ -113,6 +121,7 @@ struct SearchRunnerTests
         #expect( run.requestCount == 1 )
         #expect( run.rawJSON == raw )
         #expect( run.errorMessage == nil )
+        #expect( run.partialFailureMessage == nil )
         #expect( run.savedSearch === search )
         #expect( search.runs.count == 1 )
         #expect( search.runs.first === run )
@@ -134,6 +143,112 @@ struct SearchRunnerTests
         #expect( components.year == 2026 )
         #expect( components.month == 10 )
         #expect( components.day == 5 )
+    }
+
+    @Test( "Sweeps every day in the range, issuing one call per day with the correct departure_date" )
+    func oneWaySweepsWholeDateRange() async throws
+    {
+        let search = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 7 )
+        )
+        let log = FetchLog< OneWayRequest >()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { request in
+                log.record( request )
+                return try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( log.requests.map( \.departure_date ) == [ "2026-10-05", "2026-10-06", "2026-10-07" ] )
+        #expect( run.requestCount == 3 )
+    }
+
+    @Test( "Caps requests at the configured cap preference when the range exceeds it" )
+    func oneWaySweepRespectsCapPreference() async throws
+    {
+        let search = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 1 ),
+            rangeEnd: Self.utcDate( 2026, 10, 31 )
+        )
+        let defaults = Self.freshDefaults()
+        defaults.set( 5, forKey: OneWaySweepPreference.capDefaultsKey )
+        let log = FetchLog< OneWayRequest >()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: defaults,
+            oneWayFetch: { request in
+                log.record( request )
+                return try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( log.requests.count == 5 )
+        #expect( run.requestCount == 5 )
+    }
+
+    @Test( "A partial failure keeps the successful itineraries and sets partialFailureMessage" )
+    func oneWayPartialFailureSetsMessage() async throws
+    {
+        let search = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 6 )
+        )
+        var callIndex = 0
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                defer { callIndex += 1 }
+                if callIndex == 0
+                {
+                    throw StubError()
+                }
+                return try Self.fares( itineraries: """
+                    { "ignav_id": "OK1", "price": { "amount": 400, "currency": "CHF" } }
+                    """ )
+            }
+        )
+
+        #expect( run.itineraries.count == 1 )
+        #expect( run.errorMessage == nil )
+        #expect( run.partialFailureMessage == "1 of 2 day requests failed." )
+    }
+
+    @Test( "A partial failure with no itineraries found surfaces the no-fares message, not the raw error" )
+    func oneWayPartialFailureNoItinerariesSurfacesNoFaresMessage() async throws
+    {
+        let search = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 6 )
+        )
+        var callIndex = 0
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                defer { callIndex += 1 }
+                if callIndex == 0
+                {
+                    throw StubError()
+                }
+                return try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( run.itineraries.isEmpty )
+        #expect( run.errorMessage == "No flights for these filters (request valid… and billed)." )
+        #expect( run.partialFailureMessage == "1 of 2 day requests failed." )
     }
 
     @Test( "Sorts one-way itineraries by price" )
@@ -234,9 +349,10 @@ struct SearchRunnerTests
         )
 
         #expect( run.itineraries.isEmpty )
-        #expect( run.rawJSON == raw )
+        #expect( run.rawJSON == nil )
         #expect( run.errorMessage == "No flights for these filters (request valid… and billed)." )
-        #expect( run.requestCount == 1 )
+        #expect( run.partialFailureMessage == nil )
+        #expect( run.requestCount == 8 )
     }
 
     @Test( "A failed one-way call surfaces the error and stores no raw JSON" )
@@ -254,7 +370,8 @@ struct SearchRunnerTests
         #expect( run.itineraries.isEmpty )
         #expect( run.rawJSON == nil )
         #expect( run.errorMessage == "stub network failure" )
-        #expect( run.requestCount == 1 )
+        #expect( run.partialFailureMessage == nil )
+        #expect( run.requestCount == 8 )
         #expect( search.runs.count == 1 )
     }
 

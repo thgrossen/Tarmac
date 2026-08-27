@@ -14,6 +14,7 @@ final class SearchRun
     var runAt: Date
     var rawJSON: String?
     var errorMessage: String?
+    var partialFailureMessage: String?
     var requestCount: Int
 
     var savedSearch: SavedSearch?
@@ -25,6 +26,7 @@ final class SearchRun
         runAt: Date = .now,
         rawJSON: String? = nil,
         errorMessage: String? = nil,
+        partialFailureMessage: String? = nil,
         requestCount: Int,
         savedSearch: SavedSearch? = nil
     )
@@ -33,6 +35,7 @@ final class SearchRun
         self.runAt = runAt
         self.rawJSON = rawJSON
         self.errorMessage = errorMessage
+        self.partialFailureMessage = partialFailureMessage
         self.requestCount = requestCount
         self.savedSearch = savedSearch
     }
