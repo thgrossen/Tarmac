@@ -16,7 +16,13 @@ Tarmac is a native macOS app (SwiftUI + SwiftData) for tracking airfare prices. 
 - Xcode
 - An API key for [Ignav](https://ignav.com) — Tarmac fetches live fares through Ignav's fares API. Enter your key in **Tarmac → Preferences → API Key**.
 
-## Screenshot
+## Screenshots
+
+One-way search form:
+
+![Tarmac one-way search form](Docs/screenshot-form.png)
+
+Search results:
 
 ![Tarmac search results](Docs/screenshot.png)
 
