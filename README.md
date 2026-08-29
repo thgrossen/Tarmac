@@ -20,7 +20,7 @@ Tarmac is a native macOS app (SwiftUI + SwiftData) for tracking airfare prices. 
 
 One-way search form:
 
-![Tarmac one-way search form](Docs/screenshot-form.png)
+<img src="Docs/screenshot-form.png" alt="Tarmac one-way search form" width="420">
 
 Search results:
 
