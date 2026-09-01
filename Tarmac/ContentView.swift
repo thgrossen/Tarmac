@@ -13,6 +13,7 @@ struct ContentView: View
     @State private var selectedSearch: SavedSearch?
     @State private var refreshState = RefreshState()
     @State private var isPresentingNewSearchSheet = false
+    @State private var newSearchKind: SearchKind = .oneWay
 
     // Falls back to the restored/newest search declaratively, so the very first render
     // already shows the right detail pane instead of a `nil`-selection empty state that
@@ -30,7 +31,8 @@ struct ContentView: View
                 searches: self.searches,
                 selection: $selectedSearch,
                 refreshState: self.refreshState,
-                isPresentingNewSearchSheet: $isPresentingNewSearchSheet
+                isPresentingNewSearchSheet: $isPresentingNewSearchSheet,
+                newSearchKind: $newSearchKind
             )
             .navigationSplitViewColumnWidth( min: 220, ideal: 260, max: 340 )
         } detail: {
@@ -38,7 +40,10 @@ struct ContentView: View
                 search: self.currentSelection,
                 hasSearches: self.searches.isEmpty == false,
                 refreshState: self.refreshState,
-                onNewSearch: { self.isPresentingNewSearchSheet = true }
+                onNewSearch: { kind in
+                    self.newSearchKind = kind
+                    self.isPresentingNewSearchSheet = true
+                }
             )
         }
     }
@@ -52,6 +57,7 @@ struct SearchSidebar: View
     @Binding var selection: SavedSearch?
     var refreshState: RefreshState
     @Binding var isPresentingNewSearchSheet: Bool
+    @Binding var newSearchKind: SearchKind
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedID: SavedSearch.ID?
@@ -110,9 +116,18 @@ struct SearchSidebar: View
         {
             ToolbarItem
             {
-                Button
+                Menu
                 {
-                    self.isPresentingNewSearchSheet = true
+                    Button( "One-way" )
+                    {
+                        self.newSearchKind = .oneWay
+                        self.isPresentingNewSearchSheet = true
+                    }
+                    Button( "Round Trip" )
+                    {
+                        self.newSearchKind = .roundTrip
+                        self.isPresentingNewSearchSheet = true
+                    }
                 } label: {
                     Label( "New Search", systemImage: "plus" )
                 }
@@ -134,7 +149,7 @@ struct SearchSidebar: View
         }
         .sheet( isPresented: $isPresentingNewSearchSheet )
         {
-            NewSearchSheet
+            NewSearchSheet( kind: self.newSearchKind )
             { newSearch in
                 self.selection = newSearch
                 self.selectedID = newSearch.id
@@ -252,7 +267,7 @@ struct ResultsPane: View
     var search: SavedSearch?
     var hasSearches: Bool
     var refreshState: RefreshState
-    var onNewSearch: () -> Void
+    var onNewSearch: ( SearchKind ) -> Void
 
     var body: some View
     {
@@ -269,7 +284,19 @@ struct ResultsPane: View
             } description: {
                 Text( "Create a search to start tracking prices." )
             } actions: {
-                Button( "New Search", action: self.onNewSearch )
+                Menu
+                {
+                    Button( "One-way" )
+                    {
+                        self.onNewSearch( .oneWay )
+                    }
+                    Button( "Round Trip" )
+                    {
+                        self.onNewSearch( .roundTrip )
+                    }
+                } label: {
+                    Text( "New Search" )
+                }
             }
             .frame( minWidth: 620, minHeight: 420 )
         }
