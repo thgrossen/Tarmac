@@ -128,7 +128,7 @@ struct SearchSidebarTests
         let unselected = Self.makeSearch( origin: "ZRH", destination: "JFK" )
 
         let result = SearchSidebar.selectedIDs(
-            afterDeleting: unselected.id,
+            afterDeleting: [ unselected.id ],
             from: [ selected.id ],
             searches: [ selected ]
         )
@@ -144,7 +144,7 @@ struct SearchSidebarTests
         let third  = Self.makeSearch( origin: "LHR", destination: "CDG" )
 
         let result = SearchSidebar.selectedIDs(
-            afterDeleting: first.id,
+            afterDeleting: [ first.id ],
             from: [ first.id, second.id, third.id ],
             searches: [ second, third ]
         )
@@ -159,7 +159,7 @@ struct SearchSidebarTests
         let newest   = Self.makeSearch( origin: "ZRH", destination: "JFK" )
 
         let result = SearchSidebar.selectedIDs(
-            afterDeleting: deleted.id,
+            afterDeleting: [ deleted.id ],
             from: [ deleted.id ],
             searches: [ newest ]
         )
@@ -173,11 +173,82 @@ struct SearchSidebarTests
         let deleted = Self.makeSearch()
 
         let result = SearchSidebar.selectedIDs(
-            afterDeleting: deleted.id,
+            afterDeleting: [ deleted.id ],
             from: [ deleted.id ],
             searches: []
         )
 
         #expect( result.isEmpty )
+    }
+
+    @Test( "Deleting a bulk selection that has no restored fallback leaves the selection empty" )
+    func deletingBulkSelectionWithNoRemainingSearchesLeavesSelectionEmpty()
+    {
+        let first  = Self.makeSearch()
+        let second = Self.makeSearch( origin: "ZRH", destination: "JFK" )
+
+        let result = SearchSidebar.selectedIDs(
+            afterDeleting: [ first.id, second.id ],
+            from: [ first.id, second.id ],
+            searches: []
+        )
+
+        #expect( result.isEmpty )
+    }
+
+    @Test( "Deletion targets are the row alone when it isn't part of the current selection" )
+    func deletionTargetsIsRowAloneWhenNotSelected()
+    {
+        let row      = Self.makeSearch()
+        let selected = Self.makeSearch( origin: "ZRH", destination: "JFK" )
+
+        let targets = SearchSidebar.deletionTargets( for: row.id, selectedIDs: [ selected.id ] )
+
+        #expect( targets == [ row.id ] )
+    }
+
+    @Test( "Deletion targets are the row alone when nothing is currently selected" )
+    func deletionTargetsIsRowAloneWhenNothingSelected()
+    {
+        let row = Self.makeSearch()
+
+        let targets = SearchSidebar.deletionTargets( for: row.id, selectedIDs: [] )
+
+        #expect( targets == [ row.id ] )
+    }
+
+    @Test( "Deletion targets are the whole selection when the row is part of it" )
+    func deletionTargetsIsWholeSelectionWhenRowIsSelected()
+    {
+        let first  = Self.makeSearch()
+        let second = Self.makeSearch( origin: "ZRH", destination: "JFK" )
+
+        let targets = SearchSidebar.deletionTargets( for: first.id, selectedIDs: [ first.id, second.id ] )
+
+        #expect( targets == [ first.id, second.id ] )
+    }
+
+    @Test( "Delete confirmation title is singular for one search" )
+    func deleteConfirmationTitleIsSingularForOne()
+    {
+        #expect( SearchSidebar.deleteConfirmationTitle( for: 1 ) == "Delete this search?" )
+    }
+
+    @Test( "Delete confirmation title is plural and counted for more than one search" )
+    func deleteConfirmationTitleIsPluralForMany()
+    {
+        #expect( SearchSidebar.deleteConfirmationTitle( for: 3 ) == "Delete 3 searches?" )
+    }
+
+    @Test( "Delete confirmation message is singular for one search" )
+    func deleteConfirmationMessageIsSingularForOne()
+    {
+        #expect( SearchSidebar.deleteConfirmationMessage( for: 1 ) == "This permanently deletes this search and its run history. This can't be undone." )
+    }
+
+    @Test( "Delete confirmation message is plural and counted for more than one search" )
+    func deleteConfirmationMessageIsPluralForMany()
+    {
+        #expect( SearchSidebar.deleteConfirmationMessage( for: 3 ) == "This permanently deletes these 3 searches and their run history. This can't be undone." )
     }
 }

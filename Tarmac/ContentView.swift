@@ -85,6 +85,8 @@ struct SearchSidebar: View
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedIDs: Set< SavedSearch.ID > = []
     @State private var isPresentingClearAllConfirmation = false
+    @State private var isPresentingDeleteConfirmation = false
+    @State private var pendingDeletionIDs: Set< SavedSearch.ID > = []
 
     /**
      * Resolves a `Set`-based selection down to the single search it represents.
@@ -104,25 +106,19 @@ struct SearchSidebar: View
     }
 
     /**
-     * Computes the sidebar's selection after one search has been deleted. A deleted search
-     * that wasn't part of the selection leaves it untouched; deleting a selected search out
-     * of a larger selection keeps the rest selected; deleting the last selected search falls
-     * back to the restored/newest of the remaining searches.
+     * Computes the sidebar's selection after a set of searches has been deleted. Deleted
+     * searches that weren't part of the selection leave it untouched; deleting part of a
+     * larger selection keeps the rest selected; deleting the entire selection falls back to
+     * the restored/newest of the remaining searches.
      *
-     * @param deletedID ID of the search that was just deleted.
+     * @param deletedIDs IDs of the searches that were just deleted.
      * @param selectedIDs Selection immediately before the delete.
-     * @param searches Currently available searches, with the deleted one already excluded.
+     * @param searches Currently available searches, with the deleted ones already excluded.
      * @return The selection to apply after the delete.
      */
-    static func selectedIDs( afterDeleting deletedID: SavedSearch.ID, from selectedIDs: Set< SavedSearch.ID >, searches: [ SavedSearch ] ) -> Set< SavedSearch.ID >
+    static func selectedIDs( afterDeleting deletedIDs: Set< SavedSearch.ID >, from selectedIDs: Set< SavedSearch.ID >, searches: [ SavedSearch ] ) -> Set< SavedSearch.ID >
     {
-        guard selectedIDs.contains( deletedID )
-        else
-        {
-            return selectedIDs
-        }
-
-        let remaining = selectedIDs.subtracting( [ deletedID ] )
+        let remaining = selectedIDs.subtracting( deletedIDs )
         guard remaining.isEmpty
         else
         {
@@ -133,11 +129,51 @@ struct SearchSidebar: View
         return restored.map { [ $0.id ] } ?? []
     }
 
+    /**
+     * Resolves which searches a delete action should target: the row it was invoked on, or —
+     * when that row is part of the current multi-selection — every selected search, matching
+     * Finder/Mail conventions for right-clicking within an existing selection.
+     *
+     * @param rowID ID of the row the delete action was invoked on.
+     * @param selectedIDs Currently selected search IDs.
+     * @return The IDs to delete.
+     */
+    static func deletionTargets( for rowID: SavedSearch.ID, selectedIDs: Set< SavedSearch.ID > ) -> Set< SavedSearch.ID >
+    {
+        selectedIDs.contains( rowID ) ? selectedIDs : [ rowID ]
+    }
+
+    /**
+     * Title for the delete confirmation alert, pluralized by how many searches will be deleted.
+     *
+     * @param count Number of searches pending deletion.
+     * @return "Delete this search?" for one, "Delete N searches?" for more than one.
+     */
+    static func deleteConfirmationTitle( for count: Int ) -> String
+    {
+        count == 1 ? "Delete this search?" : "Delete \( count ) searches?"
+    }
+
+    /**
+     * Body copy for the delete confirmation alert, pluralized by how many searches will be deleted.
+     *
+     * @param count Number of searches pending deletion.
+     * @return The alert's message text.
+     */
+    static func deleteConfirmationMessage( for count: Int ) -> String
+    {
+        if count == 1
+        {
+            return "This permanently deletes this search and its run history. This can't be undone."
+        }
+        return "This permanently deletes these \( count ) searches and their run history. This can't be undone."
+    }
+
     var body: some View
     {
         List( searches, selection: $selectedIDs )
         { search in
-            SearchRow( search: search, onDelete: { self.deleteSearch( search ) } )
+            SearchRow( search: search, onDelete: { self.requestDelete( for: search.id ) } )
         }
         .onAppear
         {
@@ -186,12 +222,13 @@ struct SearchSidebar: View
         }
         .onDeleteCommand
         {
-            guard let search = Self.singleSelection( for: self.selectedIDs, in: self.searches )
+            guard self.selectedIDs.isEmpty == false
             else
             {
                 return
             }
-            self.deleteSearch( search )
+            self.pendingDeletionIDs = self.selectedIDs
+            self.isPresentingDeleteConfirmation = true
         }
         .toolbar
         {
@@ -248,6 +285,16 @@ struct SearchSidebar: View
         } message: {
             Text( "This permanently deletes every saved search and its run history. This can't be undone." )
         }
+        .alert( Self.deleteConfirmationTitle( for: self.pendingDeletionIDs.count ), isPresented: $isPresentingDeleteConfirmation )
+        {
+            Button( "Delete", role: .destructive )
+            {
+                self.deleteSearches( self.pendingDeletionIDs )
+            }
+            Button( "Cancel", role: .cancel ) {}
+        } message: {
+            Text( Self.deleteConfirmationMessage( for: self.pendingDeletionIDs.count ) )
+        }
     }
 
     private func runInitialSearch( for search: SavedSearch ) async
@@ -272,18 +319,39 @@ struct SearchSidebar: View
     }
 
     /**
-     * Deletes a single search, updating the sidebar's selection if that search was selected —
-     * collapsing to a restored search only once the selection would otherwise become empty.
+     * Resolves the delete target for a row-level delete action (the row alone, or the whole
+     * multi-selection when the row is part of it) and presents the confirmation alert.
      *
-     * @param search Search to delete.
+     * @param id ID of the row the delete action was invoked on.
      */
-    private func deleteSearch( _ search: SavedSearch )
+    private func requestDelete( for id: SavedSearch.ID )
     {
-        self.modelContext.delete( search )
+        self.pendingDeletionIDs = Self.deletionTargets( for: id, selectedIDs: self.selectedIDs )
+        self.isPresentingDeleteConfirmation = true
+    }
+
+    /**
+     * Deletes every search in `ids`, updating the sidebar's selection — collapsing to a
+     * restored search only once the selection would otherwise become empty.
+     *
+     * @param ids IDs of the searches to delete.
+     */
+    private func deleteSearches( _ ids: Set< SavedSearch.ID > )
+    {
+        guard ids.isEmpty == false
+        else
+        {
+            return
+        }
+
+        for search in self.searches where ids.contains( search.id )
+        {
+            self.modelContext.delete( search )
+        }
 
         // `onChange( of: self.selectedIDs )` above propagates this into `selection`/`selectedCount`.
-        let remainingSearches = self.searches.filter { $0.id != search.id }
-        self.selectedIDs = Self.selectedIDs( afterDeleting: search.id, from: self.selectedIDs, searches: remainingSearches )
+        let remainingSearches = self.searches.filter { ids.contains( $0.id ) == false }
+        self.selectedIDs = Self.selectedIDs( afterDeleting: ids, from: self.selectedIDs, searches: remainingSearches )
     }
 
     /**
