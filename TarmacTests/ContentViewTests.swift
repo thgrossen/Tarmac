@@ -252,3 +252,19 @@ struct SearchSidebarTests
         #expect( SearchSidebar.deleteConfirmationMessage( for: 3 ) == "This permanently deletes these 3 searches and their run history. This can't be undone." )
     }
 }
+
+@Suite( "ResultsPane" )
+struct ResultsPaneTests
+{
+    @Test( "Selection summary title is counted for more than one search" )
+    func selectionSummaryTitleIsCountedForMany()
+    {
+        #expect( ResultsPane.selectionSummaryTitle( for: 3 ) == "3 searches selected" )
+    }
+
+    @Test( "Selection summary title is counted for exactly two searches" )
+    func selectionSummaryTitleIsCountedForTwo()
+    {
+        #expect( ResultsPane.selectionSummaryTitle( for: 2 ) == "2 searches selected" )
+    }
+}

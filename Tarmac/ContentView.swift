@@ -60,6 +60,7 @@ struct ContentView: View
         } detail: {
             ResultsPane(
                 search: self.currentSelection,
+                selectedCount: self.selectedCount,
                 hasSearches: self.searches.isEmpty == false,
                 refreshState: self.refreshState,
                 onNewSearch: { kind in
@@ -409,13 +410,32 @@ struct SearchRow: View
 struct ResultsPane: View
 {
     var search: SavedSearch?
+    var selectedCount: Int
     var hasSearches: Bool
     var refreshState: RefreshState
     var onNewSearch: ( SearchKind ) -> Void
 
+    /**
+     * Title for the results pane's multi-selection summary.
+     *
+     * @param count Number of searches currently selected in the sidebar.
+     * @return "N searches selected".
+     */
+    static func selectionSummaryTitle( for count: Int ) -> String
+    {
+        "\( count ) searches selected"
+    }
+
     var body: some View
     {
-        if let search
+        if self.selectedCount > 1
+        {
+            Text( Self.selectionSummaryTitle( for: self.selectedCount ) )
+                .font( .callout )
+                .foregroundStyle( .secondary )
+                .frame( minWidth: 620, minHeight: 420, alignment: .center )
+        }
+        else if let search
         {
             SearchDetailView( search: search, refreshState: self.refreshState )
                 .id( search.id )
