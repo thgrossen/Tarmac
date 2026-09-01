@@ -46,6 +46,7 @@ struct SavedSearchTests
         #expect( search.flexibilityDays == 0 )
         #expect( search.mustIncludeWeekend == false )
         #expect( search.passengers == 1 )
+        #expect( search.isSeeded == false )
     }
 
     @Test( "SearchKind is string-backed" )

@@ -35,6 +35,7 @@ enum DefaultSearchSeeder
         }
 
         let defaultSearch = SavedSearch(
+            isSeeded: true,
             kind: .roundTrip,
             origin: "GVA",
             destination: "LIS",

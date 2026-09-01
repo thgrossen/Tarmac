@@ -18,6 +18,7 @@ final class SavedSearch
 {
     var id: UUID
     var createdAt: Date
+    var isSeeded: Bool = false
     var kind: SearchKind
     var origin: String
     var destination: String
@@ -38,6 +39,7 @@ final class SavedSearch
     init(
         id: UUID = UUID(),
         createdAt: Date = .now,
+        isSeeded: Bool = false,
         kind: SearchKind,
         origin: String,
         destination: String,
@@ -54,6 +56,7 @@ final class SavedSearch
     {
         self.id = id
         self.createdAt = createdAt
+        self.isSeeded = isSeeded
         self.kind = kind
         self.origin = origin
         self.destination = destination

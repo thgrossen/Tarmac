@@ -11,19 +11,20 @@ struct RoundTripSearchForm: View
 {
     @Environment( \.modelContext ) private var modelContext
     @Environment( \.dismiss ) private var dismiss
+    @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var recentSearches: [ SavedSearch ]
     var onCreate: ( SavedSearch ) -> Void
 
     @State private var origin = ""
     @State private var destination = ""
     @State private var rangeStart = Date().addingTimeInterval( 60 * 86_400 )
     @State private var rangeEnd = Date().addingTimeInterval( 67 * 86_400 )
-    @State private var tripDurationDays = 3
-    @State private var flexibilityDays = 0
-    @State private var mustIncludeWeekend = false
-    @State private var cabinClass = "business"
-    @State private var directOnly = true
-    @State private var luggageIncluded = false
-    @State private var passengers = 1
+    @State private var tripDurationDays = SearchPrefill.defaultTripDurationDays
+    @State private var flexibilityDays = SearchPrefill.defaultFlexibilityDays
+    @State private var mustIncludeWeekend = SearchPrefill.defaultMustIncludeWeekend
+    @State private var cabinClass = SearchPrefill.defaultCabinClass
+    @State private var directOnly = SearchPrefill.defaultDirectOnly
+    @State private var luggageIncluded = SearchPrefill.defaultLuggageIncluded
+    @State private var passengers = SearchPrefill.defaultPassengers
 
     private var isValid: Bool
     {
@@ -85,6 +86,10 @@ struct RoundTripSearchForm: View
             }
             .formStyle( .grouped )
             .autocorrectionDisabled()
+            .onAppear
+            {
+                self.prefillFromMostRecentSearch()
+            }
 
             Divider()
 
@@ -107,6 +112,23 @@ struct RoundTripSearchForm: View
         let result = FieldSwap.swapped( origin: self.origin, destination: self.destination )
         self.origin = result.origin
         self.destination = result.destination
+    }
+
+    private func prefillFromMostRecentSearch()
+    {
+        let shared = SearchPrefill.sharedFields( from: SearchPrefill.mostRecentReal( in: self.recentSearches ) )
+        self.origin = shared.origin
+        self.destination = shared.destination
+        self.cabinClass = shared.cabinClass
+        self.directOnly = shared.directOnly
+        self.luggageIncluded = shared.luggageIncluded
+        self.passengers = shared.passengers
+
+        let mostRecentRoundTrip = SearchPrefill.mostRecentRoundTrip( in: self.recentSearches )
+        let roundTrip = SearchPrefill.roundTripFields( from: mostRecentRoundTrip )
+        self.tripDurationDays = roundTrip.tripDurationDays
+        self.flexibilityDays = roundTrip.flexibilityDays
+        self.mustIncludeWeekend = roundTrip.mustIncludeWeekend
     }
 
     private func save()

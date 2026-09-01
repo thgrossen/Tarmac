@@ -31,6 +31,7 @@ struct DefaultSearchSeederTests
         #expect( searches.count == 1 )
 
         let search = try #require( searches.first )
+        #expect( search.isSeeded == true )
         #expect( search.kind == .roundTrip )
         #expect( search.origin == "GVA" )
         #expect( search.destination == "LIS" )

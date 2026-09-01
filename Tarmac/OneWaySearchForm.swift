@@ -11,16 +11,17 @@ struct OneWaySearchForm: View
 {
     @Environment( \.modelContext ) private var modelContext
     @Environment( \.dismiss ) private var dismiss
+    @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var recentSearches: [ SavedSearch ]
     var onCreate: ( SavedSearch ) -> Void
 
     @State private var origin = ""
     @State private var destination = ""
     @State private var rangeStart = Date().addingTimeInterval( 60 * 86_400 )
     @State private var rangeEnd = Date().addingTimeInterval( 67 * 86_400 )
-    @State private var cabinClass = "business"
-    @State private var directOnly = true
-    @State private var luggageIncluded = false
-    @State private var passengers = 1
+    @State private var cabinClass = SearchPrefill.defaultCabinClass
+    @State private var directOnly = SearchPrefill.defaultDirectOnly
+    @State private var luggageIncluded = SearchPrefill.defaultLuggageIncluded
+    @State private var passengers = SearchPrefill.defaultPassengers
 
     private var isValid: Bool
     {
@@ -70,6 +71,10 @@ struct OneWaySearchForm: View
             }
             .formStyle( .grouped )
             .autocorrectionDisabled()
+            .onAppear
+            {
+                self.prefillFromMostRecentSearch()
+            }
 
             Divider()
 
@@ -92,6 +97,17 @@ struct OneWaySearchForm: View
         let result = FieldSwap.swapped( origin: self.origin, destination: self.destination )
         self.origin = result.origin
         self.destination = result.destination
+    }
+
+    private func prefillFromMostRecentSearch()
+    {
+        let fields = SearchPrefill.sharedFields( from: SearchPrefill.mostRecentReal( in: self.recentSearches ) )
+        self.origin = fields.origin
+        self.destination = fields.destination
+        self.cabinClass = fields.cabinClass
+        self.directOnly = fields.directOnly
+        self.luggageIncluded = fields.luggageIncluded
+        self.passengers = fields.passengers
     }
 
     private func save()
