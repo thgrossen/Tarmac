@@ -26,7 +26,8 @@ final class SavedSearch
     var rangeEnd: Date
     var cabinClass: String
     var directOnly: Bool
-    var luggageIncluded: Bool
+    var carryOnIncluded: Bool = false
+    var checkedBagIncluded: Bool = false
     var passengers: Int = 1
 
     // Round-trip-only fields, ignored for one-way searches.
@@ -47,7 +48,8 @@ final class SavedSearch
         rangeEnd: Date,
         cabinClass: String,
         directOnly: Bool = true,
-        luggageIncluded: Bool = false,
+        carryOnIncluded: Bool = false,
+        checkedBagIncluded: Bool = false,
         passengers: Int = 1,
         tripDurationDays: Int = 3,
         flexibilityDays: Int = 0,
@@ -64,7 +66,8 @@ final class SavedSearch
         self.rangeEnd = rangeEnd
         self.cabinClass = cabinClass
         self.directOnly = directOnly
-        self.luggageIncluded = luggageIncluded
+        self.carryOnIncluded = carryOnIncluded
+        self.checkedBagIncluded = checkedBagIncluded
         self.passengers = passengers
         self.tripDurationDays = tripDurationDays
         self.flexibilityDays = flexibilityDays

@@ -18,7 +18,8 @@ struct SearchPrefillTests
         destination: String = "LIS",
         cabinClass: String = "economy",
         directOnly: Bool = false,
-        luggageIncluded: Bool = true,
+        carryOnIncluded: Bool = true,
+        checkedBagIncluded: Bool = true,
         passengers: Int = 2,
         tripDurationDays: Int = 7,
         flexibilityDays: Int = 2,
@@ -34,7 +35,8 @@ struct SearchPrefillTests
             rangeEnd: .now,
             cabinClass: cabinClass,
             directOnly: directOnly,
-            luggageIncluded: luggageIncluded,
+            carryOnIncluded: carryOnIncluded,
+            checkedBagIncluded: checkedBagIncluded,
             passengers: passengers,
             tripDurationDays: tripDurationDays,
             flexibilityDays: flexibilityDays,
@@ -51,7 +53,8 @@ struct SearchPrefillTests
         #expect( fields.destination == "" )
         #expect( fields.cabinClass == SearchPrefill.defaultCabinClass )
         #expect( fields.directOnly == SearchPrefill.defaultDirectOnly )
-        #expect( fields.luggageIncluded == SearchPrefill.defaultLuggageIncluded )
+        #expect( fields.carryOnIncluded == SearchPrefill.defaultCarryOnIncluded )
+        #expect( fields.checkedBagIncluded == SearchPrefill.defaultCheckedBagIncluded )
         #expect( fields.passengers == SearchPrefill.defaultPassengers )
     }
 
@@ -64,7 +67,8 @@ struct SearchPrefillTests
         #expect( fields.destination == "LIS" )
         #expect( fields.cabinClass == "economy" )
         #expect( fields.directOnly == false )
-        #expect( fields.luggageIncluded == true )
+        #expect( fields.carryOnIncluded == true )
+        #expect( fields.checkedBagIncluded == true )
         #expect( fields.passengers == 2 )
     }
 

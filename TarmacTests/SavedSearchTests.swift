@@ -41,7 +41,8 @@ struct SavedSearchTests
         )
 
         #expect( search.directOnly == true )
-        #expect( search.luggageIncluded == false )
+        #expect( search.carryOnIncluded == false )
+        #expect( search.checkedBagIncluded == false )
         #expect( search.tripDurationDays == 3 )
         #expect( search.flexibilityDays == 0 )
         #expect( search.mustIncludeWeekend == false )

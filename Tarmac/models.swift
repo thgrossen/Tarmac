@@ -16,6 +16,8 @@ struct RoundTripRequest: Encodable
     var return_date: String
     var cabin_class: String      // economy | premium_economy | business | first
     var max_stops: Int
+    var min_carry_on_bags: Int?
+    var min_checked_bags: Int?
     var airlines_include: [ String ]?
     var market: String           // "CH" -> CHF
 }
@@ -27,6 +29,8 @@ struct OneWayRequest: Encodable
     var departure_date: String   // "YYYY-MM-DD"
     var cabin_class: String      // economy | premium_economy | business | first
     var max_stops: Int
+    var min_carry_on_bags: Int?
+    var min_checked_bags: Int?
     var airlines_include: [ String ]?
     var market: String           // "CH" -> CHF
 }

@@ -98,6 +98,8 @@ enum OneWayDateSweep
                 departure_date: self.dateFormatter.string( from: date ),
                 cabin_class: search.cabinClass,
                 max_stops: search.directOnly ? 0 : 2,
+                min_carry_on_bags: search.carryOnIncluded ? 1 : nil,
+                min_checked_bags: search.checkedBagIncluded ? 1 : nil,
                 airlines_include: airlinesInclude,
                 market: market
             )

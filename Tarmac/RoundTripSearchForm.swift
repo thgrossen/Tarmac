@@ -24,7 +24,8 @@ struct RoundTripSearchForm: View
     @State private var mustIncludeWeekend = SearchPrefill.defaultMustIncludeWeekend
     @State private var cabinClass = SearchPrefill.defaultCabinClass
     @State private var directOnly = SearchPrefill.defaultDirectOnly
-    @State private var luggageIncluded = SearchPrefill.defaultLuggageIncluded
+    @State private var carryOnIncluded = SearchPrefill.defaultCarryOnIncluded
+    @State private var checkedBagIncluded = SearchPrefill.defaultCheckedBagIncluded
     @State private var passengers = SearchPrefill.defaultPassengers
 
     private var isValid: Bool
@@ -80,7 +81,8 @@ struct RoundTripSearchForm: View
 
                     CabinClassPicker( selection: $cabinClass )
                     Toggle( "Direct flights only", isOn: $directOnly )
-                    Toggle( "Luggage included", isOn: $luggageIncluded )
+                    Toggle( "Carry-on included", isOn: $carryOnIncluded )
+                    Toggle( "Checked bag included", isOn: $checkedBagIncluded )
                     Picker( "Passengers", selection: $passengers )
                     {
                         ForEach( 1 ... 12, id: \.self )
@@ -128,7 +130,8 @@ struct RoundTripSearchForm: View
         self.destination = shared.destination
         self.cabinClass = shared.cabinClass
         self.directOnly = shared.directOnly
-        self.luggageIncluded = shared.luggageIncluded
+        self.carryOnIncluded = shared.carryOnIncluded
+        self.checkedBagIncluded = shared.checkedBagIncluded
         self.passengers = shared.passengers
 
         let mostRecentRoundTrip = SearchPrefill.mostRecentRoundTrip( in: self.recentSearches )
@@ -163,7 +166,8 @@ struct RoundTripSearchForm: View
             rangeEnd: self.rangeEnd,
             cabinClass: self.cabinClass,
             directOnly: self.directOnly,
-            luggageIncluded: self.luggageIncluded,
+            carryOnIncluded: self.carryOnIncluded,
+            checkedBagIncluded: self.checkedBagIncluded,
             passengers: self.passengers,
             tripDurationDays: self.tripDurationDays,
             flexibilityDays: self.flexibilityDays,

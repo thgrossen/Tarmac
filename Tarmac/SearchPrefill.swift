@@ -8,7 +8,8 @@ enum SearchPrefill
 {
     static let defaultCabinClass = "business"
     static let defaultDirectOnly = true
-    static let defaultLuggageIncluded = false
+    static let defaultCarryOnIncluded = false
+    static let defaultCheckedBagIncluded = false
     static let defaultPassengers = 1
     static let defaultTripDurationDays = 3
     static let defaultFlexibilityDays = 0
@@ -20,7 +21,8 @@ enum SearchPrefill
         var destination: String
         var cabinClass: String
         var directOnly: Bool
-        var luggageIncluded: Bool
+        var carryOnIncluded: Bool
+        var checkedBagIncluded: Bool
         var passengers: Int
     }
 
@@ -47,7 +49,8 @@ enum SearchPrefill
                 destination: "",
                 cabinClass: self.defaultCabinClass,
                 directOnly: self.defaultDirectOnly,
-                luggageIncluded: self.defaultLuggageIncluded,
+                carryOnIncluded: self.defaultCarryOnIncluded,
+                checkedBagIncluded: self.defaultCheckedBagIncluded,
                 passengers: self.defaultPassengers
             )
         }
@@ -57,7 +60,8 @@ enum SearchPrefill
             destination: mostRecent.destination,
             cabinClass: mostRecent.cabinClass,
             directOnly: mostRecent.directOnly,
-            luggageIncluded: mostRecent.luggageIncluded,
+            carryOnIncluded: mostRecent.carryOnIncluded,
+            checkedBagIncluded: mostRecent.checkedBagIncluded,
             passengers: mostRecent.passengers
         )
     }

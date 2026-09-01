@@ -22,7 +22,9 @@ struct SearchRunnerTests
     private static func makeOneWaySearch(
         rangeStart: Date = Self.utcDate( 2026, 10, 5 ),
         rangeEnd: Date = Self.utcDate( 2026, 10, 12 ),
-        directOnly: Bool = true
+        directOnly: Bool = true,
+        carryOnIncluded: Bool = false,
+        checkedBagIncluded: Bool = false
     ) -> SavedSearch
     {
         SavedSearch(
@@ -32,7 +34,9 @@ struct SearchRunnerTests
             rangeStart: rangeStart,
             rangeEnd: rangeEnd,
             cabinClass: "business",
-            directOnly: directOnly
+            directOnly: directOnly,
+            carryOnIncluded: carryOnIncluded,
+            checkedBagIncluded: checkedBagIncluded
         )
     }
 
@@ -40,7 +44,9 @@ struct SearchRunnerTests
         rangeStart: Date = Self.utcDate( 2026, 10, 5 ),
         rangeEnd: Date = Self.utcDate( 2026, 10, 5 ),
         tripDurationDays: Int = 3,
-        flexibilityDays: Int = 0
+        flexibilityDays: Int = 0,
+        carryOnIncluded: Bool = false,
+        checkedBagIncluded: Bool = false
     ) -> SavedSearch
     {
         SavedSearch(
@@ -50,6 +56,8 @@ struct SearchRunnerTests
             rangeStart: rangeStart,
             rangeEnd: rangeEnd,
             cabinClass: "business",
+            carryOnIncluded: carryOnIncluded,
+            checkedBagIncluded: checkedBagIncluded,
             tripDurationDays: tripDurationDays,
             flexibilityDays: flexibilityDays
         )
@@ -291,6 +299,48 @@ struct SearchRunnerTests
         #expect( log.requests.first?.max_stops == 2 )
     }
 
+    @Test( "Omits baggage parameters when neither carry-on nor checked bag is required" )
+    func oneWayOmitsBaggageParametersByDefault() async throws
+    {
+        let search = Self.makeOneWaySearch()
+        let log    = FetchLog< OneWayRequest >()
+        let ( response, raw ) = try Self.fares( itineraries: "" )
+
+        _ = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { request in
+                log.record( request )
+                return ( response, raw )
+            }
+        )
+
+        #expect( log.requests.first?.min_carry_on_bags == nil )
+        #expect( log.requests.first?.min_checked_bags == nil )
+    }
+
+    @Test( "Passes min_carry_on_bags and min_checked_bags when both are required" )
+    func oneWayRequiresBothBagTypes() async throws
+    {
+        let search = Self.makeOneWaySearch( carryOnIncluded: true, checkedBagIncluded: true )
+        let log    = FetchLog< OneWayRequest >()
+        let ( response, raw ) = try Self.fares( itineraries: "" )
+
+        _ = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { request in
+                log.record( request )
+                return ( response, raw )
+            }
+        )
+
+        #expect( log.requests.first?.min_carry_on_bags == 1 )
+        #expect( log.requests.first?.min_checked_bags == 1 )
+    }
+
     @Test( "Reads the airline restriction from the injected UserDefaults suite" )
     func oneWayReadsAirlinePreference() async throws
     {
@@ -411,6 +461,46 @@ struct SearchRunnerTests
         #expect( run.itineraries.count == 2 )
         #expect( run.savedSearch === search )
         #expect( search.runs.first === run )
+    }
+
+    @Test( "Omits baggage parameters on a round trip when neither bag type is required" )
+    func roundTripOmitsBaggageParametersByDefault() async throws
+    {
+        let search = Self.makeRoundTripSearch()
+        let log    = FetchLog< RoundTripRequest >()
+
+        _ = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            roundTripFetch: { request in
+                log.record( request )
+                return try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( log.requests.first?.min_carry_on_bags == nil )
+        #expect( log.requests.first?.min_checked_bags == nil )
+    }
+
+    @Test( "Passes min_carry_on_bags and min_checked_bags on a round trip when both are required" )
+    func roundTripRequiresBothBagTypes() async throws
+    {
+        let search = Self.makeRoundTripSearch( carryOnIncluded: true, checkedBagIncluded: true )
+        let log    = FetchLog< RoundTripRequest >()
+
+        _ = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            roundTripFetch: { request in
+                log.record( request )
+                return try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( log.requests.first?.min_carry_on_bags == 1 )
+        #expect( log.requests.first?.min_checked_bags == 1 )
     }
 
     @Test( "An empty round-trip result (no underlying error) surfaces the no-fares message" )

@@ -21,7 +21,8 @@ struct OneWaySearchForm: View
     @State private var rangeEnd = DepartureDateDefaults.defaultRange().end
     @State private var cabinClass = SearchPrefill.defaultCabinClass
     @State private var directOnly = SearchPrefill.defaultDirectOnly
-    @State private var luggageIncluded = SearchPrefill.defaultLuggageIncluded
+    @State private var carryOnIncluded = SearchPrefill.defaultCarryOnIncluded
+    @State private var checkedBagIncluded = SearchPrefill.defaultCheckedBagIncluded
     @State private var passengers = SearchPrefill.defaultPassengers
 
     private var isValid: Bool
@@ -65,7 +66,8 @@ struct OneWaySearchForm: View
 
                     CabinClassPicker( selection: $cabinClass )
                     Toggle( "Direct flights only", isOn: $directOnly )
-                    Toggle( "Luggage included", isOn: $luggageIncluded )
+                    Toggle( "Carry-on included", isOn: $carryOnIncluded )
+                    Toggle( "Checked bag included", isOn: $checkedBagIncluded )
                     Picker( "Passengers", selection: $passengers )
                     {
                         ForEach( 1 ... 12, id: \.self )
@@ -113,7 +115,8 @@ struct OneWaySearchForm: View
         self.destination = fields.destination
         self.cabinClass = fields.cabinClass
         self.directOnly = fields.directOnly
-        self.luggageIncluded = fields.luggageIncluded
+        self.carryOnIncluded = fields.carryOnIncluded
+        self.checkedBagIncluded = fields.checkedBagIncluded
         self.passengers = fields.passengers
     }
 
@@ -142,7 +145,8 @@ struct OneWaySearchForm: View
             rangeEnd: self.rangeEnd,
             cabinClass: self.cabinClass,
             directOnly: self.directOnly,
-            luggageIncluded: self.luggageIncluded,
+            carryOnIncluded: self.carryOnIncluded,
+            checkedBagIncluded: self.checkedBagIncluded,
             passengers: self.passengers
         )
         self.modelContext.insert( search )

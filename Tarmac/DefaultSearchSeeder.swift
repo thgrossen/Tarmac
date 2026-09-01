@@ -43,7 +43,8 @@ enum DefaultSearchSeeder
             rangeEnd: departure,
             cabinClass: "business",
             directOnly: true,
-            luggageIncluded: false,
+            carryOnIncluded: false,
+            checkedBagIncluded: false,
             tripDurationDays: 3,
             flexibilityDays: 0,
             mustIncludeWeekend: false
