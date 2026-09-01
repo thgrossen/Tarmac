@@ -11,13 +11,14 @@ struct OneWaySearchForm: View
 {
     @Environment( \.modelContext ) private var modelContext
     @Environment( \.dismiss ) private var dismiss
+    @Environment( SearchDateSession.self ) private var dateSession
     @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var recentSearches: [ SavedSearch ]
     var onCreate: ( SavedSearch ) -> Void
 
     @State private var origin = ""
     @State private var destination = ""
-    @State private var rangeStart = Date().addingTimeInterval( 60 * 86_400 )
-    @State private var rangeEnd = Date().addingTimeInterval( 67 * 86_400 )
+    @State private var rangeStart = DepartureDateDefaults.defaultRange().start
+    @State private var rangeEnd = DepartureDateDefaults.defaultRange().end
     @State private var cabinClass = SearchPrefill.defaultCabinClass
     @State private var directOnly = SearchPrefill.defaultDirectOnly
     @State private var luggageIncluded = SearchPrefill.defaultLuggageIncluded
@@ -26,6 +27,11 @@ struct OneWaySearchForm: View
     private var isValid: Bool
     {
         IATACode.isValid( self.origin ) && IATACode.isValid( self.destination )
+    }
+
+    private var earliestSelectableDate: Date
+    {
+        DepartureDateDefaults.earliestDeparture()
     }
 
     var body: some View
@@ -54,7 +60,7 @@ struct OneWaySearchForm: View
                         TextField( "", text: $destination )
                             .multilineTextAlignment( .trailing )
                     }
-                    DatePicker( "Earliest departure", selection: $rangeStart, displayedComponents: .date )
+                    DatePicker( "Earliest departure", selection: $rangeStart, in: self.earliestSelectableDate..., displayedComponents: .date )
                     DatePicker( "Latest departure", selection: $rangeEnd, in: rangeStart..., displayedComponents: .date )
 
                     CabinClassPicker( selection: $cabinClass )
@@ -74,6 +80,7 @@ struct OneWaySearchForm: View
             .onAppear
             {
                 self.prefillFromMostRecentSearch()
+                self.prefillDates()
             }
 
             Divider()
@@ -110,6 +117,21 @@ struct OneWaySearchForm: View
         self.passengers = fields.passengers
     }
 
+    private func prefillDates()
+    {
+        let range: SearchDateSession.DateRange
+        if let stored = self.dateSession.range( for: .oneWay )
+        {
+            range = DepartureDateDefaults.clamped( stored )
+        }
+        else
+        {
+            range = DepartureDateDefaults.defaultRange()
+        }
+        self.rangeStart = range.start
+        self.rangeEnd = range.end
+    }
+
     private func save()
     {
         let search = SavedSearch(
@@ -124,6 +146,7 @@ struct OneWaySearchForm: View
             passengers: self.passengers
         )
         self.modelContext.insert( search )
+        self.dateSession.recordRange( SearchDateSession.DateRange( start: self.rangeStart, end: self.rangeEnd ), for: .oneWay )
         self.onCreate( search )
         self.dismiss()
     }

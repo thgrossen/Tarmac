@@ -22,6 +22,7 @@ struct TarmacApp: App
             fatalError( "Could not create ModelContainer: \( error )" )
         }
     }()
+    let dateSession = SearchDateSession()
 
     init()
     {
@@ -35,6 +36,7 @@ struct TarmacApp: App
             ContentView()
         }
         .modelContainer( container )
+        .environment( self.dateSession )
         .defaultSize( width: 1000, height: 620 )
         .windowResizability( .contentMinSize )
 
