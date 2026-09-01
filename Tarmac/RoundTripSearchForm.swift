@@ -39,7 +39,23 @@ struct RoundTripSearchForm: View
                 Section( "Trip" )
                 {
                     TextField( "Origin (IATA)", text: $origin )
-                    TextField( "Destination (IATA)", text: $destination )
+                    HStack
+                    {
+                        Text( "Destination (IATA)" )
+                        Button
+                        {
+                            self.swapOriginAndDestination()
+                        } label: {
+                            Label( "Swap origin and destination", systemImage: "arrow.left.arrow.right" )
+                        }
+                        .labelStyle( .iconOnly )
+                        .buttonStyle( .borderless )
+                        .help( "Swap origin and destination" )
+                        .disabled( FieldSwap.isEnabled( origin: self.origin, destination: self.destination ) == false )
+                        Spacer()
+                        TextField( "", text: $destination )
+                            .multilineTextAlignment( .trailing )
+                    }
                     DatePicker( "Earliest departure", selection: $rangeStart, displayedComponents: .date )
                     DatePicker( "Latest departure", selection: $rangeEnd, in: rangeStart..., displayedComponents: .date )
 
@@ -84,6 +100,13 @@ struct RoundTripSearchForm: View
             }
             .padding()
         }
+    }
+
+    private func swapOriginAndDestination()
+    {
+        let result = FieldSwap.swapped( origin: self.origin, destination: self.destination )
+        self.origin = result.origin
+        self.destination = result.destination
     }
 
     private func save()
