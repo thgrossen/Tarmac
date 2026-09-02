@@ -174,7 +174,11 @@ struct SearchSidebar: View
     {
         List( searches, selection: $selectedIDs )
         { search in
-            SearchRow( search: search, onDelete: { self.requestDelete( for: search.id ) } )
+            SearchRow(
+                search: search,
+                isSelected: self.selectedIDs.contains( search.id ),
+                onDelete: { self.requestDelete( for: search.id ) }
+            )
         }
         .onAppear
         {
@@ -373,7 +377,16 @@ struct SearchSidebar: View
 struct SearchRow: View
 {
     var search: SavedSearch
+    var isSelected: Bool
     var onDelete: () -> Void
+
+    @State private var isHovering = false
+    @Environment( \.controlActiveState ) private var controlActiveState
+
+    private var isHoverTintVisible: Bool
+    {
+        self.isHovering && self.isSelected == false && self.controlActiveState != .inactive
+    }
 
     var body: some View
     {
@@ -398,6 +411,15 @@ struct SearchRow: View
         .padding( .vertical, 4 )
         .frame( maxWidth: .infinity, alignment: .leading )
         .contentShape( Rectangle() )
+        .onHover { self.isHovering = $0 }
+        // `.listRowBackground` spans the row's full, un-inset bounds — unlike the system
+        // selection highlight, it isn't clipped to a rounded shape on its own, so the rounding
+        // and margin are drawn explicitly here instead.
+        .listRowBackground(
+            RoundedRectangle( cornerRadius: 8, style: .continuous )
+                .fill( Color.accentColor.opacity( self.isHoverTintVisible ? 0.12 : 0 ) )
+                .padding( .horizontal, 10 )
+        )
         .contextMenu
         {
             Button( "Delete", role: .destructive, action: self.onDelete )
