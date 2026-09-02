@@ -11,16 +11,37 @@ struct ContentView: View
 {
     @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var searches: [ SavedSearch ]
     @State private var selectedSearch: SavedSearch?
+    @State private var selectedCount = 0
     @State private var refreshState = RefreshState()
     @State private var isPresentingNewSearchSheet = false
     @State private var newSearchKind: SearchKind = .oneWay
+
+    /**
+     * Resolves the search to show in the detail pane, falling back to the restored/newest
+     * search only when nothing has been explicitly selected — never while multiple searches
+     * are selected, which intentionally clears `selectedSearch` without persisting.
+     *
+     * @param selectedSearch The sidebar's single-selection binding; nil when zero or multiple searches are selected.
+     * @param selectedCount Number of searches currently selected in the sidebar.
+     * @param searches Currently available searches to fall back against.
+     * @return The search to display, or nil to show the pane's empty/summary state.
+     */
+    static func currentSelection( selectedSearch: SavedSearch?, selectedCount: Int, searches: [ SavedSearch ] ) -> SavedSearch?
+    {
+        guard selectedCount <= 1
+        else
+        {
+            return nil
+        }
+        return selectedSearch ?? SearchSelectionPreference.restoreSelection( from: searches )
+    }
 
     // Falls back to the restored/newest search declaratively, so the very first render
     // already shows the right detail pane instead of a `nil`-selection empty state that
     // flips over once `SearchSidebar`'s `onAppear` runs.
     private var currentSelection: SavedSearch?
     {
-        self.selectedSearch ?? SearchSelectionPreference.restoreSelection( from: self.searches )
+        Self.currentSelection( selectedSearch: self.selectedSearch, selectedCount: self.selectedCount, searches: self.searches )
     }
 
     var body: some View
@@ -30,6 +51,7 @@ struct ContentView: View
             SearchSidebar(
                 searches: self.searches,
                 selection: $selectedSearch,
+                selectedCount: $selectedCount,
                 refreshState: self.refreshState,
                 isPresentingNewSearchSheet: $isPresentingNewSearchSheet,
                 newSearchKind: $newSearchKind
@@ -55,23 +77,71 @@ struct SearchSidebar: View
 {
     var searches: [ SavedSearch ]
     @Binding var selection: SavedSearch?
+    @Binding var selectedCount: Int
     var refreshState: RefreshState
     @Binding var isPresentingNewSearchSheet: Bool
     @Binding var newSearchKind: SearchKind
 
     @Environment( \.modelContext ) private var modelContext
-    @State private var selectedID: SavedSearch.ID?
+    @State private var selectedIDs: Set< SavedSearch.ID > = []
     @State private var isPresentingClearAllConfirmation = false
+
+    /**
+     * Resolves a `Set`-based selection down to the single search it represents.
+     *
+     * @param selectedIDs Currently selected search IDs.
+     * @param searches Currently available searches to resolve the IDs against.
+     * @return The single selected search, or nil if the selection isn't exactly one search.
+     */
+    static func singleSelection( for selectedIDs: Set< SavedSearch.ID >, in searches: [ SavedSearch ] ) -> SavedSearch?
+    {
+        guard let onlyID = selectedIDs.count == 1 ? selectedIDs.first : nil
+        else
+        {
+            return nil
+        }
+        return searches.first( where: { $0.id == onlyID } )
+    }
+
+    /**
+     * Computes the sidebar's selection after one search has been deleted. A deleted search
+     * that wasn't part of the selection leaves it untouched; deleting a selected search out
+     * of a larger selection keeps the rest selected; deleting the last selected search falls
+     * back to the restored/newest of the remaining searches.
+     *
+     * @param deletedID ID of the search that was just deleted.
+     * @param selectedIDs Selection immediately before the delete.
+     * @param searches Currently available searches, with the deleted one already excluded.
+     * @return The selection to apply after the delete.
+     */
+    static func selectedIDs( afterDeleting deletedID: SavedSearch.ID, from selectedIDs: Set< SavedSearch.ID >, searches: [ SavedSearch ] ) -> Set< SavedSearch.ID >
+    {
+        guard selectedIDs.contains( deletedID )
+        else
+        {
+            return selectedIDs
+        }
+
+        let remaining = selectedIDs.subtracting( [ deletedID ] )
+        guard remaining.isEmpty
+        else
+        {
+            return remaining
+        }
+
+        let restored = SearchSelectionPreference.restoreSelection( from: searches )
+        return restored.map { [ $0.id ] } ?? []
+    }
 
     var body: some View
     {
-        List( searches, selection: $selectedID )
+        List( searches, selection: $selectedIDs )
         { search in
             SearchRow( search: search, onDelete: { self.deleteSearch( search ) } )
         }
         .onAppear
         {
-            guard self.selectedID == nil
+            guard self.selectedIDs.isEmpty
             else
             {
                 return
@@ -79,15 +149,27 @@ struct SearchSidebar: View
 
             if let restored = SearchSelectionPreference.restoreSelection( from: self.searches )
             {
-                self.selectedID = restored.id
+                self.selectedIDs = [ restored.id ]
                 self.selection = restored
+                self.selectedCount = 1
             }
         }
-        .onChange( of: self.selectedID )
+        .onChange( of: self.selectedIDs )
         {
-            SearchSelectionPreference.persist( self.selectedID )
+            self.selectedCount = self.selectedIDs.count
 
-            guard let selectedID = self.selectedID
+            guard self.selectedIDs.count <= 1
+            else
+            {
+                // Multiple searches selected: leave any previously persisted single
+                // selection untouched so relaunching still restores it.
+                self.selection = nil
+                return
+            }
+
+            SearchSelectionPreference.persist( self.selectedIDs.first )
+
+            guard self.selectedIDs.isEmpty == false
             else
             {
                 self.selection = nil
@@ -95,17 +177,16 @@ struct SearchSidebar: View
             }
 
             // A freshly created search may not have reached `searches` yet (see the
-            // `NewSearchSheet` sheet below, which sets both `selectedID` and `selection`
+            // `NewSearchSheet` sheet below, which sets both `selectedIDs` and `selection`
             // directly); don't clobber `selection` while that catches up.
-            if let match = self.searches.first( where: { $0.id == selectedID } )
+            if let match = Self.singleSelection( for: self.selectedIDs, in: self.searches )
             {
                 self.selection = match
             }
         }
         .onDeleteCommand
         {
-            guard let selectedID = self.selectedID,
-                  let search = self.searches.first( where: { $0.id == selectedID } )
+            guard let search = Self.singleSelection( for: self.selectedIDs, in: self.searches )
             else
             {
                 return
@@ -152,7 +233,8 @@ struct SearchSidebar: View
             NewSearchSheet( kind: self.newSearchKind )
             { newSearch in
                 self.selection = newSearch
-                self.selectedID = newSearch.id
+                self.selectedIDs = [ newSearch.id ]
+                self.selectedCount = 1
                 Task { await self.runInitialSearch( for: newSearch ) }
             }
         }
@@ -190,25 +272,18 @@ struct SearchSidebar: View
     }
 
     /**
-     * Deletes a single search, reassigning the sidebar's selection if it was the one deleted.
+     * Deletes a single search, updating the sidebar's selection if that search was selected —
+     * collapsing to a restored search only once the selection would otherwise become empty.
      *
      * @param search Search to delete.
      */
     private func deleteSearch( _ search: SavedSearch )
     {
-        let wasSelected = search.id == self.selectedID
         self.modelContext.delete( search )
 
-        guard wasSelected
-        else
-        {
-            return
-        }
-
-        let remaining = self.searches.filter { $0.id != search.id }
-        let restored  = SearchSelectionPreference.restoreSelection( from: remaining )
-        self.selectedID = restored?.id
-        self.selection = restored
+        // `onChange( of: self.selectedIDs )` above propagates this into `selection`/`selectedCount`.
+        let remainingSearches = self.searches.filter { $0.id != search.id }
+        self.selectedIDs = Self.selectedIDs( afterDeleting: search.id, from: self.selectedIDs, searches: remainingSearches )
     }
 
     /**
@@ -220,8 +295,9 @@ struct SearchSidebar: View
         {
             self.modelContext.delete( search )
         }
-        self.selectedID = nil
+        self.selectedIDs = []
         self.selection = nil
+        self.selectedCount = 0
     }
 }
 
