@@ -16,14 +16,12 @@ struct RunHistoryView: View
     {
         VStack( spacing: 0 )
         {
-            RunPicker( runs: self.runs, selection: self.$selection )
-
             if PriceHistoryChart.chartRuns( for: self.runs ).count > 1
             {
                 PriceHistoryChart( runs: self.runs, selection: self.$selection )
-            }
 
-            Divider()
+                Divider()
+            }
 
             if let selectedRun = self.selection
             {
@@ -58,15 +56,16 @@ struct PriceHistoryChart: View
     private static let tooltipTimeFormat = Date.FormatStyle().month( .abbreviated ).day().hour().minute()
 
     /**
-     * Runs to plot, oldest first (for left-to-right reading) and limited to runs that found at
-     * least one fare — a run with no itineraries has no low/high range to draw.
+     * Runs to plot, oldest first (for left-to-right reading). Every run gets a slot — including
+     * ones with no fares (an error, or none found) — so they stay reachable/selectable via the
+     * chart; see `barExtent(for:yDomain:)` for how those are drawn.
      *
-     * @param runs Runs to filter/reorder, newest first.
+     * @param runs Runs to reorder, newest first.
      * @return The runs to plot, oldest first.
      */
     static func chartRuns( for runs: [ SearchRun ] ) -> [ SearchRun ]
     {
-        runs.reversed().filter { $0.cheapestFare != nil }
+        runs.reversed()
     }
 
     /**
@@ -90,6 +89,27 @@ struct PriceHistoryChart: View
 
         let padding = max( ( maxHigh - minLow ) * 0.1, 1 )
         return ( minLow - padding )...( maxHigh + padding )
+    }
+
+    /**
+     * The low/high range to draw a run's bar over: its actual cheapest/most-expensive fare, or,
+     * for a run with no fares (an error, or none found), a thin flat marker sitting at the
+     * bottom of the y-axis domain — keeping it visible and selectable without implying a price.
+     *
+     * @param run The run to compute a bar extent for.
+     * @param yDomain The chart's y-axis domain (see `yDomain(for:)`).
+     * @return The bar's low and high values, in the same units as `yDomain`.
+     */
+    static func barExtent( for run: SearchRun, yDomain: ClosedRange< Double > ) -> ( low: Double, high: Double )
+    {
+        if let low = run.cheapestFare?.amount,
+           let high = run.maxFare?.amount
+        {
+            return ( low, high )
+        }
+
+        let markerHeight = ( yDomain.upperBound - yDomain.lowerBound ) * 0.03
+        return ( yDomain.lowerBound, yDomain.lowerBound + markerHeight )
     }
 
     /**
@@ -145,18 +165,24 @@ struct PriceHistoryChart: View
 
     /**
      * Base fill color for one bar, before any hover tint: the full accent color for the currently
-     * selected run, a light/translucent accent for the most recent update when it isn't selected,
+     * selected run, a muted secondary tint for a run with no fares to plot (an error, or none
+     * found), a light/translucent accent for the most recent update when it isn't selected,
      * otherwise the system's gray "selected, window not key" color, for a lower-key look.
      *
      * @param isLatest Whether the bar is the most recent update being plotted.
      * @param isSelected Whether the bar is the currently selected run.
+     * @param hasFare Whether the run found at least one fare to plot a real range for.
      * @return The color to fill the bar with.
      */
-    private func barColor( isLatest: Bool, isSelected: Bool ) -> Color
+    private func barColor( isLatest: Bool, isSelected: Bool, hasFare: Bool ) -> Color
     {
         if isSelected
         {
             return Color.accentColor
+        }
+        if hasFare == false
+        {
+            return Color.secondary.opacity( 0.4 )
         }
         if isLatest
         {
@@ -170,6 +196,7 @@ struct PriceHistoryChart: View
         GeometryReader
         { outerGeometry in
             let chartRuns = self.chartRuns
+            let yDomain = Self.yDomain( for: chartRuns )
             let domainValues = Self.paddedDomainValues(
                 chartRuns: chartRuns,
                 availableWidth: outerGeometry.size.width,
@@ -178,13 +205,16 @@ struct PriceHistoryChart: View
 
             Chart( chartRuns, id: \.id )
             { run in
+                let extent = Self.barExtent( for: run, yDomain: yDomain )
+                let hasFare = run.cheapestFare != nil
+
                 BarMark(
                     x: .value( "Run", run.id.uuidString ),
-                    yStart: .value( "Low", run.cheapestFare?.amount ?? 0 ),
-                    yEnd: .value( "High", run.maxFare?.amount ?? 0 ),
+                    yStart: .value( "Low", extent.low ),
+                    yEnd: .value( "High", extent.high ),
                     width: .fixed( Self.barWidth )
                 )
-                .foregroundStyle( self.barColor( isLatest: run.id == chartRuns.last?.id, isSelected: run.id == self.selection?.id ) )
+                .foregroundStyle( self.barColor( isLatest: run.id == chartRuns.last?.id, isSelected: run.id == self.selection?.id, hasFare: hasFare ) )
 
                 // Layered on top of the base bar (rather than replacing its color) so the
                 // hover tint blends with whatever's underneath it, matching how the sidebar's
@@ -193,8 +223,8 @@ struct PriceHistoryChart: View
                 {
                     BarMark(
                         x: .value( "Run", run.id.uuidString ),
-                        yStart: .value( "Low", run.cheapestFare?.amount ?? 0 ),
-                        yEnd: .value( "High", run.maxFare?.amount ?? 0 ),
+                        yStart: .value( "Low", extent.low ),
+                        yEnd: .value( "High", extent.high ),
                         width: .fixed( Self.barWidth )
                     )
                     .foregroundStyle( Color.accentColor.opacity( 0.12 ) )
@@ -202,7 +232,7 @@ struct PriceHistoryChart: View
             }
             .chartXScale( domain: domainValues )
             .chartXAxis( .hidden )
-            .chartYScale( domain: Self.yDomain( for: chartRuns ) )
+            .chartYScale( domain: yDomain )
             .chartOverlay
             { proxy in
                 GeometryReader
@@ -278,11 +308,15 @@ struct PriceHistoryChart: View
 
         guard let category: String = proxy.value( atX: relativeX ),
               let run = self.runs.first( where: { $0.id.uuidString == category } ),
-              let low = run.cheapestFare?.amount,
-              let high = run.maxFare?.amount,
-              let barCenterX = proxy.position( forX: category ),
-              let lowY = proxy.position( forY: low ),
-              let highY = proxy.position( forY: high )
+              let barCenterX = proxy.position( forX: category )
+        else
+        {
+            return nil
+        }
+
+        let extent = Self.barExtent( for: run, yDomain: Self.yDomain( for: self.chartRuns ) )
+        guard let lowY = proxy.position( forY: extent.low ),
+              let highY = proxy.position( forY: extent.high )
         else
         {
             return nil
@@ -300,87 +334,6 @@ struct PriceHistoryChart: View
         }
 
         return category
-    }
-}
-
-// MARK: - Run picker
-
-private struct RunPicker: View
-{
-    var runs: [ SearchRun ]     // newest first
-    @Binding var selection: SearchRun?
-
-    var body: some View
-    {
-        ScrollView( .horizontal, showsIndicators: false )
-        {
-            HStack( spacing: 8 )
-            {
-                ForEach( self.runs.pairedWithPrevious(), id: \.run.id )
-                { pair in
-                    RunChip( run: pair.run, previousRun: pair.previous, isSelected: pair.run.id == self.selection?.id )
-                        .onTapGesture
-                        {
-                            self.selection = pair.run
-                        }
-                }
-            }
-            .padding( .horizontal )
-            .padding( .vertical, 8 )
-        }
-    }
-}
-
-private struct RunChip: View
-{
-    var run: SearchRun
-    var previousRun: SearchRun?
-    var isSelected: Bool
-
-    private static let timeFormat = Date.FormatStyle().month( .abbreviated ).day().hour().minute()
-
-    var body: some View
-    {
-        VStack( alignment: .leading, spacing: 2 )
-        {
-            Text( self.run.runAt, format: Self.timeFormat )
-                .font( .caption2 )
-                .foregroundStyle( .secondary )
-
-            if let cheapest = self.run.cheapestFare
-            {
-                Text( "\( Int( cheapest.amount )) \( cheapest.currency )" )
-                    .font( .callout.monospacedDigit() )
-                    .fontWeight( .semibold )
-            }
-            else
-            {
-                Text( self.run.errorMessage != nil ? "Error" : "No fares" )
-                    .font( .callout )
-                    .foregroundStyle( .secondary )
-            }
-
-            if let delta = self.run.priceDelta( previous: self.previousRun ), Int( delta ) != 0
-            {
-                HStack( spacing: 2 )
-                {
-                    Image( systemName: delta < 0 ? "arrow.down" : "arrow.up" )
-                    Text( "\( Int( abs( delta )) )" )
-                }
-                .font( .caption2 )
-                .foregroundStyle( delta < 0 ? .green : .red )
-            }
-        }
-        .padding( 8 )
-        .frame( minWidth: 90, alignment: .leading )
-        .background( self.isSelected ? Color.accentColor.opacity( 0.15 ) : Color.clear )
-        .clipShape( RoundedRectangle( cornerRadius: 8 ) )
-        .overlay
-        {
-            RoundedRectangle( cornerRadius: 8 )
-                .stroke( self.isSelected ? Color.accentColor : Color.secondary.opacity( 0.25 ) )
-        }
-        .contentShape( Rectangle() )
     }
 }
 

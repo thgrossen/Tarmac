@@ -11,8 +11,8 @@ import Testing
 @Suite( "PriceHistoryChart" )
 struct PriceHistoryChartTests
 {
-    @Test( "chartRuns reverses to chronological order and drops runs with no fares" )
-    func chartRunsFiltersAndReverses()
+    @Test( "chartRuns reverses to chronological order, keeping runs with no fares" )
+    func chartRunsReversesKeepingNoFareRuns()
     {
         let newest = SearchRun( requestCount: 1 )
         newest.itineraries = [ PriceSnapshot( amount: 300, currency: "CHF" ) ]
@@ -22,7 +22,7 @@ struct PriceHistoryChartTests
 
         let result = PriceHistoryChart.chartRuns( for: [ newest, noFares, oldest ] )
 
-        #expect( result.map( \.id ) == [ oldest.id, newest.id ] )
+        #expect( result.map( \.id ) == [ oldest.id, noFares.id, newest.id ] )
     }
 
     @Test( "chartRuns on an empty list returns nothing" )
@@ -96,4 +96,31 @@ struct PriceHistoryChartTests
 
         #expect( domain == runs.map( \.id.uuidString ) )
     }
+
+    @Test( "barExtent uses the run's own cheapest/max fare when it has one" )
+    func barExtentUsesRealFareRange()
+    {
+        let run = SearchRun( requestCount: 1 )
+        run.itineraries = [
+            PriceSnapshot( amount: 300, currency: "CHF" ),
+            PriceSnapshot( amount: 500, currency: "CHF" ),
+        ]
+
+        let extent = PriceHistoryChart.barExtent( for: run, yDomain: 0...1000 )
+
+        #expect( extent.low == 300 )
+        #expect( extent.high == 500 )
+    }
+
+    @Test( "barExtent draws a thin marker at the domain floor for a run with no fares" )
+    func barExtentMarksRunsWithNoFares()
+    {
+        let run = SearchRun( requestCount: 1 )
+
+        let extent = PriceHistoryChart.barExtent( for: run, yDomain: 200...800 )
+
+        #expect( extent.low == 200 )
+        #expect( extent.high == 200 + ( 800 - 200 ) * 0.03 )
+    }
+
 }
