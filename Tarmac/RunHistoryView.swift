@@ -51,6 +51,7 @@ struct PriceHistoryChart: View
 
     @State private var hoveredRunID: String?
     @State private var hoverLocation: CGPoint?
+    @Environment( \.controlActiveState ) private var controlActiveState
 
     private static let barWidth: CGFloat = 22
     private static let barSlotWidth: CGFloat = 32
@@ -125,14 +126,21 @@ struct PriceHistoryChart: View
 
     private var chartRuns: [ SearchRun ] { Self.chartRuns( for: self.runs ) }
 
+    // Suppresses the hover tint/tooltip while the app isn't frontmost, matching the sidebar's
+    // own hover treatment, without discarding the raw hover state `onContinuousHover` tracks.
+    private var effectiveHoveredRunID: String?
+    {
+        self.controlActiveState == .inactive ? nil : self.hoveredRunID
+    }
+
     private var hoveredRun: SearchRun?
     {
-        guard let hoveredRunID
+        guard let effectiveHoveredRunID
         else
         {
             return nil
         }
-        return self.runs.first( where: { $0.id.uuidString == hoveredRunID } )
+        return self.runs.first( where: { $0.id.uuidString == effectiveHoveredRunID } )
     }
 
     /**
@@ -181,7 +189,7 @@ struct PriceHistoryChart: View
                 // Layered on top of the base bar (rather than replacing its color) so the
                 // hover tint blends with whatever's underneath it, matching how the sidebar's
                 // row-hover tint sits over the row's own background instead of replacing it.
-                if run.id.uuidString == self.hoveredRunID
+                if run.id.uuidString == self.effectiveHoveredRunID
                 {
                     BarMark(
                         x: .value( "Run", run.id.uuidString ),
