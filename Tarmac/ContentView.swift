@@ -563,11 +563,13 @@ struct SearchDetailView: View
             let runs = self.search.runsNewestFirst
             if runs.isEmpty
             {
-                ContentUnavailableView(
-                    "No results yet",
-                    systemImage: "airplane.circle",
-                    description: Text( "Refresh this search to check current prices." )
-                )
+                VStack( spacing: 12 )
+                {
+                    ProgressView()
+                    Text( "Searching…" )
+                        .font( .callout )
+                        .foregroundStyle( .secondary )
+                }
                 .frame( maxWidth: .infinity, maxHeight: .infinity )
             }
             else
