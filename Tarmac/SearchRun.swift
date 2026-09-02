@@ -49,6 +49,14 @@ final class SearchRun
     }
 
     /**
+     * Most expensive itinerary found by this run, or nil if it found none.
+     */
+    var maxFare: PriceSnapshot?
+    {
+        self.itineraries.max { $0.amount < $1.amount }
+    }
+
+    /**
      * Change in cheapest fare relative to a previous run, e.g. for a "price movement"
      * indicator. Negative means this run is cheaper than `previous`.
      *

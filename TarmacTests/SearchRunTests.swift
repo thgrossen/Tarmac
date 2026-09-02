@@ -87,6 +87,26 @@ struct SearchRunTests
         #expect( run.cheapestFare?.amount == 300 )
     }
 
+    @Test( "maxFare is nil when there are no itineraries" )
+    func maxFareEmpty()
+    {
+        let run = SearchRun( requestCount: 1 )
+        #expect( run.maxFare == nil )
+    }
+
+    @Test( "maxFare is the itinerary with the highest amount" )
+    func maxFarePicksHighest()
+    {
+        let run = SearchRun( requestCount: 1 )
+        run.itineraries = [
+            PriceSnapshot( amount: 600, currency: "CHF" ),
+            PriceSnapshot( amount: 300, currency: "CHF" ),
+            PriceSnapshot( amount: 450, currency: "CHF" ),
+        ]
+
+        #expect( run.maxFare?.amount == 600 )
+    }
+
     @Test( "priceDelta is nil when this run has no fares" )
     func priceDeltaNilWhenNoFares()
     {

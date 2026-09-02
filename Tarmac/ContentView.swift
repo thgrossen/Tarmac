@@ -505,7 +505,6 @@ struct SearchDetailView: View
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedRun: SearchRun?
-    @State private var isFollowingLatestRun = true
 
     private var isLoading: Bool { self.refreshState.isLoading( self.search.id ) }
     private var errorMessage: String? { self.refreshState.errorMessage( for: self.search.id ) }
@@ -576,8 +575,7 @@ struct SearchDetailView: View
             {
                 RunHistoryView(
                     runs: runs,
-                    selection: self.$selectedRun,
-                    isFollowingLatest: self.$isFollowingLatestRun
+                    selection: self.$selectedRun
                 )
                 .onAppear
                 {
@@ -588,11 +586,7 @@ struct SearchDetailView: View
                 }
                 .onChange( of: runs.count )
                 {
-                    let selectionStillValid = runs.contains { $0.id == self.selectedRun?.id }
-                    if self.isFollowingLatestRun || selectionStillValid == false
-                    {
-                        self.selectedRun = runs.first
-                    }
+                    self.selectedRun = runs.first
                 }
             }
         }
