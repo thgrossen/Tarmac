@@ -268,3 +268,71 @@ struct ResultsPaneTests
         #expect( ResultsPane.selectionSummaryTitle( for: 2 ) == "2 searches selected" )
     }
 }
+
+@Suite( "SearchDetailView" )
+struct SearchDetailViewTests
+{
+    @Test( "The button reads Update while nothing is running" )
+    func updateButtonTitleWhenIdle()
+    {
+        #expect( SearchDetailView.updateButtonTitle( isLoading: false, progress: nil ) == "Update" )
+
+        // Progress can't outlive its refresh, but the title shouldn't depend on that holding.
+        #expect( SearchDetailView.updateButtonTitle( isLoading: false, progress: SearchProgress( completed: 7, total: 24 ) ) == "Update" )
+    }
+
+    @Test( "A refresh too short to count just says it's updating" )
+    func updateButtonTitleWhileLoadingWithoutCountableProgress()
+    {
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: nil ) == "Updating…" )
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: SearchProgress( completed: 0, total: 0 ) ) == "Updating…" )
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: SearchProgress( completed: 1, total: 2 ) ) == "Updating…" )
+    }
+
+    @Test( "A countable refresh carries the percentage, without the counts" )
+    func updateButtonTitleWhileLoadingWithCountableProgress()
+    {
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: SearchProgress( completed: 0, total: 3 ) ) == "Updating… 0%" )
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: SearchProgress( completed: 7, total: 24 ) ) == "Updating… 29%" )
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: SearchProgress( completed: 24, total: 24 ) ) == "Updating… 100%" )
+
+        // The button holds at 99% too, rather than rounding up while requests are still in flight.
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: SearchProgress( completed: 999, total: 1_000 ) ) == "Updating… 99%" )
+    }
+
+    @Test( "The button and the placeholder start counting at the same point" )
+    func updateButtonTitleFlipsWithTheIndicator()
+    {
+        for total in 0 ... 5
+        {
+            let progress    = SearchProgress( completed: 0, total: total )
+            let isCountable = total >= SearchProgress.determinateMinimumRequests
+
+            #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: progress ) == ( isCountable ? "Updating… 0%" : "Updating…" ) )
+            #expect( ( SearchProgressIndicator.determinateProgress( for: progress ) != nil ) == isCountable )
+        }
+    }
+
+    @Test( "The reserved width covers every title the button can show while loading" )
+    func widestLoadingTitleIsTheWidest()
+    {
+        #expect( SearchDetailView.widestLoadingTitle == "Updating… 100%" )
+
+        // The titles share a prefix and are digit-monospaced, so glyph count stands in for width.
+        let totals = [ 0, 1, 2, 3, 5, 24, 100 ]
+        for total in totals
+        {
+            for completed in [ 0, total / 2, total ]
+            {
+                let title = SearchDetailView.updateButtonTitle(
+                    isLoading: true,
+                    progress: SearchProgress( completed: completed, total: total )
+                )
+
+                #expect( title.count <= SearchDetailView.widestLoadingTitle.count )
+            }
+        }
+
+        #expect( SearchDetailView.updateButtonTitle( isLoading: true, progress: nil ).count <= SearchDetailView.widestLoadingTitle.count )
+    }
+}

@@ -128,6 +128,11 @@ enum RoundTripShapeSearch
      * @param cap Maximum number of Ignav calls to make; defaults to `defaultCallCap`.
      * @param defaults UserDefaults suite to read the airline restriction preference from.
      * @param fetch Override for the network call, used by tests; defaults to a real IgnavClient.
+     * @param onProgress Called with the planned request count before the first call, then once
+     *                   after every request — including one that failed, since it has been spent
+     *                   all the same. A search with nothing planned emits a single 0-of-0 and
+     *                   nothing else. Called synchronously on the main actor, which this sweep
+     *                   runs on, so emissions arrive in order.
      * @return The aggregated, deduplicated, price-sorted itineraries and run metadata.
      */
     static func run(
@@ -135,7 +140,8 @@ enum RoundTripShapeSearch
         apiKey: String,
         cap: Int = Self.defaultCallCap,
         defaults: UserDefaults = .standard,
-        fetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )? = nil
+        fetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )? = nil,
+        onProgress: ( ( SearchProgress ) -> Void )? = nil
     ) async -> ShapeSearchResult
     {
         let performFetch = fetch ?? { request in
@@ -151,6 +157,9 @@ enum RoundTripShapeSearch
         var cheapestAmount: Double?
         var rawJSONOfCheapest: String?
         var lastError: Error?
+        var completedRequestCount = 0
+
+        onProgress?( SearchProgress( completed: 0, total: sampled.count ) )
 
         for candidate in sampled
         {
@@ -195,6 +204,9 @@ enum RoundTripShapeSearch
             {
                 lastError = error
             }
+
+            completedRequestCount += 1
+            onProgress?( SearchProgress( completed: completedRequestCount, total: sampled.count ) )
         }
 
         itineraries.sort { $0.price.amount < $1.price.amount }

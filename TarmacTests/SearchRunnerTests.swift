@@ -89,6 +89,15 @@ struct SearchRunnerTests
         }
     }
 
+    private final class ProgressLog
+    {
+        private( set ) var emissions: [ SearchProgress ] = []
+        func record( _ progress: SearchProgress )
+        {
+            self.emissions.append( progress )
+        }
+    }
+
     // MARK: - One-way dispatch
 
     @Test( "A single-day range produces one call with the correct departure_date" )
@@ -735,5 +744,131 @@ struct SearchRunnerTests
 
         #expect( APICallContext.current.runID == nil )
     }
+
+    // MARK: - Progress reporting
+
+    @Test( "A one-way run reports progress for every day it sweeps" )
+    func oneWayReportsProgress() async
+    {
+        let search   = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 7 )
+        )
+        let progress = ProgressLog()
+
+        // Recorded as each request starts, so the emissions are pinned as interleaved with the
+        // requests rather than merely arriving in the right order once the run is over.
+        var emissionCountsAtRequest: [ Int ] = []
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                emissionCountsAtRequest.append( progress.emissions.count )
+                return try Self.fares( itineraries: #"{ "price": { "amount": 100, "currency": "CHF" } }"# )
+            },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( emissionCountsAtRequest == [ 1, 2, 3 ] )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2, 3 ] )
+        #expect( progress.emissions.map( \.total ) == [ 3, 3, 3, 3 ] )
+        #expect( progress.emissions.last?.total == run.requestCount )
+        #expect( progress.emissions.last?.fraction == 1 )
+    }
+
+    @Test( "A round-trip run reports progress for every candidate it tries" )
+    func roundTripReportsProgress() async
+    {
+        let search   = Self.makeRoundTripSearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 7 )
+        )
+        let progress = ProgressLog()
+        var emissionCountsAtRequest: [ Int ] = []
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            roundTripFetch: { _ in
+                emissionCountsAtRequest.append( progress.emissions.count )
+                return try Self.fares( itineraries: #"{ "price": { "amount": 100, "currency": "CHF" } }"# )
+            },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( emissionCountsAtRequest == [ 1, 2, 3 ] )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2, 3 ] )
+        #expect( progress.emissions.map( \.total ) == [ 3, 3, 3, 3 ] )
+        #expect( progress.emissions.last?.total == run.requestCount )
+        #expect( progress.emissions.last?.fraction == 1 )
+    }
+
+    @Test( "One-way progress counts the days the cap allows, not the whole range" )
+    func oneWayReportsProgressAgainstTheCap() async
+    {
+        let search   = Self.makeOneWaySearch()
+        let defaults = Self.freshDefaults()
+        defaults.set( 3, forKey: OneWaySweepPreference.capDefaultsKey )
+        let progress = ProgressLog()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: defaults,
+            oneWayFetch: { _ in
+                try Self.fares( itineraries: #"{ "price": { "amount": 100, "currency": "CHF" } }"# )
+            },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( run.requestCount == 3 )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2, 3 ] )
+        #expect( progress.emissions.map( \.total ) == [ 3, 3, 3, 3 ] )
+    }
+
+    @Test( "A run reports progress even when every request fails" )
+    func reportsProgressWhenRequestsFail() async
+    {
+        let search   = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 6 )
+        )
+        let progress = ProgressLog()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in throw StubError() },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( run.errorMessage == "stub network failure" )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2 ] )
+        #expect( progress.emissions.last?.total == run.requestCount )
+    }
+
+    @Test( "A run without a progress handler still completes" )
+    func runsWithoutAProgressHandler() async throws
+    {
+        let search = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 5 )
+        )
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                try Self.fares( itineraries: #"{ "price": { "amount": 100, "currency": "CHF" } }"# )
+            }
+        )
+
+        #expect( run.requestCount == 1 )
+        #expect( run.errorMessage == nil )
     }
 }

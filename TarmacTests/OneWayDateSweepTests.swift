@@ -62,6 +62,15 @@ struct OneWayDateSweepTests
         }
     }
 
+    private final class ProgressLog
+    {
+        private( set ) var emissions: [ SearchProgress ] = []
+        func record( _ progress: SearchProgress )
+        {
+            self.emissions.append( progress )
+        }
+    }
+
     // MARK: - dates(for:)
 
     @Test( "A single-day range yields exactly one date" )
@@ -239,5 +248,97 @@ struct OneWayDateSweepTests
 
         #expect( result.failedRequestCount == 0 )
         #expect( result.requestCount == 2 )
+    }
+
+    // MARK: - Progress reporting
+
+    @Test( "Progress is reported up front, then once per day" )
+    func runReportsProgress() async throws
+    {
+        let search   = Self.makeSearch( rangeStart: Self.utcDate( 2026, 10, 5 ), rangeEnd: Self.utcDate( 2026, 10, 7 ) )
+        let progress = ProgressLog()
+
+        // Recorded as each request starts, so the emissions are pinned as interleaved with the
+        // requests rather than merely arriving in the right order once the sweep is over.
+        var emissionCountsAtRequest: [ Int ] = []
+
+        let result = await OneWayDateSweep.run(
+            for: search,
+            apiKey: "key",
+            fetch: { _ in
+                emissionCountsAtRequest.append( progress.emissions.count )
+                return try Self.fares( [ ( id: "OK", amount: 100 ) ] )
+            },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( emissionCountsAtRequest == [ 1, 2, 3 ] )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2, 3 ] )
+        #expect( progress.emissions.allSatisfy { $0.total == 3 } )
+        #expect( progress.emissions.last?.total == result.requestCount )
+        #expect( progress.emissions.last?.fraction == 1 )
+    }
+
+    @Test( "A failed day still advances progress" )
+    func runReportsProgressForFailedDays() async throws
+    {
+        let search    = Self.makeSearch( rangeStart: Self.utcDate( 2026, 10, 5 ), rangeEnd: Self.utcDate( 2026, 10, 6 ) )
+        let progress  = ProgressLog()
+        var callIndex = 0
+
+        let result = await OneWayDateSweep.run(
+            for: search,
+            apiKey: "key",
+            fetch: { _ in
+                defer { callIndex += 1 }
+                if callIndex == 0
+                {
+                    throw StubError()
+                }
+                return try Self.fares( [ ( id: "OK", amount: 100 ) ] )
+            },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( result.failedRequestCount == 1 )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2 ] )
+    }
+
+    @Test( "Progress counts the sampled days, not the whole range" )
+    func runReportsProgressAgainstTheCap() async throws
+    {
+        let search   = Self.makeSearch( rangeStart: Self.utcDate( 2026, 10, 1 ), rangeEnd: Self.utcDate( 2026, 10, 31 ) )
+        let progress = ProgressLog()
+
+        let result = await OneWayDateSweep.run(
+            for: search,
+            apiKey: "key",
+            cap: 5,
+            fetch: { _ in try Self.fares( [ ( id: "X", amount: 100 ) ] ) },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( result.requestCount == 5 )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2, 3, 4, 5 ] )
+        #expect( progress.emissions.allSatisfy { $0.total == 5 } )
+    }
+
+    @Test( "A sweep with nothing to do reports nothing planned" )
+    func runReportsEmptyProgress() async
+    {
+        let search   = Self.makeSearch( rangeStart: Self.utcDate( 2026, 10, 5 ), rangeEnd: Self.utcDate( 2026, 10, 8 ) )
+        let progress = ProgressLog()
+
+        let result = await OneWayDateSweep.run(
+            for: search,
+            apiKey: "key",
+            cap: 0,
+            fetch: { _ in try Self.fares( [ ( id: "OK", amount: 100 ) ] ) },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( result.requestCount == 0 )
+        #expect( progress.emissions.count == 1 )
+        #expect( progress.emissions.first == SearchProgress( completed: 0, total: 0 ) )
     }
 }

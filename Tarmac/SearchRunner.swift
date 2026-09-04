@@ -27,6 +27,12 @@ enum SearchRunner
      * @param cap Maximum number of Ignav calls a round-trip shape search may make; ignored for one-way.
      * @param oneWayFetch Override for the one-way network call, used by tests.
      * @param roundTripFetch Override for the round-trip network call, used by tests.
+     * @param onProgress Called with the sweep's planned request count before the first call, then
+     *                   once after every request — including one that failed, since it has been
+     *                   spent all the same — whichever kind the search is. A search with nothing
+     *                   planned emits a single 0-of-0 and nothing else. Emissions arrive
+     *                   synchronously, in order, on the main actor these functions are isolated
+     *                   to under the project's `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`.
      * @return The newly created SearchRun, already appended to `search.runs`.
      */
     @discardableResult
@@ -36,7 +42,8 @@ enum SearchRunner
         defaults: UserDefaults = .standard,
         cap: Int = RoundTripShapeSearch.defaultCallCap,
         oneWayFetch: ( ( OneWayRequest ) async throws -> ( FaresResponse, String ) )? = nil,
-        roundTripFetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )? = nil
+        roundTripFetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )? = nil,
+        onProgress: ( ( SearchProgress ) -> Void )? = nil
     ) async -> SearchRun
     {
         // The run's identity is settled up front so every request it makes can be attributed to it
@@ -54,6 +61,7 @@ enum SearchRunner
                         apiKey: apiKey,
                         defaults: defaults,
                         fetch: oneWayFetch,
+                        onProgress: onProgress
                     )
 
                 case .roundTrip:
@@ -64,6 +72,7 @@ enum SearchRunner
                         defaults: defaults,
                         cap: cap,
                         fetch: roundTripFetch,
+                        onProgress: onProgress
                     )
             }
         }
@@ -78,7 +87,8 @@ enum SearchRunner
         for search: SavedSearch,
         apiKey: String,
         defaults: UserDefaults,
-        fetch: ( ( OneWayRequest ) async throws -> ( FaresResponse, String ) )?
+        fetch: ( ( OneWayRequest ) async throws -> ( FaresResponse, String ) )?,
+        onProgress: ( ( SearchProgress ) -> Void )?
     ) async -> SearchRun
     {
         let result = await OneWayDateSweep.run(
@@ -86,7 +96,8 @@ enum SearchRunner
             apiKey: apiKey,
             cap: OneWaySweepPreference.currentCap( defaults: defaults ),
             defaults: defaults,
-            fetch: fetch
+            fetch: fetch,
+            onProgress: onProgress
         )
 
         let isAllRequestsFailed = result.failedRequestCount == result.requestCount && result.requestCount > 0
@@ -114,7 +125,8 @@ enum SearchRunner
         apiKey: String,
         defaults: UserDefaults,
         cap: Int,
-        fetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )?
+        fetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )?,
+        onProgress: ( ( SearchProgress ) -> Void )?
     ) async -> SearchRun
     {
         let result = await RoundTripShapeSearch.run(
@@ -122,7 +134,8 @@ enum SearchRunner
             apiKey: apiKey,
             cap: cap,
             defaults: defaults,
-            fetch: fetch
+            fetch: fetch,
+            onProgress: onProgress
         )
 
         let errorMessage = result.errorMessage ?? ( result.itineraries.isEmpty ? self.noFaresMessage : nil )

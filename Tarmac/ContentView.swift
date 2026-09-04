@@ -294,9 +294,17 @@ struct SearchSidebar: View
             return
         }
 
-        let run = await SearchRunner.run( for: search, apiKey: apiKey )
+        // Bound before the await so the per-request handler never touches the model, which the
+        // user can delete while the sweep — minutes of sequential requests — is still running.
+        let searchID     = search.id
+        let refreshState = self.refreshState
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: apiKey,
+            onProgress: { refreshState.updateProgress( $0, for: searchID ) }
+        )
         self.modelContext.insert( run )
-        self.refreshState.endRefresh( for: search.id, errorMessage: run.errorMessage )
+        self.refreshState.endRefresh( for: searchID, errorMessage: run.errorMessage )
     }
 
     /**
@@ -459,6 +467,42 @@ struct SearchDetailView: View
 
     private var isLoading: Bool { self.refreshState.isLoading( self.search.id ) }
     private var errorMessage: String? { self.refreshState.errorMessage( for: self.search.id ) }
+    private var progress: SearchProgress? { self.refreshState.progress( for: self.search.id ) }
+
+    /**
+     * The widest title the Update button can show while a refresh is running, used to reserve its
+     * width up front. Derived rather than spelled out, so it can't drift from the real titles.
+     */
+    static var widestLoadingTitle: String
+    {
+        Self.updateButtonTitle( isLoading: true, progress: SearchProgress( completed: 100, total: 100 ) )
+    }
+
+    /**
+     * The Update button's title. It carries the percentage alone rather than the counts the
+     * placeholder shows, which wouldn't fit a button.
+     *
+     * @param isLoading Whether this search has a refresh in flight.
+     * @param progress Progress reported by the running sweep, or nil before it has reported.
+     * @return "Update" when idle, and "Updating…" while refreshing — with the percentage once the
+     *         sweep plans enough requests to be worth counting.
+     */
+    static func updateButtonTitle( isLoading: Bool, progress: SearchProgress? ) -> String
+    {
+        guard isLoading
+        else
+        {
+            return "Update"
+        }
+
+        guard let countable = SearchProgressIndicator.determinateProgress( for: progress )
+        else
+        {
+            return "Updating…"
+        }
+
+        return "Updating… \( countable.percentText )"
+    }
 
     // Filters are one-way-only for now, and only mean anything once a run has returned fares to
     // derive their extents from.
@@ -512,8 +556,36 @@ struct SearchDetailView: View
                 } label: {
                     HStack
                     {
-                        if self.isLoading { ProgressView().controlSize( .small ) }
-                        Text( self.isLoading ? "Refreshing…" : "Refresh" )
+                        if self.isLoading,
+                           let countable = SearchProgressIndicator.determinateProgress( for: self.progress )
+                        {
+                            ProgressView( value: countable.fraction )
+                                .progressViewStyle( .circular )
+                                .controlSize( .small )
+                                .accessibilityHidden( true )
+                        }
+                        else if self.isLoading
+                        {
+                            ProgressView()
+                                .controlSize( .small )
+                                .accessibilityHidden( true )
+                        }
+
+                        ZStack( alignment: .leading )
+                        {
+                            // Reserves the widest title the button can show while loading, so its
+                            // edge doesn't shift each time the percentage gains a digit.
+                            if self.isLoading
+                            {
+                                Text( Self.widestLoadingTitle )
+                                    .monospacedDigit()
+                                    .hidden()
+                                    .accessibilityHidden( true )
+                            }
+
+                            Text( Self.updateButtonTitle( isLoading: self.isLoading, progress: self.progress ) )
+                                .monospacedDigit()
+                        }
                     }
                 }
                 .keyboardShortcut( .return, modifiers: .command )
@@ -548,14 +620,8 @@ struct SearchDetailView: View
             let runs = self.search.runsNewestFirst
             if runs.isEmpty
             {
-                VStack( spacing: 12 )
-                {
-                    ProgressView()
-                    Text( "Searching…" )
-                        .font( .callout )
-                        .foregroundStyle( .secondary )
-                }
-                .frame( maxWidth: .infinity, maxHeight: .infinity )
+                SearchProgressIndicator( progress: self.progress )
+                    .frame( maxWidth: .infinity, maxHeight: .infinity )
             }
             else
             {
@@ -618,8 +684,96 @@ struct SearchDetailView: View
             return
         }
 
-        let run = await SearchRunner.run( for: self.search, apiKey: apiKey )
+        // Bound before the await so the per-request handler never touches the model, which the
+        // user can delete while the sweep — minutes of sequential requests — is still running.
+        let searchID     = self.search.id
+        let refreshState = self.refreshState
+        let run = await SearchRunner.run(
+            for: self.search,
+            apiKey: apiKey,
+            onProgress: { refreshState.updateProgress( $0, for: searchID ) }
+        )
         self.modelContext.insert( run )
-        self.refreshState.endRefresh( for: self.search.id, errorMessage: run.errorMessage )
+        self.refreshState.endRefresh( for: searchID, errorMessage: run.errorMessage )
+    }
+}
+
+/**
+ * The waiting state for a search whose results haven't arrived yet: a counted bar once its sweep
+ * plans enough requests for one to say anything, and the indeterminate spinner otherwise.
+ */
+struct SearchProgressIndicator: View
+{
+    /**
+     * Width of the bar, and the bound on its caption — wide enough to read as an indicator without
+     * stretching across the whole pane.
+     */
+    private static let indicatorWidth: CGFloat = 260
+
+    var progress: SearchProgress?
+
+    /**
+     * The progress worth drawing as a counted bar, so the bar and its caption can't disagree about
+     * which of the two states this is in.
+     *
+     * @param progress Progress reported by the running sweep, or nil before it has reported.
+     * @return The progress once its sweep plans enough requests to be worth counting, nil otherwise.
+     */
+    static func determinateProgress( for progress: SearchProgress? ) -> SearchProgress?
+    {
+        guard let progress,
+              progress.isDeterminate
+        else
+        {
+            return nil
+        }
+
+        return progress
+    }
+
+    /**
+     * The caption shown under the indicator.
+     *
+     * @param progress Progress reported by the running sweep, or nil before it has reported.
+     * @return "Searching…" on its own, or carrying the percentage and counts once the sweep plans
+     *         enough requests to be worth counting.
+     */
+    static func label( for progress: SearchProgress? ) -> String
+    {
+        guard let countable = Self.determinateProgress( for: progress )
+        else
+        {
+            return "Searching…"
+        }
+
+        return "Searching… \( countable.detailText )"
+    }
+
+    var body: some View
+    {
+        VStack( spacing: 12 )
+        {
+            if let countable = Self.determinateProgress( for: self.progress )
+            {
+                ProgressView( value: countable.fraction )
+                    .frame( maxWidth: Self.indicatorWidth )
+            }
+            else
+            {
+                ProgressView()
+            }
+
+            Text( Self.label( for: self.progress ) )
+                .font( .callout )
+                .foregroundStyle( .secondary )
+                .monospacedDigit()
+                .multilineTextAlignment( .center )
+                // Bounded to the bar's width so a longer caption can't widen the stack, and with it
+                // move the bar, from one request to the next.
+                .frame( maxWidth: Self.indicatorWidth )
+        }
+        .accessibilityElement( children: .ignore )
+        .accessibilityLabel( Text( Self.label( for: self.progress ) ) )
+        .accessibilityAddTraits( .updatesFrequently )
     }
 }

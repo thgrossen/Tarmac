@@ -65,6 +65,11 @@ enum OneWayDateSweep
      * @param cap Maximum number of Ignav calls to make; defaults to `OneWaySweepPreference.defaultCap`.
      * @param defaults UserDefaults suite to read the airline restriction preference from.
      * @param fetch Override for the network call, used by tests; defaults to a real IgnavClient.
+     * @param onProgress Called with the planned request count before the first call, then once
+     *                   after every request — including one that failed, since it has been spent
+     *                   all the same. A sweep with nothing planned emits a single 0-of-0 and
+     *                   nothing else. Called synchronously on the main actor, which this sweep
+     *                   runs on, so emissions arrive in order.
      * @return The aggregated, deduplicated, price-sorted itineraries and sweep metadata.
      */
     static func run(
@@ -72,7 +77,8 @@ enum OneWayDateSweep
         apiKey: String,
         cap: Int = OneWaySweepPreference.defaultCap,
         defaults: UserDefaults = .standard,
-        fetch: ( ( OneWayRequest ) async throws -> ( FaresResponse, String ) )? = nil
+        fetch: ( ( OneWayRequest ) async throws -> ( FaresResponse, String ) )? = nil,
+        onProgress: ( ( SearchProgress ) -> Void )? = nil
     ) async -> OneWaySweepResult
     {
         let performFetch = fetch ?? { request in
@@ -89,6 +95,9 @@ enum OneWayDateSweep
         var rawJSONOfCheapest: String?
         var lastError: Error?
         var failedRequestCount = 0
+        var completedRequestCount = 0
+
+        onProgress?( SearchProgress( completed: 0, total: sampled.count ) )
 
         for date in sampled
         {
@@ -133,6 +142,9 @@ enum OneWayDateSweep
                 lastError = error
                 failedRequestCount += 1
             }
+
+            completedRequestCount += 1
+            onProgress?( SearchProgress( completed: completedRequestCount, total: sampled.count ) )
         }
 
         itineraries.sort { $0.price.amount < $1.price.amount }

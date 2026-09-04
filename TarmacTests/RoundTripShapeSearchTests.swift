@@ -71,6 +71,15 @@ struct RoundTripShapeSearchTests
         }
     }
 
+    private final class ProgressLog
+    {
+        private( set ) var emissions: [ SearchProgress ] = []
+        func record( _ progress: SearchProgress )
+        {
+            self.emissions.append( progress )
+        }
+    }
+
     // MARK: - candidates(for:)
 
     @Test( "Zero flexibility, single-day range yields exactly one candidate" )
@@ -323,5 +332,121 @@ struct RoundTripShapeSearchTests
         #expect( result.itineraries.isEmpty )
         #expect( result.errorMessage == "stub network failure" )
         #expect( result.requestCount == 1 )
+    }
+
+    // MARK: - Progress reporting
+
+    @Test( "Progress is reported up front, then once per candidate" )
+    func runReportsProgress() async throws
+    {
+        let search = Self.makeSearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 7 ),
+            tripDurationDays: 3,
+            flexibilityDays: 0
+        )
+        let progress = ProgressLog()
+
+        // Recorded as each request starts, so the emissions are pinned as interleaved with the
+        // requests rather than merely arriving in the right order once the search is over.
+        var emissionCountsAtRequest: [ Int ] = []
+
+        let result = await RoundTripShapeSearch.run(
+            for: search,
+            apiKey: "key",
+            fetch: { _ in
+                emissionCountsAtRequest.append( progress.emissions.count )
+                return try Self.fares( [ ( id: "OK", amount: 100 ) ] )
+            },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( emissionCountsAtRequest == [ 1, 2, 3 ] )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2, 3 ] )
+        #expect( progress.emissions.allSatisfy { $0.total == 3 } )
+        #expect( progress.emissions.last?.total == result.requestCount )
+        #expect( progress.emissions.last?.fraction == 1 )
+    }
+
+    @Test( "A failed candidate still advances progress" )
+    func runReportsProgressForFailedCandidates() async throws
+    {
+        let search = Self.makeSearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 6 ),
+            tripDurationDays: 3,
+            flexibilityDays: 0
+        )
+        let progress  = ProgressLog()
+        var callIndex = 0
+
+        let result = await RoundTripShapeSearch.run(
+            for: search,
+            apiKey: "key",
+            fetch: { _ in
+                defer { callIndex += 1 }
+                if callIndex == 0
+                {
+                    throw StubError()
+                }
+                return try Self.fares( [ ( id: "OK\( callIndex )", amount: 100 ) ] )
+            },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( result.requestCount == 2 )
+        // Each call returns its own ignav_id, so a lone itinerary witnesses that the first threw —
+        // had it succeeded, both would have survived deduplication.
+        #expect( result.itineraries.count == 1 )
+        #expect( result.itineraries.first?.ignav_id == "OK1" )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2 ] )
+    }
+
+    @Test( "Progress counts the sampled candidates, not every combination" )
+    func runReportsProgressAgainstTheCap() async throws
+    {
+        let search = Self.makeSearch(
+            rangeStart: Self.utcDate( 2026, 10, 1 ),
+            rangeEnd: Self.utcDate( 2026, 10, 10 ),
+            tripDurationDays: 3,
+            flexibilityDays: 2
+        )
+        let progress = ProgressLog()
+
+        let result = await RoundTripShapeSearch.run(
+            for: search,
+            apiKey: "key",
+            cap: 2,
+            fetch: { _ in try Self.fares( [ ( id: "X", amount: 100 ) ] ) },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( result.requestCount == 2 )
+        #expect( progress.emissions.map( \.completed ) == [ 0, 1, 2 ] )
+        #expect( progress.emissions.allSatisfy { $0.total == 2 } )
+    }
+
+    @Test( "A search with nothing to do reports nothing planned" )
+    func runReportsEmptyProgress() async
+    {
+        let search = Self.makeSearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 8 ),
+            tripDurationDays: 3,
+            flexibilityDays: 0
+        )
+        let progress = ProgressLog()
+
+        let result = await RoundTripShapeSearch.run(
+            for: search,
+            apiKey: "key",
+            cap: 0,
+            fetch: { _ in try Self.fares( [ ( id: "OK", amount: 100 ) ] ) },
+            onProgress: { progress.record( $0 ) }
+        )
+
+        #expect( result.requestCount == 0 )
+        #expect( progress.emissions.count == 1 )
+        #expect( progress.emissions.first == SearchProgress( completed: 0, total: 0 ) )
     }
 }
