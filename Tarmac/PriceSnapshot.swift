@@ -20,6 +20,8 @@ final class PriceSnapshot
     var departureTime: String?
     var arrivalTime: String?
     var departureDate: Date?
+    var inboundDepartureTime: String? = nil
+    var inboundDepartureDate: Date? = nil
     var outboundStopCount: Int? = nil
     var outboundFlightNumbers: [ String ] = []
 
@@ -41,6 +43,8 @@ final class PriceSnapshot
         departureTime: String? = nil,
         arrivalTime: String? = nil,
         departureDate: Date? = nil,
+        inboundDepartureTime: String? = nil,
+        inboundDepartureDate: Date? = nil,
         outboundStopCount: Int? = nil,
         outboundFlightNumbers: [ String ] = [],
         run: SearchRun? = nil
@@ -56,6 +60,8 @@ final class PriceSnapshot
         self.departureTime = departureTime
         self.arrivalTime = arrivalTime
         self.departureDate = departureDate
+        self.inboundDepartureTime = inboundDepartureTime
+        self.inboundDepartureDate = inboundDepartureDate
         self.outboundStopCount = outboundStopCount
         self.outboundFlightNumbers = outboundFlightNumbers
         self.run = run

@@ -433,6 +433,8 @@ private extension PriceSnapshot
     var departureTimeSortKey: String { self.departureTime ?? "" }
     var arrivalTimeSortKey: String { self.arrivalTime ?? "" }
     var departureDateSortKey: Date { self.departureDate ?? .distantPast }
+    var inboundDepartureTimeSortKey: String { self.inboundDepartureTime ?? "" }
+    var inboundDepartureDateSortKey: Date { self.inboundDepartureDate ?? .distantPast }
 }
 
 // MARK: - Run detail
@@ -589,19 +591,38 @@ private struct RunDetailView: View
                 {
                     TableColumn( "Outbound", value: \.outboundSummarySortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundSummary ?? "—" ) }
+                    TableColumn( "Outbound Date", value: \.departureDateSortKey )
+                    { ( snapshot: PriceSnapshot ) in
+                        if let departureDate = snapshot.departureDate
+                        {
+                            Text( departureDate, format: .dateTime.day().month( .abbreviated ) )
+                        }
+                        else
+                        {
+                            Text( "—" )
+                        }
+                    }
+                    .width( min: 55, ideal: 80 )
+                    TableColumn( "Outbound Time", value: \.departureTimeSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.departureTime ?? "—" ) }
+                    .width( min: 55, ideal: 80 )
                     TableColumn( "Inbound", value: \.inboundSummarySortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.inboundSummary ?? "—" ) }
-                    TableColumn( "Duration", value: \.outboundDurationSortKey )
-                    { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundDuration ?? "—" ) }
-                    .width( 90 )
-                    TableColumn( "Carrier", value: \.carrierSortKey )
-                    { ( snapshot: PriceSnapshot ) in Text( snapshot.carrier ?? "—" ) }
-                    TableColumn( "Departure", value: \.departureTimeSortKey )
-                    { ( snapshot: PriceSnapshot ) in Text( snapshot.departureTime ?? "—" ) }
-                    .width( 80 )
-                    TableColumn( "Arrival", value: \.arrivalTimeSortKey )
-                    { ( snapshot: PriceSnapshot ) in Text( snapshot.arrivalTime ?? "—" ) }
-                    .width( 80 )
+                    TableColumn( "Inbound Date", value: \.inboundDepartureDateSortKey )
+                    { ( snapshot: PriceSnapshot ) in
+                        if let inboundDepartureDate = snapshot.inboundDepartureDate
+                        {
+                            Text( inboundDepartureDate, format: .dateTime.day().month( .abbreviated ) )
+                        }
+                        else
+                        {
+                            Text( "—" )
+                        }
+                    }
+                    .width( min: 55, ideal: 80 )
+                    TableColumn( "Inbound Time", value: \.inboundDepartureTimeSortKey )
+                    { ( snapshot: PriceSnapshot ) in Text( snapshot.inboundDepartureTime ?? "—" ) }
+                    .width( min: 55, ideal: 80 )
                     TableColumn( "Book" )
                     { ( snapshot: PriceSnapshot ) in
                         // Keyed by the row's identity so re-sorting the table carries each
