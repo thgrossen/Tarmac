@@ -13,20 +13,23 @@ struct RoundTripSearchForm: View
     @Environment( \.dismiss ) private var dismiss
     @Environment( SearchDateSession.self ) private var dateSession
     @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var recentSearches: [ SavedSearch ]
+
+    // Owned by the enclosing `NewSearchSheet` and shared with `OneWaySearchForm`, so
+    // switching kinds doesn't lose what the user already entered in these fields.
+    @Binding var origin: String
+    @Binding var destination: String
+    @Binding var cabinClass: String
+    @Binding var directOnly: Bool
+    @Binding var carryOnIncluded: Bool
+    @Binding var checkedBagIncluded: Bool
+    @Binding var passengers: Int
     var onCreate: ( SavedSearch ) -> Void
 
-    @State private var origin = ""
-    @State private var destination = ""
     @State private var rangeStart = DepartureDateDefaults.defaultRange().start
     @State private var rangeEnd = DepartureDateDefaults.defaultRange().end
     @State private var tripDurationDays = SearchPrefill.defaultTripDurationDays
     @State private var flexibilityDays = SearchPrefill.defaultFlexibilityDays
     @State private var mustIncludeWeekend = SearchPrefill.defaultMustIncludeWeekend
-    @State private var cabinClass = SearchPrefill.defaultCabinClass
-    @State private var directOnly = SearchPrefill.defaultDirectOnly
-    @State private var carryOnIncluded = SearchPrefill.defaultCarryOnIncluded
-    @State private var checkedBagIncluded = SearchPrefill.defaultCheckedBagIncluded
-    @State private var passengers = SearchPrefill.defaultPassengers
 
     private var isValid: Bool
     {
@@ -44,7 +47,7 @@ struct RoundTripSearchForm: View
         {
             Form
             {
-                Section( "Trip" )
+                Section
                 {
                     TextField( "Origin (IATA)", text: $origin )
                     HStack
@@ -93,6 +96,7 @@ struct RoundTripSearchForm: View
                 }
             }
             .formStyle( .grouped )
+            .scrollDisabled( true )
             .autocorrectionDisabled()
             .onAppear
             {
@@ -100,11 +104,16 @@ struct RoundTripSearchForm: View
                 self.prefillDates()
             }
 
-            Divider()
-
             HStack
             {
                 Spacer()
+
+                Button( "Cancel", role: .cancel )
+                {
+                    self.dismiss()
+                }
+                .keyboardShortcut( .cancelAction )
+
                 Button( "Search" )
                 {
                     self.save()
@@ -125,15 +134,6 @@ struct RoundTripSearchForm: View
 
     private func prefillFromMostRecentSearch()
     {
-        let shared = SearchPrefill.sharedFields( from: SearchPrefill.mostRecentReal( in: self.recentSearches ) )
-        self.origin = shared.origin
-        self.destination = shared.destination
-        self.cabinClass = shared.cabinClass
-        self.directOnly = shared.directOnly
-        self.carryOnIncluded = shared.carryOnIncluded
-        self.checkedBagIncluded = shared.checkedBagIncluded
-        self.passengers = shared.passengers
-
         let mostRecentRoundTrip = SearchPrefill.mostRecentRoundTrip( in: self.recentSearches )
         let roundTrip = SearchPrefill.roundTripFields( from: mostRecentRoundTrip )
         self.tripDurationDays = roundTrip.tripDurationDays

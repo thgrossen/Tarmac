@@ -25,10 +25,10 @@ struct TarmacApp: App
     let dateSession = SearchDateSession()
     let apiLog = APILog()
     let inspectorState = APIInspectorState()
+    let newSearchCommand = NewSearchCommand()
 
     init()
     {
-        DefaultSearchSeeder.seedIfNeeded( in: self.container.mainContext )
         let apiLog = self.apiLog
         APIRecording.install { transaction in apiLog.recordFromAnyIsolation( transaction ) }
 
@@ -46,8 +46,22 @@ struct TarmacApp: App
         .environment( self.dateSession )
         .environment( self.apiLog )
         .environment( self.inspectorState )
+        .environment( self.newSearchCommand )
         .defaultSize( width: 1000, height: 620 )
         .windowResizability( .contentMinSize )
+        .commands
+        {
+            // This app has only one main window, so "New Window" doesn't apply — Cmd-N and the
+            // File menu's "new item" slot are repurposed for starting a new search instead.
+            CommandGroup( replacing: .newItem )
+            {
+                Button( "New Search…" )
+                {
+                    self.newSearchCommand.request()
+                }
+                .keyboardShortcut( "n", modifiers: .command )
+            }
+        }
 
         Settings
         {

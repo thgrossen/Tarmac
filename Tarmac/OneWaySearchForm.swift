@@ -12,18 +12,20 @@ struct OneWaySearchForm: View
     @Environment( \.modelContext ) private var modelContext
     @Environment( \.dismiss ) private var dismiss
     @Environment( SearchDateSession.self ) private var dateSession
-    @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var recentSearches: [ SavedSearch ]
+
+    // Owned by the enclosing `NewSearchSheet` and shared with `RoundTripSearchForm`, so
+    // switching kinds doesn't lose what the user already entered in these fields.
+    @Binding var origin: String
+    @Binding var destination: String
+    @Binding var cabinClass: String
+    @Binding var directOnly: Bool
+    @Binding var carryOnIncluded: Bool
+    @Binding var checkedBagIncluded: Bool
+    @Binding var passengers: Int
     var onCreate: ( SavedSearch ) -> Void
 
-    @State private var origin = ""
-    @State private var destination = ""
     @State private var rangeStart = DepartureDateDefaults.defaultRange().start
     @State private var rangeEnd = DepartureDateDefaults.defaultRange().end
-    @State private var cabinClass = SearchPrefill.defaultCabinClass
-    @State private var directOnly = SearchPrefill.defaultDirectOnly
-    @State private var carryOnIncluded = SearchPrefill.defaultCarryOnIncluded
-    @State private var checkedBagIncluded = SearchPrefill.defaultCheckedBagIncluded
-    @State private var passengers = SearchPrefill.defaultPassengers
 
     private var isValid: Bool
     {
@@ -41,7 +43,7 @@ struct OneWaySearchForm: View
         {
             Form
             {
-                Section( "Trip" )
+                Section
                 {
                     TextField( "Origin (IATA)", text: $origin )
                     HStack
@@ -78,18 +80,23 @@ struct OneWaySearchForm: View
                 }
             }
             .formStyle( .grouped )
+            .scrollDisabled( true )
             .autocorrectionDisabled()
             .onAppear
             {
-                self.prefillFromMostRecentSearch()
                 self.prefillDates()
             }
-
-            Divider()
 
             HStack
             {
                 Spacer()
+
+                Button( "Cancel", role: .cancel )
+                {
+                    self.dismiss()
+                }
+                .keyboardShortcut( .cancelAction )
+
                 Button( "Search" )
                 {
                     self.save()
@@ -106,18 +113,6 @@ struct OneWaySearchForm: View
         let result = FieldSwap.swapped( origin: self.origin, destination: self.destination )
         self.origin = result.origin
         self.destination = result.destination
-    }
-
-    private func prefillFromMostRecentSearch()
-    {
-        let fields = SearchPrefill.sharedFields( from: SearchPrefill.mostRecentReal( in: self.recentSearches ) )
-        self.origin = fields.origin
-        self.destination = fields.destination
-        self.cabinClass = fields.cabinClass
-        self.directOnly = fields.directOnly
-        self.carryOnIncluded = fields.carryOnIncluded
-        self.checkedBagIncluded = fields.checkedBagIncluded
-        self.passengers = fields.passengers
     }
 
     private func prefillDates()

@@ -37,8 +37,8 @@ final class SearchViewModel
         }
     }
 
-    var origin = "GVA"
-    var destination = "LIS"
+    var origin = ""
+    var destination = ""
     var departure = Date().addingTimeInterval( 60 * 86_400 )
     var returnDate = Date().addingTimeInterval( 63 * 86_400 )
     var cabin = "business"

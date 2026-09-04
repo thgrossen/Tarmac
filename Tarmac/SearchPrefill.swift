@@ -69,8 +69,8 @@ enum SearchPrefill
     /**
      * Finds the most recent non-seeded search among a set of searches.
      *
-     * Excludes `DefaultSearchSeeder`'s hardcoded first-run search, so a fresh install
-     * with no real searches yet prefills empty rather than echoing that seeded route.
+     * Excludes searches the app created on the user's behalf rather than ones they set up
+     * themselves, so a route they never chose is never echoed back into a new search form.
      *
      * @param searches Currently available searches, newest first.
      * @return The newest search with `isSeeded == false`, or nil if none exists.

@@ -14,7 +14,8 @@ struct ContentView: View
     @State private var selectedCount = 0
     @State private var refreshState = RefreshState()
     @State private var isPresentingNewSearchSheet = false
-    @State private var newSearchKind: SearchKind = .oneWay
+
+    @Environment( NewSearchCommand.self ) private var newSearchCommand
 
     /**
      * Resolves the search to show in the detail pane, falling back to the restored/newest
@@ -53,8 +54,7 @@ struct ContentView: View
                 selection: $selectedSearch,
                 selectedCount: $selectedCount,
                 refreshState: self.refreshState,
-                isPresentingNewSearchSheet: $isPresentingNewSearchSheet,
-                newSearchKind: $newSearchKind
+                isPresentingNewSearchSheet: $isPresentingNewSearchSheet
             )
             .navigationSplitViewColumnWidth( min: 220, ideal: 260, max: 340 )
         } detail: {
@@ -63,11 +63,28 @@ struct ContentView: View
                 selectedCount: self.selectedCount,
                 hasSearches: self.searches.isEmpty == false,
                 refreshState: self.refreshState,
-                onNewSearch: { kind in
-                    self.newSearchKind = kind
-                    self.isPresentingNewSearchSheet = true
-                }
+                onNewSearch: { self.isPresentingNewSearchSheet = true }
             )
+        }
+        .onChange( of: self.newSearchCommand.pendingRequestID )
+        {
+            self.consumeNewSearchCommand()
+        }
+        .onAppear
+        {
+            // Closing the main window doesn't quit the app (e.g. Settings or the Raw Data
+            // window can keep it running), so a `NewSearchCommand` request made in that state
+            // is left pending with no `ContentView` to observe its `onChange` — consume it here
+            // too, once a `ContentView` exists again.
+            self.consumeNewSearchCommand()
+        }
+    }
+
+    private func consumeNewSearchCommand()
+    {
+        if self.newSearchCommand.consumePendingRequest()
+        {
+            self.isPresentingNewSearchSheet = true
         }
     }
 }
@@ -81,7 +98,6 @@ struct SearchSidebar: View
     @Binding var selectedCount: Int
     var refreshState: RefreshState
     @Binding var isPresentingNewSearchSheet: Bool
-    @Binding var newSearchKind: SearchKind
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedIDs: Set< SavedSearch.ID > = []
@@ -239,20 +255,9 @@ struct SearchSidebar: View
         {
             ToolbarItem
             {
-                Menu
+                Button( "New Search", systemImage: "plus" )
                 {
-                    Button( "One-way" )
-                    {
-                        self.newSearchKind = .oneWay
-                        self.isPresentingNewSearchSheet = true
-                    }
-                    Button( "Round Trip" )
-                    {
-                        self.newSearchKind = .roundTrip
-                        self.isPresentingNewSearchSheet = true
-                    }
-                } label: {
-                    Label( "New Search", systemImage: "plus" )
+                    self.isPresentingNewSearchSheet = true
                 }
             }
 
@@ -272,7 +277,7 @@ struct SearchSidebar: View
         }
         .sheet( isPresented: $isPresentingNewSearchSheet )
         {
-            NewSearchSheet( kind: self.newSearchKind )
+            NewSearchSheet
             { newSearch in
                 self.selection = newSearch
                 self.selectedIDs = [ newSearch.id ]
@@ -435,7 +440,7 @@ struct ResultsPane: View
     var selectedCount: Int
     var hasSearches: Bool
     var refreshState: RefreshState
-    var onNewSearch: ( SearchKind ) -> Void
+    var onNewSearch: () -> Void
 
     /**
      * Title for the results pane's multi-selection summary.
@@ -470,18 +475,9 @@ struct ResultsPane: View
             } description: {
                 Text( "Create a search to start tracking prices." )
             } actions: {
-                Menu
+                Button( "New Search" )
                 {
-                    Button( "One-way" )
-                    {
-                        self.onNewSearch( .oneWay )
-                    }
-                    Button( "Round Trip" )
-                    {
-                        self.onNewSearch( .roundTrip )
-                    }
-                } label: {
-                    Text( "New Search" )
+                    self.onNewSearch()
                 }
             }
             .frame( minWidth: 620, minHeight: 420 )
