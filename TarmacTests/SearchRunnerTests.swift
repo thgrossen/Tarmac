@@ -618,5 +618,72 @@ struct SearchRunnerTests
         #expect( snapshot.inboundSummary == nil )
         #expect( snapshot.outboundDuration == nil )
         #expect( snapshot.departureDate == nil )
+
+    // MARK: - Run attribution
+
+    @Test( "Every request in a sweep is attributed to the run that is being created" )
+    func attributesEveryOneWayRequestToItsRun() async throws
+    {
+        let search = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 8 )
+        )
+        let seen = FetchLog< UUID? >()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                seen.record( APICallContext.current.runID )
+                return try Self.fares( itineraries: #"{ "price": { "amount": 100, "currency": "CHF" } }"# )
+            }
+        )
+
+        #expect( seen.requests.count == 4 )
+        #expect( seen.requests.allSatisfy { $0 == run.id } )
+    }
+
+    @Test( "A round-trip shape search attributes its requests to its run too" )
+    func attributesEveryRoundTripRequestToItsRun() async throws
+    {
+        let search = Self.makeRoundTripSearch( flexibilityDays: 1 )
+        let seen   = FetchLog< UUID? >()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            roundTripFetch: { _ in
+                seen.record( APICallContext.current.runID )
+                return try Self.fares( itineraries: #"{ "price": { "amount": 100, "currency": "CHF" } }"# )
+            }
+        )
+
+        #expect( seen.requests.isEmpty == false )
+        #expect( seen.requests.allSatisfy { $0 == run.id } )
+    }
+
+    @Test( "The attribution context doesn't outlive the run that established it" )
+    func clearsAttributionAfterTheRun() async throws
+    {
+        let search = Self.makeOneWaySearch(
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 5 )
+        )
+
+        #expect( APICallContext.current.runID == nil )
+
+        _ = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                try Self.fares( itineraries: #"{ "price": { "amount": 100, "currency": "CHF" } }"# )
+            }
+        )
+
+        #expect( APICallContext.current.runID == nil )
+    }
     }
 }

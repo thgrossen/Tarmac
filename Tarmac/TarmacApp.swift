@@ -23,10 +23,14 @@ struct TarmacApp: App
         }
     }()
     let dateSession = SearchDateSession()
+    let apiLog = APILog()
+    let inspectorState = APIInspectorState()
 
     init()
     {
         DefaultSearchSeeder.seedIfNeeded( in: self.container.mainContext )
+        let apiLog = self.apiLog
+        APIRecording.install { transaction in apiLog.recordFromAnyIsolation( transaction ) }
     }
 
     var body: some Scene
@@ -37,6 +41,8 @@ struct TarmacApp: App
         }
         .modelContainer( container )
         .environment( self.dateSession )
+        .environment( self.apiLog )
+        .environment( self.inspectorState )
         .defaultSize( width: 1000, height: 620 )
         .windowResizability( .contentMinSize )
 
@@ -44,5 +50,15 @@ struct TarmacApp: App
         {
             PreferencesView()
         }
+
+        // Keeps the "rawJSON" identifier the window has always had, so macOS's saved frame for it
+        // survives the window becoming the API inspector.
+        Window( "API Requests", id: "rawJSON" )
+        {
+            APIInspectorView()
+                .environment( self.apiLog )
+                .environment( self.inspectorState )
+        }
+        .windowResizability( .contentMinSize )
     }
 }

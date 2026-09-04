@@ -372,8 +372,10 @@ private extension PriceSnapshot
 private struct RunDetailView: View
 {
     var run: SearchRun
-    @State private var tab = 0
     @State private var sortOrder = [ KeyPathComparator( \PriceSnapshot.amount ) ]
+
+    @Environment( APIInspectorState.self ) private var inspectorState
+    @Environment( \.openWindow ) private var openWindow
 
     var body: some View
     {
@@ -401,29 +403,43 @@ private struct RunDetailView: View
                     .background( .orange.opacity( 0.08 ) )
             }
 
-            Picker( "", selection: self.$tab )
-            {
-                Text( "Itineraries (\( self.run.itineraries.count ))" ).tag( 0 )
-                Text( "Raw JSON" ).tag( 1 )
-            }
-            .pickerStyle( .segmented )
-            .labelsHidden()
-            .padding( 8 )
-
-            Divider()
-
-            if self.tab == 0
-            {
-                self.itineraryTable
-            }
-            else
-            {
-                self.rawJSONView
-            }
+            self.itineraryTable
+                .contextMenu
+                {
+                    Button( "Show API Requests" )
+                    {
+                        self.inspectorState.run       = self.run
+                        self.inspectorState.scope     = .thisRun
+                        self.inspectorState.selection = nil
+                        self.openWindow( id: "rawJSON" )
+                    }
+                }
         }
         .onChange( of: self.run.id )
         {
             self.sortOrder = [ KeyPathComparator( \PriceSnapshot.amount ) ]
+            self.syncInspectorWindow()
+        }
+        .onAppear
+        {
+            // Switching to a different search recreates this view entirely (its parent,
+            // `SearchDetailView`, is `.id(search.id)`-keyed), so `onChange(of: self.run.id)`
+            // above never fires for that transition — this is a brand new view's initial value,
+            // not a change. `onAppear` catches that case too.
+            self.syncInspectorWindow()
+        }
+    }
+
+    /**
+     * Keeps an already-open API inspector scoped to whatever run the table is now showing;
+     * harmless if the window isn't open — it'll simply show this next time it is.
+     */
+    private func syncInspectorWindow()
+    {
+        if self.inspectorState.run != nil
+        {
+            self.inspectorState.run       = self.run
+            self.inspectorState.selection = nil
         }
     }
 
@@ -508,30 +524,6 @@ private struct RunDetailView: View
                 }
             }
             .tableStyle( .inset( alternatesRowBackgrounds: true ) )
-        }
-    }
-
-    private var rawJSONView: some View
-    {
-        ScrollView( [ .vertical, .horizontal ] )
-        {
-            Text( self.run.rawJSON?.isEmpty == false ? self.run.rawJSON! : "No response for this run." )
-                .font( .system( size: 11, design: .monospaced ) )
-                .textSelection( .enabled )
-                .padding( 10 )
-                .frame( maxWidth: .infinity, alignment: .leading )
-        }
-        .overlay( alignment: .topTrailing )
-        {
-            if let rawJSON = self.run.rawJSON, rawJSON.isEmpty == false
-            {
-                Button( "Copy", systemImage: "doc.on.doc" )
-                {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString( rawJSON, forType: .string )
-                }
-                .padding( 10 )
-            }
         }
     }
 }

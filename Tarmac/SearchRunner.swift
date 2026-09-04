@@ -39,14 +39,33 @@ enum SearchRunner
         roundTripFetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )? = nil
     ) async -> SearchRun
     {
-        let run: SearchRun
-        switch search.kind
-        {
-            case .oneWay:
-                run = await self.runOneWay( for: search, apiKey: apiKey, defaults: defaults, fetch: oneWayFetch )
+        // The run's identity is settled up front so every request it makes can be attributed to it
+        // while it is still in flight, which is what lets the API inspector scope to one run.
+        let runID = UUID()
 
-            case .roundTrip:
-                run = await self.runRoundTrip( for: search, apiKey: apiKey, defaults: defaults, cap: cap, fetch: roundTripFetch )
+        let run = await APICallContext.$current.withValue( APICallContext.Info( runID: runID ) )
+        {
+            switch search.kind
+            {
+                case .oneWay:
+                    return await self.runOneWay(
+                        id: runID,
+                        for: search,
+                        apiKey: apiKey,
+                        defaults: defaults,
+                        fetch: oneWayFetch,
+                    )
+
+                case .roundTrip:
+                    return await self.runRoundTrip(
+                        id: runID,
+                        for: search,
+                        apiKey: apiKey,
+                        defaults: defaults,
+                        cap: cap,
+                        fetch: roundTripFetch,
+                    )
+            }
         }
 
         run.savedSearch = search
@@ -55,6 +74,7 @@ enum SearchRunner
     }
 
     private static func runOneWay(
+        id: UUID,
         for search: SavedSearch,
         apiKey: String,
         defaults: UserDefaults,
@@ -78,6 +98,7 @@ enum SearchRunner
             : nil
 
         let run = SearchRun(
+            id: id,
             rawJSON: result.rawJSON,
             errorMessage: errorMessage,
             partialFailureMessage: partialFailureMessage,
@@ -88,6 +109,7 @@ enum SearchRunner
     }
 
     private static func runRoundTrip(
+        id: UUID,
         for search: SavedSearch,
         apiKey: String,
         defaults: UserDefaults,
@@ -105,6 +127,7 @@ enum SearchRunner
 
         let errorMessage = result.errorMessage ?? ( result.itineraries.isEmpty ? self.noFaresMessage : nil )
         let run = SearchRun(
+            id: id,
             rawJSON: result.rawJSON,
             errorMessage: errorMessage,
             requestCount: result.requestCount
