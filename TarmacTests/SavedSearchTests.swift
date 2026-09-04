@@ -94,7 +94,7 @@ struct SavedSearchTests
             cabinClass: "business"
         )
 
-        #expect( search.summary == "GVA → LIS · round trip · 5–12 Oct" )
+        #expect( search.summary == "GVA ↔ LIS · round trip · 5–12 Oct" )
     }
 
     @Test( "Summary for a one-way search spanning two months" )
@@ -112,6 +112,30 @@ struct SavedSearchTests
         #expect( search.summary == "GVA → LIS · one-way · 28 Sep – 3 Oct" )
     }
 
+    @Test( "The route arrow says which way the trip runs" )
+    func routeLabelArrowsByKind()
+    {
+        let oneWay = SavedSearch(
+            kind: .oneWay,
+            origin: "GVA",
+            destination: "LIS",
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 12 ),
+            cabinClass: "economy"
+        )
+        let roundTrip = SavedSearch(
+            kind: .roundTrip,
+            origin: "GVA",
+            destination: "LIS",
+            rangeStart: Self.utcDate( 2026, 10, 5 ),
+            rangeEnd: Self.utcDate( 2026, 10, 12 ),
+            cabinClass: "economy"
+        )
+
+        #expect( oneWay.routeLabel == "GVA → LIS" )
+        #expect( roundTrip.routeLabel == "GVA ↔ LIS" )
+    }
+
     @Test( "Summary normalizes a reversed date range" )
     func summaryReversedRange()
     {
@@ -124,7 +148,7 @@ struct SavedSearchTests
             cabinClass: "business"
         )
 
-        #expect( search.summary == "GVA → LIS · round trip · 5–12 Oct" )
+        #expect( search.summary == "GVA ↔ LIS · round trip · 5–12 Oct" )
     }
 
     @Test( "Trip detail for a round trip within the same month" )

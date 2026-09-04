@@ -24,7 +24,7 @@ struct ContentView: View
      *
      * @param selectedSearch The sidebar's single-selection binding; nil when zero or multiple searches are selected.
      * @param selectedCount Number of searches currently selected in the sidebar.
-     * @param searches Currently available searches to fall back against.
+     * @param searches Currently available searches to fall back against, newest first.
      * @return The search to display, or nil to show the pane's empty/summary state.
      */
     static func currentSelection( selectedSearch: SavedSearch?, selectedCount: Int, searches: [ SavedSearch ] ) -> SavedSearch?
@@ -34,12 +34,12 @@ struct ContentView: View
         {
             return nil
         }
-        return selectedSearch ?? SearchSelectionPreference.restoreSelection( from: searches )
+        return selectedSearch ?? searches.first
     }
 
-    // Falls back to the restored/newest search declaratively, so the very first render
-    // already shows the right detail pane instead of a `nil`-selection empty state that
-    // flips over once `SearchSidebar`'s `onAppear` runs.
+    // Falls back to the newest search declaratively, so the very first render already shows
+    // the right detail pane instead of a `nil`-selection empty state that flips over once
+    // `SearchSidebar`'s `onAppear` runs.
     private var currentSelection: SavedSearch?
     {
         Self.currentSelection( selectedSearch: self.selectedSearch, selectedCount: self.selectedCount, searches: self.searches )
@@ -101,7 +101,6 @@ struct SearchSidebar: View
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedIDs: Set< SavedSearch.ID > = []
-    @State private var isPresentingClearAllConfirmation = false
     @State private var isPresentingDeleteConfirmation = false
     @State private var pendingDeletionIDs: Set< SavedSearch.ID > = []
 
@@ -126,7 +125,7 @@ struct SearchSidebar: View
      * Computes the sidebar's selection after a set of searches has been deleted. Deleted
      * searches that weren't part of the selection leave it untouched; deleting part of a
      * larger selection keeps the rest selected; deleting the entire selection falls back to
-     * the restored/newest of the remaining searches.
+     * the newest of the remaining searches.
      *
      * @param deletedIDs IDs of the searches that were just deleted.
      * @param selectedIDs Selection immediately before the delete.
@@ -142,8 +141,7 @@ struct SearchSidebar: View
             return remaining
         }
 
-        let restored = SearchSelectionPreference.restoreSelection( from: searches )
-        return restored.map { [ $0.id ] } ?? []
+        return searches.first.map { [ $0.id ] } ?? []
     }
 
     /**
@@ -204,10 +202,10 @@ struct SearchSidebar: View
                 return
             }
 
-            if let restored = SearchSelectionPreference.restoreSelection( from: self.searches )
+            if let newest = self.searches.first
             {
-                self.selectedIDs = [ restored.id ]
-                self.selection = restored
+                self.selectedIDs = [ newest.id ]
+                self.selection = newest
                 self.selectedCount = 1
             }
         }
@@ -218,13 +216,9 @@ struct SearchSidebar: View
             guard self.selectedIDs.count <= 1
             else
             {
-                // Multiple searches selected: leave any previously persisted single
-                // selection untouched so relaunching still restores it.
                 self.selection = nil
                 return
             }
-
-            SearchSelectionPreference.persist( self.selectedIDs.first )
 
             guard self.selectedIDs.isEmpty == false
             else
@@ -261,19 +255,6 @@ struct SearchSidebar: View
                 }
             }
 
-            ToolbarItem
-            {
-                Menu
-                {
-                    Button( "Clear All Searches", role: .destructive )
-                    {
-                        self.isPresentingClearAllConfirmation = true
-                    }
-                    .disabled( self.searches.isEmpty )
-                } label: {
-                    Label( "More", systemImage: "ellipsis.circle" )
-                }
-            }
         }
         .sheet( isPresented: $isPresentingNewSearchSheet )
         {
@@ -284,16 +265,6 @@ struct SearchSidebar: View
                 self.selectedCount = 1
                 Task { await self.runInitialSearch( for: newSearch ) }
             }
-        }
-        .alert( "Clear All Searches?", isPresented: $isPresentingClearAllConfirmation )
-        {
-            Button( "Clear All Searches", role: .destructive )
-            {
-                self.clearAllSearches()
-            }
-            Button( "Cancel", role: .cancel ) {}
-        } message: {
-            Text( "This permanently deletes every saved search and its run history. This can't be undone." )
         }
         .alert( Self.deleteConfirmationTitle( for: self.pendingDeletionIDs.count ), isPresented: $isPresentingDeleteConfirmation )
         {
@@ -364,19 +335,6 @@ struct SearchSidebar: View
         self.selectedIDs = Self.selectedIDs( afterDeleting: ids, from: self.selectedIDs, searches: remainingSearches )
     }
 
-    /**
-     * Deletes every saved search, clearing the sidebar's selection.
-     */
-    private func clearAllSearches()
-    {
-        for search in self.searches
-        {
-            self.modelContext.delete( search )
-        }
-        self.selectedIDs = []
-        self.selection = nil
-        self.selectedCount = 0
-    }
 }
 
 struct SearchRow: View
@@ -397,21 +355,12 @@ struct SearchRow: View
     {
         VStack( alignment: .leading, spacing: 3 )
         {
-            Text( "\( self.search.origin ) → \( self.search.destination )" )
+            Text( self.search.routeLabel )
                 .font( .headline )
 
-            HStack( spacing: 4 )
-            {
-                Text( self.search.tripDetail )
-
-                if let cheapestFare = self.search.runsNewestFirst.first?.cheapestFare,
-                   let formattedAmount = cheapestFare.formattedAmount
-                {
-                    Text( "· \( formattedAmount )" )
-                }
-            }
-            .font( .caption )
-            .foregroundStyle( .secondary )
+            Text( self.search.tripDetail )
+                .font( .caption )
+                .foregroundStyle( .secondary )
         }
         .padding( .vertical, 4 )
         .frame( maxWidth: .infinity, alignment: .leading )

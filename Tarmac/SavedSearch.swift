@@ -79,11 +79,21 @@ final class SavedSearch
     }
 
     /**
-     * Short summary for sidebar rows, e.g. "GVA → LIS · round trip · 5–12 Oct".
+     * Origin and destination joined by an arrow whose heads say which way the trip runs, e.g.
+     * "AAA → BBB" for a one-way and "AAA ↔ BBB" for a round trip.
+     */
+    var routeLabel: String
+    {
+        let arrow = self.kind == .roundTrip ? "↔" : "→"
+        return "\( self.origin ) \( arrow ) \( self.destination )"
+    }
+
+    /**
+     * Short summary for sidebar rows, e.g. "AAA ↔ BBB · round trip · 5–12 Oct".
      */
     var summary: String
     {
-        "\( self.origin ) → \( self.destination ) · \( self.tripDetail )"
+        "\( self.routeLabel ) · \( self.tripDetail )"
     }
 
     /**
