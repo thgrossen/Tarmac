@@ -107,6 +107,7 @@ private struct AirlinesPane: View
 private struct LimitsPane: View
 {
     @AppStorage( OneWaySweepPreference.capDefaultsKey ) private var oneWaySweepCap = OneWaySweepPreference.defaultCap
+    @AppStorage( BookingLinkExpiryPreference.maxRunAgeHoursDefaultsKey ) private var bookingLinkHours = BookingLinkExpiryPreference.defaultHours
 
     var body: some View
     {
@@ -115,6 +116,14 @@ private struct LimitsPane: View
             Section
             {
                 Stepper( "One-way sweep cap: \( self.oneWaySweepCap )", value: $oneWaySweepCap, in: 1 ... 100 )
+
+                Picker( "Booking links valid for", selection: $bookingLinkHours )
+                {
+                    ForEach( BookingLinkExpiryPreference.allHours, id: \.self )
+                    { hours in
+                        Text( BookingLinkExpiryPreference.label( forHours: hours ) ).tag( hours )
+                    }
+                }
             }
         }
         .formStyle( .grouped )

@@ -21,6 +21,11 @@ final class PriceSnapshot
     var arrivalTime: String?
     var departureDate: Date?
 
+    // Booking links already resolved for this fare, kept so switching searches, adding runs or
+    // relaunching the app doesn't spend another billed lookup for the same result. They stop
+    // being offered once the run falls outside the booking-link lifetime.
+    var bookingLinks: [ BookingLinkChoice ] = []
+
     var run: SearchRun?
 
     init(

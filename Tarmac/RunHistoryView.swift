@@ -474,7 +474,7 @@ private struct RunDetailView: View
                         .fontWeight( .semibold )
                         .monospacedDigit()
                 }
-                .width( 110 )
+                .width( min: 70, ideal: 110 )
 
                 if self.isOneWaySearch
                 {
@@ -489,20 +489,28 @@ private struct RunDetailView: View
                             Text( "—" )
                         }
                     }
-                    .width( 80 )
+                    .width( min: 55, ideal: 80 )
                     TableColumn( "Carrier", value: \.carrierSortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.carrier ?? "—" ) }
                     TableColumn( "Flight n°", value: \.outboundSummarySortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundSummary ?? "—" ) }
                     TableColumn( "Departure", value: \.departureTimeSortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.departureTime ?? "—" ) }
-                    .width( 80 )
+                    .width( min: 55, ideal: 80 )
                     TableColumn( "Arrival", value: \.arrivalTimeSortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.arrivalTime ?? "—" ) }
-                    .width( 80 )
+                    .width( min: 55, ideal: 80 )
                     TableColumn( "Duration", value: \.outboundDurationSortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundDuration ?? "—" ) }
-                    .width( 90 )
+                    .width( min: 60, ideal: 90 )
+                    TableColumn( "Book" )
+                    { ( snapshot: PriceSnapshot ) in
+                        // Keyed by the row's identity so re-sorting the table carries each
+                        // button's fetched links with its own fare rather than its position.
+                        BookingLinkButton( snapshot: snapshot )
+                            .id( snapshot.persistentModelID )
+                    }
+                    .width( min: 44, ideal: 52 )
                 }
                 else
                 {
@@ -521,6 +529,14 @@ private struct RunDetailView: View
                     TableColumn( "Arrival", value: \.arrivalTimeSortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.arrivalTime ?? "—" ) }
                     .width( 80 )
+                    TableColumn( "Book" )
+                    { ( snapshot: PriceSnapshot ) in
+                        // Keyed by the row's identity so re-sorting the table carries each
+                        // button's fetched links with its own fare rather than its position.
+                        BookingLinkButton( snapshot: snapshot )
+                            .id( snapshot.persistentModelID )
+                    }
+                    .width( min: 44, ideal: 52 )
                 }
             }
             .tableStyle( .inset( alternatesRowBackgrounds: true ) )
