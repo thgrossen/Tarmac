@@ -149,20 +149,37 @@ enum SearchRunner
             departureTime: itinerary.outbound?.segments?.first?.departure_time,
             arrivalTime: itinerary.outbound?.segments?.last?.arrival_time,
             departureDate: itinerary.outbound?.segments?.first?.departure_date,
+            outboundStopCount: itinerary.outbound?.segments.map { max( $0.count - 1, 0 ) },
+            outboundFlightNumbers: self.flightNumbers( itinerary.outbound ),
             run: run
         )
     }
 
     private static func legSummary( _ leg: Leg? ) -> String?
     {
-        guard let segments = leg?.segments,
-              segments.isEmpty == false
+        let flightNumbers = self.flightNumbers( leg )
+        guard flightNumbers.isEmpty == false
         else
         {
             return nil
         }
-        return segments
-            .map { "\( $0.marketing_carrier_code ?? $0.carrier_code ?? "" ) \( $0.flight_number ?? "" )" }
-            .joined( separator: " → " )
+        return flightNumbers.joined( separator: PriceSnapshotBackfill.flightNumberSeparator )
+    }
+
+    /**
+     * Each of a leg's segments as a carrier-and-flight-number pair, e.g. [ "LX 1234", "TP 5678" ],
+     * preferring the marketing carrier over the operating one.
+     *
+     * @param leg Leg to describe, or nil.
+     * @return One entry per segment, in order; empty when the leg is missing or has no segments.
+     */
+    private static func flightNumbers( _ leg: Leg? ) -> [ String ]
+    {
+        guard let segments = leg?.segments
+        else
+        {
+            return []
+        }
+        return segments.map { "\( $0.marketing_carrier_code ?? $0.carrier_code ?? "" ) \( $0.flight_number ?? "" )" }
     }
 }

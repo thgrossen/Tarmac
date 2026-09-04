@@ -31,6 +31,9 @@ struct TarmacApp: App
         DefaultSearchSeeder.seedIfNeeded( in: self.container.mainContext )
         let apiLog = self.apiLog
         APIRecording.install { transaction in apiLog.recordFromAnyIsolation( transaction ) }
+
+        PriceSnapshotBackfill.backfillIfNeeded( in: self.container.mainContext )
+        FilterPersistencePreference.clearFiltersIfNeeded( in: self.container.mainContext )
     }
 
     var body: some Scene

@@ -35,6 +35,10 @@ final class SavedSearch
     var flexibilityDays: Int
     var mustIncludeWeekend: Bool
 
+    // Result filters this search's itinerary table and price history are narrowed by, remembered
+    // across runs and across app launches. One-way-only for now; nil means nothing is filtered.
+    var oneWayFilters: OneWayFilters? = nil
+
     @Relationship( deleteRule: .cascade, inverse: \SearchRun.savedSearch )     var runs: [ SearchRun ] = []
 
     init(

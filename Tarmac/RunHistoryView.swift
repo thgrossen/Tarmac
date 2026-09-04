@@ -5,12 +5,30 @@
  ******************************************************************************/
 
 import Charts
+import SwiftData
 import SwiftUI
 
 struct RunHistoryView: View
 {
     var runs: [ SearchRun ]     // newest first
     @Binding var selection: SearchRun?
+    var filters: OneWayFilters?
+
+    /**
+     * Title and body copy for the itinerary table's empty state, which distinguishes a run that
+     * came back with nothing from one whose results the filters have hidden entirely.
+     *
+     * @param isFiltered Whether the run returned fares that the active filters excluded.
+     * @return The empty state's title and description.
+     */
+    static func emptyState( isFiltered: Bool ) -> ( title: String, description: String )
+    {
+        if isFiltered
+        {
+            return ( "No fares match these filters", "Widen or clear the filters to see this update's itineraries." )
+        }
+        return ( "No fares found", "This run returned no itineraries." )
+    }
 
     var body: some View
     {
@@ -18,14 +36,14 @@ struct RunHistoryView: View
         {
             if PriceHistoryChart.chartRuns( for: self.runs ).count > 1
             {
-                PriceHistoryChart( runs: self.runs, selection: self.$selection )
+                PriceHistoryChart( runs: self.runs, selection: self.$selection, filters: self.filters )
 
                 Divider()
             }
 
             if let selectedRun = self.selection
             {
-                RunDetailView( run: selectedRun )
+                RunDetailView( run: selectedRun, filters: self.filters )
             }
             else
             {
@@ -46,6 +64,7 @@ struct PriceHistoryChart: View
 {
     var runs: [ SearchRun ]     // newest first
     @Binding var selection: SearchRun?
+    var filters: OneWayFilters?
 
     @State private var hoveredRunID: String?
     @State private var hoverLocation: CGPoint?
@@ -74,12 +93,14 @@ struct PriceHistoryChart: View
      * edges.
      *
      * @param runs Runs to plot (see `chartRuns(for:)`).
+     * @param filters Results filters the plotted prices are narrowed by, or nil to plot every fare.
      * @return The padded domain, or 0...1 if there is nothing to plot.
      */
-    static func yDomain( for runs: [ SearchRun ] ) -> ClosedRange< Double >
+    static func yDomain( for runs: [ SearchRun ], filters: OneWayFilters? = nil ) -> ClosedRange< Double >
     {
-        let lows  = runs.compactMap { $0.cheapestFare?.amount }
-        let highs = runs.compactMap { $0.maxFare?.amount }
+        let ranges = runs.compactMap { $0.fareRange( matching: filters ) }
+        let lows   = ranges.map( \.low )
+        let highs  = ranges.map( \.high )
         guard let minLow = lows.min(),
               let maxHigh = highs.max()
         else
@@ -93,19 +114,20 @@ struct PriceHistoryChart: View
 
     /**
      * The low/high range to draw a run's bar over: its actual cheapest/most-expensive fare, or,
-     * for a run with no fares (an error, or none found), a thin flat marker sitting at the
-     * bottom of the y-axis domain — keeping it visible and selectable without implying a price.
+     * for a run with no fares to plot (an error, none found, or none matching the filters), a thin
+     * flat marker sitting at the bottom of the y-axis domain — keeping it visible and selectable
+     * without implying a price.
      *
      * @param run The run to compute a bar extent for.
      * @param yDomain The chart's y-axis domain (see `yDomain(for:)`).
+     * @param filters Results filters the plotted prices are narrowed by, or nil to plot every fare.
      * @return The bar's low and high values, in the same units as `yDomain`.
      */
-    static func barExtent( for run: SearchRun, yDomain: ClosedRange< Double > ) -> ( low: Double, high: Double )
+    static func barExtent( for run: SearchRun, yDomain: ClosedRange< Double >, filters: OneWayFilters? = nil ) -> ( low: Double, high: Double )
     {
-        if let low = run.cheapestFare?.amount,
-           let high = run.maxFare?.amount
+        if let range = run.fareRange( matching: filters )
         {
-            return ( low, high )
+            return range
         }
 
         let markerHeight = ( yDomain.upperBound - yDomain.lowerBound ) * 0.03
@@ -196,7 +218,7 @@ struct PriceHistoryChart: View
         GeometryReader
         { outerGeometry in
             let chartRuns = self.chartRuns
-            let yDomain = Self.yDomain( for: chartRuns )
+            let yDomain = Self.yDomain( for: chartRuns, filters: self.filters )
             let domainValues = Self.paddedDomainValues(
                 chartRuns: chartRuns,
                 availableWidth: outerGeometry.size.width,
@@ -205,8 +227,8 @@ struct PriceHistoryChart: View
 
             Chart( chartRuns, id: \.id )
             { run in
-                let extent = Self.barExtent( for: run, yDomain: yDomain )
-                let hasFare = run.cheapestFare != nil
+                let extent = Self.barExtent( for: run, yDomain: yDomain, filters: self.filters )
+                let hasFare = run.fareRange( matching: self.filters ) != nil
 
                 BarMark(
                     x: .value( "Run", run.id.uuidString ),
@@ -314,7 +336,7 @@ struct PriceHistoryChart: View
             return nil
         }
 
-        let extent = Self.barExtent( for: run, yDomain: Self.yDomain( for: self.chartRuns ) )
+        let extent = Self.barExtent( for: run, yDomain: Self.yDomain( for: self.chartRuns, filters: self.filters ), filters: self.filters )
         guard let lowY = proxy.position( forY: extent.low ),
               let highY = proxy.position( forY: extent.high )
         else
@@ -350,15 +372,7 @@ private extension PriceSnapshot
     // unpadded hour component (e.g. "10h30" vs. "2h05") doesn't compare correctly as text.
     var outboundDurationSortKey: Int
     {
-        guard let duration = self.outboundDuration,
-              let hourIndex = duration.firstIndex( of: "h" ),
-              let hours = Int( duration[ duration.startIndex ..< hourIndex ] ),
-              let minutes = Int( duration[ duration.index( after: hourIndex )... ] )
-        else
-        {
-            return 0
-        }
-        return hours * 60 + minutes
+        OneWayFilters.minutes( fromDuration: self.outboundDuration ) ?? 0
     }
 
     var carrierSortKey: String { self.carrier ?? "" }
@@ -372,6 +386,7 @@ private extension PriceSnapshot
 private struct RunDetailView: View
 {
     var run: SearchRun
+    var filters: OneWayFilters?
     @State private var sortOrder = [ KeyPathComparator( \PriceSnapshot.amount ) ]
 
     @Environment( APIInspectorState.self ) private var inspectorState
@@ -445,7 +460,7 @@ private struct RunDetailView: View
 
     private var sortedItineraries: [ PriceSnapshot ]
     {
-        self.run.itineraries.sorted( using: self.sortOrder )
+        self.run.fares( matching: self.filters ).sorted( using: self.sortOrder )
     }
 
     private var isOneWaySearch: Bool
@@ -455,18 +470,22 @@ private struct RunDetailView: View
 
     @ViewBuilder     private var itineraryTable: some View
     {
-        if self.run.itineraries.isEmpty
+        let itineraries = self.sortedItineraries
+
+        if itineraries.isEmpty
         {
+            let emptyState = RunHistoryView.emptyState( isFiltered: self.run.itineraries.isEmpty == false )
+
             ContentUnavailableView(
-                "No fares found",
-                systemImage: "airplane.circle",
-                description: Text( "This run returned no itineraries." )
+                emptyState.title,
+                systemImage: self.run.itineraries.isEmpty ? "airplane.circle" : "line.3.horizontal.decrease.circle",
+                description: Text( emptyState.description )
             )
             .frame( maxWidth: .infinity, maxHeight: .infinity )
         }
         else
         {
-            Table( self.sortedItineraries, sortOrder: self.$sortOrder )
+            Table( itineraries, sortOrder: self.$sortOrder )
             {
                 TableColumn( "Price", value: \.amount )
                 { snapshot in

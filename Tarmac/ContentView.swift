@@ -505,9 +505,38 @@ struct SearchDetailView: View
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedRun: SearchRun?
+    @State private var filters = OneWayFilters()
+    @State private var isPresentingFilters = false
+
+    // Cached rather than recomputed per render: it walks every fare of every run, and runs are
+    // append-only, so it can only change when a refresh adds one.
+    @State private var filterBounds = OneWayFilterBounds()
 
     private var isLoading: Bool { self.refreshState.isLoading( self.search.id ) }
     private var errorMessage: String? { self.refreshState.errorMessage( for: self.search.id ) }
+
+    // Filters are one-way-only for now, and only mean anything once a run has returned fares to
+    // derive their extents from.
+    private var isFilterable: Bool { self.search.kind == .oneWay }
+
+    /**
+     * The filters to narrow the chart and the table by: the active set for a filterable search, and
+     * nil otherwise, which leaves every result in place.
+     *
+     * @param filters The search's stored filters.
+     * @param isFilterable Whether this search supports filtering at all.
+     * @return The filters to apply, or nil to apply none.
+     */
+    static func appliedFilters( _ filters: OneWayFilters, isFilterable: Bool ) -> OneWayFilters?
+    {
+        guard isFilterable,
+              filters.isActive
+        else
+        {
+            return nil
+        }
+        return filters
+    }
 
     var body: some View
     {
@@ -515,21 +544,22 @@ struct SearchDetailView: View
         {
             HStack
             {
-                VStack( alignment: .leading, spacing: 2 )
-                {
-                    Text( search.summary )
-                        .font( .title3 )
-                        .fontWeight( .semibold )
+                Spacer()
 
-                    if search.kind == .oneWay
+                if self.isFilterable
+                {
+                    Button
                     {
-                        Text( "Refresh checks the earliest date in the range." )
-                            .font( .caption )
-                            .foregroundStyle( .secondary )
+                        self.isPresentingFilters = true
+                    } label: {
+                        Label( self.filters.isActive ? "Filters (\( self.filters.activeCount ))" : "Filters", systemImage: "line.3.horizontal.decrease.circle" )
+                    }
+                    .disabled( self.filterBounds.isEmpty )
+                    .popover( isPresented: self.$isPresentingFilters, arrowEdge: .bottom )
+                    {
+                        OneWayFiltersPopover( bounds: self.filterBounds, filters: self.$filters )
                     }
                 }
-
-                Spacer()
 
                 Button
                 {
@@ -545,6 +575,17 @@ struct SearchDetailView: View
                 .disabled( self.isLoading )
             }
             .padding()
+
+            if self.isFilterable
+            {
+                FilterChipBar(
+                    filters: self.filters,
+                    matchingCount: self.filters.apply( to: self.selectedRun?.itineraries ?? [] ).count,
+                    totalCount: self.selectedRun?.itineraries.count ?? 0,
+                    onChange: { self.filters = $0 },
+                    onEdit: { self.isPresentingFilters = true }
+                )
+            }
 
             if let errorMessage = self.errorMessage
             {
@@ -575,7 +616,8 @@ struct SearchDetailView: View
             {
                 RunHistoryView(
                     runs: runs,
-                    selection: self.$selectedRun
+                    selection: self.$selectedRun,
+                    filters: Self.appliedFilters( self.filters, isFilterable: self.isFilterable )
                 )
                 .onAppear
                 {
@@ -583,14 +625,36 @@ struct SearchDetailView: View
                     {
                         self.selectedRun = runs.first
                     }
+
+                    // The search's very first run arriving takes this view from absent to present,
+                    // so `onChange( of: runs.count )` below never sees it — pick the bounds up here.
+                    self.refreshFilterBounds()
                 }
                 .onChange( of: runs.count )
                 {
                     self.selectedRun = runs.first
+                    self.refreshFilterBounds()
                 }
             }
         }
         .frame( minWidth: 620, minHeight: 420 )
+        .navigationTitle( self.search.summary )
+        .onAppear
+        {
+            // This view is `.id( search.id )`-keyed by `ResultsPane`, so switching searches builds a
+            // brand new one — seeding from the model here is what restores each search's own filters.
+            self.filters = self.search.oneWayFilters ?? OneWayFilters()
+            self.refreshFilterBounds()
+        }
+        .onChange( of: self.filters )
+        {
+            self.search.oneWayFilters = self.filters.isActive ? self.filters : nil
+        }
+    }
+
+    private func refreshFilterBounds()
+    {
+        self.filterBounds = self.isFilterable ? OneWayFilterBounds.bounds( for: self.search.runs ) : OneWayFilterBounds()
     }
 
     private func refresh() async

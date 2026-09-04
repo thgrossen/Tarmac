@@ -20,6 +20,8 @@ final class PriceSnapshot
     var departureTime: String?
     var arrivalTime: String?
     var departureDate: Date?
+    var outboundStopCount: Int? = nil
+    var outboundFlightNumbers: [ String ] = []
 
     // Booking links already resolved for this fare, kept so switching searches, adding runs or
     // relaunching the app doesn't spend another billed lookup for the same result. They stop
@@ -39,6 +41,8 @@ final class PriceSnapshot
         departureTime: String? = nil,
         arrivalTime: String? = nil,
         departureDate: Date? = nil,
+        outboundStopCount: Int? = nil,
+        outboundFlightNumbers: [ String ] = [],
         run: SearchRun? = nil
     )
     {
@@ -52,6 +56,8 @@ final class PriceSnapshot
         self.departureTime = departureTime
         self.arrivalTime = arrivalTime
         self.departureDate = departureDate
+        self.outboundStopCount = outboundStopCount
+        self.outboundFlightNumbers = outboundFlightNumbers
         self.run = run
     }
 

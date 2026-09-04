@@ -55,4 +55,35 @@ final class SearchRun
     {
         self.itineraries.max { $0.amount < $1.amount }
     }
+
+    /**
+     * This run's itineraries, narrowed by the results filters.
+     *
+     * @param filters Filters to apply, or nil to apply none.
+     * @return The matching itineraries, in their recorded order.
+     */
+    func fares( matching filters: OneWayFilters? ) -> [ PriceSnapshot ]
+    {
+        filters?.apply( to: self.itineraries ) ?? self.itineraries
+    }
+
+    /**
+     * The price span this run's matching itineraries cover, which is what the price history chart
+     * plots as one bar. Prices that failed to parse are left out, so they can't drag the span to
+     * something meaningless.
+     *
+     * @param filters Filters to apply, or nil to apply none.
+     * @return The cheapest and most expensive matching price, or nil if nothing matched.
+     */
+    func fareRange( matching filters: OneWayFilters? ) -> ( low: Double, high: Double )?
+    {
+        let amounts = self.fares( matching: filters ).map( \.amount ).filter { $0.isFinite }
+        guard let low = amounts.min(),
+              let high = amounts.max()
+        else
+        {
+            return nil
+        }
+        return ( low, high )
+    }
 }

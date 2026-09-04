@@ -22,6 +22,9 @@ struct PreferencesView: View
             AirlinesPane()
                 .tabItem { Label( "Airlines", systemImage: "airplane" ) }
 
+            FiltersPane()
+                .tabItem { Label( "Filters", systemImage: "line.3.horizontal.decrease.circle" ) }
+
             LimitsPane()
                 .tabItem { Label( "Limits", systemImage: "gauge" ) }
         }
@@ -98,6 +101,27 @@ private struct AirlinesPane: View
                     .textFieldStyle( .roundedBorder )
                     .autocorrectionDisabled()
                     .disabled( self.restrictAirlines == false )
+            }
+        }
+        .formStyle( .grouped )
+    }
+}
+
+private struct FiltersPane: View
+{
+    @AppStorage( FilterPersistencePreference.keepOnLaunchDefaultsKey ) private var keepFiltersOnLaunch = FilterPersistencePreference.defaultKeepOnLaunch
+
+    var body: some View
+    {
+        Form
+        {
+            Section
+            {
+                Toggle( "Keep results filters between launches", isOn: $keepFiltersOnLaunch )
+            } footer: {
+                Text( "When off, every search starts unfiltered after the app is relaunched." )
+                    .font( .caption )
+                    .foregroundStyle( .secondary )
             }
         }
         .formStyle( .grouped )

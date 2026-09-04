@@ -618,6 +618,56 @@ struct SearchRunnerTests
         #expect( snapshot.inboundSummary == nil )
         #expect( snapshot.outboundDuration == nil )
         #expect( snapshot.departureDate == nil )
+        #expect( snapshot.outboundStopCount == nil )
+        #expect( snapshot.outboundFlightNumbers.isEmpty )
+    }
+
+    @Test( "Records the outbound leg's stop count and per-segment flight numbers" )
+    func mapsStopCountAndFlightNumbers() async throws
+    {
+        let search = Self.makeOneWaySearch()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                try Self.fares( itineraries: """
+                    { "ignav_id": "ST1", "price": { "amount": 250, "currency": "CHF" },
+                      "outbound": { "segments": [
+                        { "carrier_code": "LX", "flight_number": "100" },
+                        { "carrier_code": "XX", "marketing_carrier_code": "TP", "flight_number": "200" }
+                      ] } }
+                    """ )
+            }
+        )
+
+        let snapshot = try #require( run.itineraries.first )
+        #expect( snapshot.outboundStopCount == 1 )
+        #expect( snapshot.outboundFlightNumbers == [ "LX 100", "TP 200" ] )
+    }
+
+    @Test( "A direct flight is recorded as zero stops" )
+    func mapsDirectFlightToZeroStops() async throws
+    {
+        let search = Self.makeOneWaySearch()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                try Self.fares( itineraries: """
+                    { "ignav_id": "ST2", "price": { "amount": 250, "currency": "CHF" },
+                      "outbound": { "segments": [ { "carrier_code": "LX", "flight_number": "100" } ] } }
+                    """ )
+            }
+        )
+
+        let snapshot = try #require( run.itineraries.first )
+        #expect( snapshot.outboundStopCount == 0 )
+        #expect( snapshot.outboundFlightNumbers == [ "LX 100" ] )
+    }
 
     // MARK: - Run attribution
 
