@@ -123,6 +123,36 @@ struct PriceHistoryChartTests
         #expect( extent.high == 200 + ( 800 - 200 ) * 0.03 )
     }
 
+    // MARK: - Axis
+
+    @Test( "the currency comes from the first run carrying a usable price" )
+    func currencyFromPlottedRuns()
+    {
+        let empty = SearchRun( requestCount: 1 )
+        let priced = SearchRun( requestCount: 1 )
+        priced.itineraries = [
+            PriceSnapshot( amount: .nan, currency: "EUR" ),
+            PriceSnapshot( amount: 300, currency: "CHF" ),
+        ]
+
+        #expect( PriceHistoryChart.currency( for: [ empty, priced ] ) == "CHF" )
+    }
+
+    @Test( "a search with no usable price has no currency to name" )
+    func currencyWithoutFares()
+    {
+        #expect( PriceHistoryChart.currency( for: [] ) == nil )
+        #expect( PriceHistoryChart.currency( for: [ SearchRun( requestCount: 1 ) ] ) == nil )
+    }
+
+    @Test( "axis labels name the currency alongside the rounded price" )
+    func axisLabels()
+    {
+        #expect( PriceHistoryChart.axisLabel( for: 300, currency: "CHF" ) == "300 CHF" )
+        #expect( PriceHistoryChart.axisLabel( for: 299.6, currency: "CHF" ) == "300 CHF" )
+        #expect( PriceHistoryChart.axisLabel( for: 300, currency: nil ) == "300" )
+    }
+
     // MARK: - Filtered plotting
 
     private static func filters( maxPrice: Double ) -> OneWayFilters

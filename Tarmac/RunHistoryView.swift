@@ -196,6 +196,44 @@ struct PriceHistoryChart: View
      * @param hasFare Whether the run found at least one fare to plot a real range for.
      * @return The color to fill the bar with.
      */
+    /**
+     * Currency the plotted prices are quoted in, taken from the first fare that carries a usable
+     * price. Every fare of a search is quoted in the same market's currency, so one is enough.
+     *
+     * @param runs Runs being plotted.
+     * @return The currency code, or nil if no run has a usable price.
+     */
+    static func currency( for runs: [ SearchRun ] ) -> String?
+    {
+        for run in runs
+        {
+            if let currency = run.itineraries.first( where: { $0.amount.isFinite } )?.currency
+            {
+                return currency
+            }
+        }
+        return nil
+    }
+
+    /**
+     * Labels one y-axis tick, naming the currency so the axis reads as money rather than as bare
+     * numbers.
+     *
+     * @param amount Price the tick sits at.
+     * @param currency Currency the prices are quoted in, or nil if it isn't known.
+     * @return The tick's label, e.g. "300 CHF".
+     */
+    static func axisLabel( for amount: Double, currency: String? ) -> String
+    {
+        let rounded = Int( amount.rounded() )
+        guard let currency
+        else
+        {
+            return "\( rounded )"
+        }
+        return "\( rounded ) \( currency )"
+    }
+
     private func barColor( isLatest: Bool, isSelected: Bool, hasFare: Bool ) -> Color
     {
         if isSelected
@@ -219,6 +257,7 @@ struct PriceHistoryChart: View
         { outerGeometry in
             let chartRuns = self.chartRuns
             let yDomain = Self.yDomain( for: chartRuns, filters: self.filters )
+            let currency = Self.currency( for: chartRuns )
             let domainValues = Self.paddedDomainValues(
                 chartRuns: chartRuns,
                 availableWidth: outerGeometry.size.width,
@@ -254,6 +293,21 @@ struct PriceHistoryChart: View
             }
             .chartXScale( domain: domainValues )
             .chartXAxis( .hidden )
+            .chartYAxis
+            {
+                AxisMarks
+                { value in
+                    AxisGridLine()
+                    AxisTick()
+                    AxisValueLabel
+                    {
+                        if let amount = value.as( Double.self )
+                        {
+                            Text( Self.axisLabel( for: amount, currency: currency ) )
+                        }
+                    }
+                }
+            }
             .chartYScale( domain: yDomain )
             .chartOverlay
             { proxy in
