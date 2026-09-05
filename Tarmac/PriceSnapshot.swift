@@ -82,14 +82,20 @@ final class PriceSnapshot
         return "\( Int( self.amount )) \( self.currency )"
     }
 
+    // Autoupdating rather than a snapshot, so each reading resolves against the zone in force at
+    // the time: this is read per fare while a trip-duration filter is active, and a search's results
+    // outlive a change of time zone.
+    private static let localCalendar = Calendar.autoupdatingCurrent
+
     /**
      * How long the round trip lasts, counted in nights: the whole-day difference between the
      * outbound and inbound departure dates, not the inclusive day count. An outbound departing
      * 5 October and an inbound departing 8 October is 3, matching the number
      * `SavedSearch.tripDurationDays` was configured with rather than being off by one against it.
      *
-     * Both dates are instants derived from local wall-clock times, so they are normalised with
-     * `Calendar.current` — the same zone their strings were parsed in — before differencing.
+     * Both dates are instants derived from local wall-clock times, so they are normalised in the
+     * current zone — the one their strings were parsed in — before differencing. That makes these
+     * whole *local* days, where `ResultFilters` buckets its date filters into whole UTC ones.
      *
      * @return The number of nights, or `nil` for a one-way fare, a fare missing either date, or
      *         an inbound departing before the outbound.
@@ -103,7 +109,7 @@ final class PriceSnapshot
             return nil
         }
 
-        let calendar = Calendar.current
+        let calendar = Self.localCalendar
         let outboundDay = calendar.startOfDay( for: departureDate )
         let inboundDay = calendar.startOfDay( for: inboundDepartureDate )
 

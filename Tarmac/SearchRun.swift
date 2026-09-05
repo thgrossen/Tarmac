@@ -73,7 +73,7 @@ final class SearchRun
      * @param filters Filters to apply, or nil to apply none.
      * @return The matching itineraries, in their recorded order.
      */
-    func fares( matching filters: OneWayFilters? ) -> [ PriceSnapshot ]
+    func fares( matching filters: ResultFilters? ) -> [ PriceSnapshot ]
     {
         filters?.apply( to: self.itineraries ) ?? self.itineraries
     }
@@ -86,7 +86,7 @@ final class SearchRun
      * @param filters Filters to apply, or nil to apply none.
      * @return The cheapest and most expensive matching price, or nil if nothing matched.
      */
-    func fareRange( matching filters: OneWayFilters? ) -> ( low: Double, high: Double )?
+    func fareRange( matching filters: ResultFilters? ) -> ( low: Double, high: Double )?
     {
         let amounts = self.fares( matching: filters ).map( \.amount ).filter { $0.isFinite }
         guard let low = amounts.min(),

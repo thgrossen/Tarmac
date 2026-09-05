@@ -7,8 +7,8 @@
 import Foundation
 
 /**
- * The extents a one-way search's filters may be set within, derived from the fares its runs have
- * actually returned.
+ * The extents a search's filters may be set within, derived from the fares its runs have actually
+ * returned.
  *
  * Bounds span every run of the search rather than just the selected one, so a filter keeps meaning
  * the same thing — and its controls keep the same extents — while stepping through updates.
@@ -17,7 +17,7 @@ import Foundation
  * case of a single distinct value: filtering to the one value every fare already has narrows
  * nothing, so those rows are left out of the popover entirely.
  */
-struct OneWayFilterBounds: Equatable
+struct ResultFilterBounds: Equatable
 {
     var priceRange: ClosedRange< Double >?
     var dateRange: ClosedRange< Date >?
@@ -27,6 +27,12 @@ struct OneWayFilterBounds: Equatable
     var durationRange: ClosedRange< Int >?
     var stopsRange: ClosedRange< Int >?
     var flightNumbers: [ String ] = []
+
+    // Extents only a round trip's fares can supply. A one-way fare carries none of these values, so
+    // they stay nil and the popover leaves their rows out without needing to know the search's kind.
+    var tripDurationRange: ClosedRange< Int >?
+    var inboundDateRange: ClosedRange< Date >?
+    var inboundDepartureMinuteRange: ClosedRange< Int >?
 
     // Currency the prices are quoted in, purely so the price filter can label its ends.
     var currency: String?
@@ -45,6 +51,9 @@ struct OneWayFilterBounds: Equatable
             && self.durationRange == nil
             && self.stopsRange == nil
             && self.flightNumbers.isEmpty
+            && self.tripDurationRange == nil
+            && self.inboundDateRange == nil
+            && self.inboundDepartureMinuteRange == nil
     }
 
     /**
@@ -53,20 +62,24 @@ struct OneWayFilterBounds: Equatable
      * @param runs The search's runs, in any order.
      * @return The bounds each filter may be set within.
      */
-    static func bounds( for runs: [ SearchRun ] ) -> OneWayFilterBounds
+    static func bounds( for runs: [ SearchRun ] ) -> ResultFilterBounds
     {
         let snapshots = runs.flatMap { $0.itineraries }
 
-        var bounds = OneWayFilterBounds()
+        var bounds = ResultFilterBounds()
         bounds.priceRange           = Self.range( of: snapshots.map( \.amount ).filter { $0.isFinite } )
         bounds.dateRange            = Self.range( of: snapshots.compactMap( \.departureDate ) )
         bounds.carriers             = Self.distinct( snapshots.compactMap( \.carrier ) )
-        bounds.departureMinuteRange = Self.range( of: snapshots.compactMap { OneWayFilters.minutes( fromClockTime: $0.departureTime ) } )
-        bounds.arrivalMinuteRange   = Self.range( of: snapshots.compactMap { OneWayFilters.minutes( fromClockTime: $0.arrivalTime ) } )
-        bounds.durationRange        = Self.range( of: snapshots.compactMap { OneWayFilters.minutes( fromDuration: $0.outboundDuration ) } )
+        bounds.departureMinuteRange = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromClockTime: $0.departureTime ) } )
+        bounds.arrivalMinuteRange   = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromClockTime: $0.arrivalTime ) } )
+        bounds.durationRange        = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromDuration: $0.outboundDuration ) } )
         bounds.stopsRange           = Self.range( of: snapshots.compactMap( \.outboundStopCount ) )
         bounds.flightNumbers        = Self.distinct( snapshots.flatMap( \.outboundFlightNumbers ) )
         bounds.currency             = snapshots.first( where: { $0.amount.isFinite } )?.currency
+
+        bounds.tripDurationRange           = Self.range( of: snapshots.compactMap( \.tripDurationDays ) )
+        bounds.inboundDateRange            = Self.range( of: snapshots.compactMap( \.inboundDepartureDate ) )
+        bounds.inboundDepartureMinuteRange = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromClockTime: $0.inboundDepartureTime ) } )
         return bounds
     }
 

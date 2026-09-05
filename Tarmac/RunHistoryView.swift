@@ -12,7 +12,7 @@ struct RunHistoryView: View
 {
     var runs: [ SearchRun ]     // newest first
     @Binding var selection: SearchRun?
-    var filters: OneWayFilters?
+    var filters: ResultFilters?
 
     /**
      * Title and body copy for the itinerary table's empty state, which distinguishes a run that
@@ -64,7 +64,7 @@ struct PriceHistoryChart: View
 {
     var runs: [ SearchRun ]     // newest first
     @Binding var selection: SearchRun?
-    var filters: OneWayFilters?
+    var filters: ResultFilters?
 
     @State private var hoveredRunID: String?
     @State private var hoverLocation: CGPoint?
@@ -96,7 +96,7 @@ struct PriceHistoryChart: View
      * @param filters Results filters the plotted prices are narrowed by, or nil to plot every fare.
      * @return The padded domain, or 0...1 if there is nothing to plot.
      */
-    static func yDomain( for runs: [ SearchRun ], filters: OneWayFilters? = nil ) -> ClosedRange< Double >
+    static func yDomain( for runs: [ SearchRun ], filters: ResultFilters? = nil ) -> ClosedRange< Double >
     {
         let ranges = runs.compactMap { $0.fareRange( matching: filters ) }
         let lows   = ranges.map( \.low )
@@ -123,7 +123,7 @@ struct PriceHistoryChart: View
      * @param filters Results filters the plotted prices are narrowed by, or nil to plot every fare.
      * @return The bar's low and high values, in the same units as `yDomain`.
      */
-    static func barExtent( for run: SearchRun, yDomain: ClosedRange< Double >, filters: OneWayFilters? = nil ) -> ( low: Double, high: Double )
+    static func barExtent( for run: SearchRun, yDomain: ClosedRange< Double >, filters: ResultFilters? = nil ) -> ( low: Double, high: Double )
     {
         if let range = run.fareRange( matching: filters )
         {
@@ -426,7 +426,7 @@ private extension PriceSnapshot
     // unpadded hour component (e.g. "10h30" vs. "2h05") doesn't compare correctly as text.
     var outboundDurationSortKey: Int
     {
-        OneWayFilters.minutes( fromDuration: self.outboundDuration ) ?? 0
+        ResultFilters.minutes( fromDuration: self.outboundDuration ) ?? 0
     }
 
     var carrierSortKey: String { self.carrier ?? "" }
@@ -446,7 +446,7 @@ private extension PriceSnapshot
 private struct RunDetailView: View
 {
     var run: SearchRun
-    var filters: OneWayFilters?
+    var filters: ResultFilters?
     @State private var sortOrder = [ KeyPathComparator( \PriceSnapshot.amount ) ]
 
     @Environment( APIInspectorState.self ) private var inspectorState

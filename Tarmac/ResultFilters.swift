@@ -7,16 +7,17 @@
 import Foundation
 
 /**
- * Per-search result filters for a one-way search, persisted on `SavedSearch`.
+ * Per-search result filters, persisted on `SavedSearch`.
  *
  * Every field is nil when that filter is unset, rather than being pinned to the full extent of the
  * data — so a filter never becomes active on its own when a later run widens the available range,
  * and stored values never need clamping when the bounds shift underneath them.
  *
- * Filters combine with AND. See `OneWayFilterBounds` for the editable extents these values are
- * chosen from.
+ * Filters combine with AND. Some read a value only a round-trip fare carries, and are simply never
+ * offered for a one-way search, since its fares yield no extents for them. See
+ * `ResultFilterBounds` for the editable extents these values are chosen from.
  */
-struct OneWayFilters: Codable, Equatable
+struct ResultFilters: Codable, Equatable
 {
     var minPrice: Double?
     var maxPrice: Double?
@@ -32,6 +33,15 @@ struct OneWayFilters: Codable, Equatable
     var maxStops: Int?
     var flightNumbers: [ String ]?          // nil = every flight number
 
+    // Filters on values only a round-trip fare carries. A one-way fare has none of them, so its
+    // runs yield no extents for these and the popover never offers them.
+    var minTripDurationDays: Int?           // nights
+    var maxTripDurationDays: Int?
+    var inboundStartDate: Date?
+    var inboundEndDate: Date?
+    var inboundDepartureStartMinute: Int?   // minutes since midnight
+    var inboundDepartureEndMinute: Int?
+
     // MARK: - State
 
     /**
@@ -44,6 +54,7 @@ struct OneWayFilters: Codable, Equatable
     {
         let isSet = [
             self.minPrice != nil || self.maxPrice != nil,
+            self.minTripDurationDays != nil || self.maxTripDurationDays != nil,
             self.startDate != nil || self.endDate != nil,
             self.carriers != nil,
             self.departureStartMinute != nil || self.departureEndMinute != nil,
@@ -51,6 +62,8 @@ struct OneWayFilters: Codable, Equatable
             self.minDurationMinutes != nil || self.maxDurationMinutes != nil,
             self.maxStops != nil,
             self.flightNumbers != nil,
+            self.inboundStartDate != nil || self.inboundEndDate != nil,
+            self.inboundDepartureStartMinute != nil || self.inboundDepartureEndMinute != nil,
         ]
 
         return isSet.filter { $0 }.count
@@ -165,6 +178,49 @@ struct OneWayFilters: Codable, Equatable
             }
         }
 
+        // Guarded rather than left to `isOutside`, which would early-return but only after the
+        // argument had been evaluated. Unlike the clock-time parses above, this one is whole-day
+        // arithmetic per fare, over every fare of every run — so it is also placed after the cheap
+        // checks rather than in its presentation position, and a fare rejected earlier never pays
+        // for it.
+        if self.minTripDurationDays != nil || self.maxTripDurationDays != nil,
+           Self.isOutside(
+               snapshot.tripDurationDays,
+               start: self.minTripDurationDays,
+               end: self.maxTripDurationDays
+           )
+        {
+            return false
+        }
+
+        if self.inboundStartDate != nil || self.inboundEndDate != nil
+        {
+            guard let inboundDepartureDate = snapshot.inboundDepartureDate
+            else
+            {
+                return false
+            }
+            if let inboundStartDate,
+               inboundDepartureDate < inboundStartDate
+            {
+                return false
+            }
+            if let inboundEndDate,
+               inboundDepartureDate > inboundEndDate
+            {
+                return false
+            }
+        }
+
+        if Self.isOutside(
+            Self.minutes( fromClockTime: snapshot.inboundDepartureTime ),
+            start: self.inboundDepartureStartMinute,
+            end: self.inboundDepartureEndMinute
+        )
+        {
+            return false
+        }
+
         return true
     }
 
@@ -264,8 +320,12 @@ struct OneWayFilters: Codable, Equatable
 
     // MARK: - Days
 
-    // Departure dates are compared in UTC throughout the app (see `SavedSearch.dateRangeLabel`),
-    // so the date filter counts whole UTC days too.
+    // The date filters count whole UTC days. Fare dates are instants parsed from local wall-clock
+    // strings, so a departure close to midnight can fall on a different day here than in the results
+    // table, which renders it in the current zone — and than in `PriceSnapshot.tripDurationDays`,
+    // which counts whole local days. Changing this means deciding whether the app's canonical fare
+    // day is UTC or local, and moving the parser, both date filters, the trip duration and the table
+    // together.
     private static let calendar: Calendar = {
         var c = Calendar( identifier: .gregorian )
         c.timeZone = TimeZone( identifier: "UTC" )!
@@ -361,15 +421,22 @@ struct OneWayFilters: Codable, Equatable
     {
         let id: String
         let label: String
-        let cleared: OneWayFilters
+        let cleared: ResultFilters
     }
 
     /**
      * Describes every currently active filter, in the order they're presented in the popover.
      *
+     * The filters fall into four groups, and the chips name them accordingly: the price, which
+     * belongs to no leg; the trip duration, which spans both; the outbound-leg group, which for a
+     * round trip carries the same "Outbound" qualifier its popover row does — without which a bare
+     * "LX 1234" or "Direct only" would say nothing about which leg it constrains; and the inbound
+     * group, which names its leg outright since it exists only for a round trip.
+     *
+     * @param isRoundTrip Whether the search has an inbound leg to distinguish the outbound one from.
      * @return One chip per active filter; empty when nothing is set.
      */
-    func chips() -> [ Chip ]
+    func chips( isRoundTrip: Bool ) -> [ Chip ]
     {
         var chips: [ Chip ] = []
 
@@ -381,19 +448,36 @@ struct OneWayFilters: Codable, Equatable
             chips.append( Chip( id: "price", label: "Price \( Self.rangeLabel( self.minPrice.map( Self.priceLabel ), self.maxPrice.map( Self.priceLabel ) ) )", cleared: cleared ) )
         }
 
+        if self.minTripDurationDays != nil || self.maxTripDurationDays != nil
+        {
+            var cleared = self
+            cleared.minTripDurationDays = nil
+            cleared.maxTripDurationDays = nil
+            let nights = Self.rangeLabel( self.minTripDurationDays.map( String.init ), self.maxTripDurationDays.map( String.init ) )
+
+            // The label ends in whichever bound is set, and a same-day return makes a lower bound of
+            // one night reachable — so the plural follows that trailing number, not the upper bound.
+            // One noun after the whole range, which is why this doesn't read through
+            // `SavedSearch.nightsLabel( forNights: )` the way the popover's row does.
+            let trailing = self.maxTripDurationDays ?? self.minTripDurationDays
+            chips.append( Chip( id: "tripDuration", label: "Trip \( nights ) night\( trailing == 1 ? "" : "s" )", cleared: cleared ) )
+        }
+
         if self.startDate != nil || self.endDate != nil
         {
             var cleared = self
             cleared.startDate = nil
             cleared.endDate = nil
-            chips.append( Chip( id: "date", label: "Date \( Self.rangeLabel( self.startDate.map( Self.dateLabel(for:) ), self.endDate.map( Self.dateLabel(for:) ) ) )", cleared: cleared ) )
+            let title = isRoundTrip ? "Outbound date" : "Date"
+            chips.append( Chip( id: "date", label: "\( title ) \( Self.rangeLabel( self.startDate.map( Self.dateLabel(for:) ), self.endDate.map( Self.dateLabel(for:) ) ) )", cleared: cleared ) )
         }
 
         if let carriers
         {
             var cleared = self
             cleared.carriers = nil
-            chips.append( Chip( id: "carriers", label: Self.listLabel( carriers, noun: "carriers" ), cleared: cleared ) )
+            let values = Self.listLabel( carriers, noun: "carriers" )
+            chips.append( Chip( id: "carriers", label: isRoundTrip ? "Outbound carriers: \( values )" : values, cleared: cleared ) )
         }
 
         if self.departureStartMinute != nil || self.departureEndMinute != nil
@@ -401,7 +485,8 @@ struct OneWayFilters: Codable, Equatable
             var cleared = self
             cleared.departureStartMinute = nil
             cleared.departureEndMinute = nil
-            chips.append( Chip( id: "departure", label: "Departs \( Self.rangeLabel( self.departureStartMinute.map( Self.clockTimeLabel(forMinutes:) ), self.departureEndMinute.map( Self.clockTimeLabel(forMinutes:) ) ) )", cleared: cleared ) )
+            let title = isRoundTrip ? "Outbound departure" : "Departs"
+            chips.append( Chip( id: "departure", label: "\( title ) \( Self.rangeLabel( self.departureStartMinute.map( Self.clockTimeLabel(forMinutes:) ), self.departureEndMinute.map( Self.clockTimeLabel(forMinutes:) ) ) )", cleared: cleared ) )
         }
 
         if self.arrivalStartMinute != nil || self.arrivalEndMinute != nil
@@ -409,7 +494,8 @@ struct OneWayFilters: Codable, Equatable
             var cleared = self
             cleared.arrivalStartMinute = nil
             cleared.arrivalEndMinute = nil
-            chips.append( Chip( id: "arrival", label: "Arrives \( Self.rangeLabel( self.arrivalStartMinute.map( Self.clockTimeLabel(forMinutes:) ), self.arrivalEndMinute.map( Self.clockTimeLabel(forMinutes:) ) ) )", cleared: cleared ) )
+            let title = isRoundTrip ? "Outbound arrival" : "Arrives"
+            chips.append( Chip( id: "arrival", label: "\( title ) \( Self.rangeLabel( self.arrivalStartMinute.map( Self.clockTimeLabel(forMinutes:) ), self.arrivalEndMinute.map( Self.clockTimeLabel(forMinutes:) ) ) )", cleared: cleared ) )
         }
 
         if self.minDurationMinutes != nil || self.maxDurationMinutes != nil
@@ -417,14 +503,18 @@ struct OneWayFilters: Codable, Equatable
             var cleared = self
             cleared.minDurationMinutes = nil
             cleared.maxDurationMinutes = nil
-            chips.append( Chip( id: "duration", label: "Duration \( Self.rangeLabel( self.minDurationMinutes.map( Self.durationLabel(forMinutes:) ), self.maxDurationMinutes.map( Self.durationLabel(forMinutes:) ) ) )", cleared: cleared ) )
+            let title = isRoundTrip ? "Outbound duration" : "Duration"
+            chips.append( Chip( id: "duration", label: "\( title ) \( Self.rangeLabel( self.minDurationMinutes.map( Self.durationLabel(forMinutes:) ), self.maxDurationMinutes.map( Self.durationLabel(forMinutes:) ) ) )", cleared: cleared ) )
         }
 
         if let maxStops
         {
             var cleared = self
             cleared.maxStops = nil
-            let label = maxStops == 0 ? "Direct only" : "≤ \( maxStops ) stop\( maxStops == 1 ? "" : "s" )"
+            // Only the outbound leg's stops are recorded, so a round trip says so rather than
+            // letting "Direct only" read as a promise about the way back too.
+            let limit  = maxStops == 0 ? "Direct only" : "≤ \( maxStops ) stop\( maxStops == 1 ? "" : "s" )"
+            let label  = isRoundTrip ? "Outbound \( limit.lowercased() )" : limit
             chips.append( Chip( id: "stops", label: label, cleared: cleared ) )
         }
 
@@ -432,7 +522,26 @@ struct OneWayFilters: Codable, Equatable
         {
             var cleared = self
             cleared.flightNumbers = nil
-            chips.append( Chip( id: "flightNumbers", label: Self.listLabel( flightNumbers, noun: "flights" ), cleared: cleared ) )
+            // The round-trip table prints both legs' flight numbers in the same "LX 1234" form, so
+            // the chip has to say which of them it narrows.
+            let values = Self.listLabel( flightNumbers, noun: "flights" )
+            chips.append( Chip( id: "flightNumbers", label: isRoundTrip ? "Outbound flight n°: \( values )" : values, cleared: cleared ) )
+        }
+
+        if self.inboundStartDate != nil || self.inboundEndDate != nil
+        {
+            var cleared = self
+            cleared.inboundStartDate = nil
+            cleared.inboundEndDate = nil
+            chips.append( Chip( id: "inboundDate", label: "Inbound date \( Self.rangeLabel( self.inboundStartDate.map( Self.dateLabel(for:) ), self.inboundEndDate.map( Self.dateLabel(for:) ) ) )", cleared: cleared ) )
+        }
+
+        if self.inboundDepartureStartMinute != nil || self.inboundDepartureEndMinute != nil
+        {
+            var cleared = self
+            cleared.inboundDepartureStartMinute = nil
+            cleared.inboundDepartureEndMinute = nil
+            chips.append( Chip( id: "inboundDeparture", label: "Inbound departure \( Self.rangeLabel( self.inboundDepartureStartMinute.map( Self.clockTimeLabel(forMinutes:) ), self.inboundDepartureEndMinute.map( Self.clockTimeLabel(forMinutes:) ) ) )", cleared: cleared ) )
         }
 
         return chips

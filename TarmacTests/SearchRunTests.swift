@@ -117,7 +117,7 @@ struct SearchRunTests
             PriceSnapshot( amount: 450, currency: "CHF" ),
         ]
 
-        var filters = OneWayFilters()
+        var filters = ResultFilters()
         filters.minPrice = 400
 
         #expect( run.fares( matching: filters ).count == 2 )
@@ -133,7 +133,7 @@ struct SearchRunTests
         let run = SearchRun( requestCount: 1 )
         run.itineraries = [ PriceSnapshot( amount: 600, currency: "CHF" ) ]
 
-        var filters = OneWayFilters()
+        var filters = ResultFilters()
         filters.maxPrice = 400
 
         #expect( run.fares( matching: filters ).isEmpty )

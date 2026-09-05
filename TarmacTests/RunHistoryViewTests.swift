@@ -155,9 +155,9 @@ struct PriceHistoryChartTests
 
     // MARK: - Filtered plotting
 
-    private static func filters( maxPrice: Double ) -> OneWayFilters
+    private static func filters( maxPrice: Double ) -> ResultFilters
     {
-        var filters = OneWayFilters()
+        var filters = ResultFilters()
         filters.maxPrice = maxPrice
         return filters
     }
@@ -228,26 +228,44 @@ struct FilteredResultsTests
     @Test( "max stops reads as a plain-English limit" )
     func maxStopsLabel()
     {
-        #expect( OneWayFiltersPopover.maxStopsLabel( for: 0, isUnrestricted: false ) == "Direct only" )
-        #expect( OneWayFiltersPopover.maxStopsLabel( for: 1, isUnrestricted: false ) == "Up to 1 stop" )
-        #expect( OneWayFiltersPopover.maxStopsLabel( for: 3, isUnrestricted: false ) == "Up to 3 stops" )
+        #expect( ResultFiltersPopover.maxStopsLabel( for: 0, isUnrestricted: false ) == "Direct only" )
+        #expect( ResultFiltersPopover.maxStopsLabel( for: 1, isUnrestricted: false ) == "Up to 1 stop" )
+        #expect( ResultFiltersPopover.maxStopsLabel( for: 3, isUnrestricted: false ) == "Up to 3 stops" )
     }
 
     @Test( "the entry that excludes nothing reads as no limit at all" )
     func maxStopsUnrestrictedLabel()
     {
-        #expect( OneWayFiltersPopover.maxStopsLabel( for: 2, isUnrestricted: true ) == "Any" )
+        #expect( ResultFiltersPopover.maxStopsLabel( for: 2, isUnrestricted: true ) == "Any" )
     }
 
-    @Test( "filters are only applied to a one-way search that actually has some set" )
+    @Test( "a round trip's outbound-leg filters name the leg they narrow" )
+    func outboundRowTitles()
+    {
+        #expect( ResultFiltersPopover.outboundRowTitle( "Departure", isRoundTrip: false ) == "Departure" )
+        #expect( ResultFiltersPopover.outboundRowTitle( "Date", isRoundTrip: false ) == "Date" )
+
+        #expect( ResultFiltersPopover.outboundRowTitle( "Date", isRoundTrip: true ) == "Outbound date" )
+        #expect( ResultFiltersPopover.outboundRowTitle( "Departure", isRoundTrip: true ) == "Outbound departure" )
+        #expect( ResultFiltersPopover.outboundRowTitle( "Arrival", isRoundTrip: true ) == "Outbound arrival" )
+        #expect( ResultFiltersPopover.outboundRowTitle( "Duration", isRoundTrip: true ) == "Outbound duration" )
+
+        // Carrier, stops and flight number are recorded for the outbound leg alone too, so they
+        // name it as well — without which "Direct only" would read as a promise about both legs.
+        #expect( ResultFiltersPopover.outboundRowTitle( "Carriers", isRoundTrip: true ) == "Outbound carriers" )
+        #expect( ResultFiltersPopover.outboundRowTitle( "Max stops", isRoundTrip: true ) == "Outbound max stops" )
+        #expect( ResultFiltersPopover.outboundRowTitle( "Flight n°", isRoundTrip: true ) == "Outbound flight n°" )
+    }
+
+    @Test( "filters are only applied to a search that actually has some set" )
     func appliedFilters()
     {
-        var active = OneWayFilters()
+        var active = ResultFilters()
         active.maxPrice = 400
 
         #expect( SearchDetailView.appliedFilters( active, isFilterable: true ) == active )
         #expect( SearchDetailView.appliedFilters( active, isFilterable: false ) == nil )
-        #expect( SearchDetailView.appliedFilters( OneWayFilters(), isFilterable: true ) == nil )
+        #expect( SearchDetailView.appliedFilters( ResultFilters(), isFilterable: true ) == nil )
     }
 
     @Test( "chips wrap onto a new row once one runs out of width" )

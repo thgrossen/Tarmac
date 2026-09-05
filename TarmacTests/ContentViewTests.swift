@@ -272,6 +272,36 @@ struct ResultsPaneTests
 @Suite( "SearchDetailView" )
 struct SearchDetailViewTests
 {
+    @Test( "Nothing is filterable until a fare carries a value some filter could narrow" )
+    func isFilterableFollowsTheBounds()
+    {
+        #expect( SearchDetailView.isFilterable( bounds: ResultFilterBounds() ) == false )
+
+        // Fares carrying an inbound leg, as a round trip's do.
+        let run = SearchRun( requestCount: 1 )
+        run.itineraries = [
+            PriceSnapshot( amount: 300, currency: "CHF", outboundSummary: "LX 1234", inboundSummary: "LX 5678", departureTime: "06:00", inboundDepartureTime: "21:15" ),
+            PriceSnapshot( amount: 900, currency: "CHF", outboundSummary: "TP 4321", inboundSummary: "TP 8765", departureTime: "18:45", inboundDepartureTime: "07:30" ),
+        ]
+
+        #expect( SearchDetailView.isFilterable( bounds: ResultFilterBounds.bounds( for: [ run ] ) ) )
+    }
+
+    @Test( "The Filters button counts only the filters that are actually narrowing the results" )
+    func filtersButtonTitleCountsAppliedFilters()
+    {
+        var active = ResultFilters()
+        active.maxPrice = 400
+        active.maxStops = 0
+
+        #expect( SearchDetailView.filtersButtonTitle( isFilterable: true, filters: active ) == "Filters (2)" )
+        #expect( SearchDetailView.filtersButtonTitle( isFilterable: true, filters: ResultFilters() ) == "Filters" )
+
+        // With nothing to filter on the popover cannot be opened and the chip bar is absent, so a
+        // count would name filters the user has no way to reach.
+        #expect( SearchDetailView.filtersButtonTitle( isFilterable: false, filters: active ) == "Filters" )
+    }
+
     @Test( "The button reads Update while nothing is running" )
     func updateButtonTitleWhenIdle()
     {

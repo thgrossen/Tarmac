@@ -36,8 +36,12 @@ final class SavedSearch
     var mustIncludeWeekend: Bool
 
     // Result filters this search's itinerary table and price history are narrowed by, remembered
-    // across runs and across app launches. One-way-only for now; nil means nothing is filtered.
-    var oneWayFilters: OneWayFilters? = nil
+    // across runs and across app launches. Nil means nothing is filtered.
+    //
+    // The persisted attribute name is pinned, so a store's saved filters survive lightweight
+    // migration.
+    @Attribute( originalName: "oneWayFilters" )
+    var resultFilters: ResultFilters? = nil
 
     @Relationship( deleteRule: .cascade, inverse: \SearchRun.savedSearch )     var runs: [ SearchRun ] = []
 

@@ -51,9 +51,9 @@ enum FilterPersistencePreference
         }
 
         var isChanged = false
-        for search in searches where search.oneWayFilters != nil
+        for search in searches where search.resultFilters != nil
         {
-            search.oneWayFilters = nil
+            search.resultFilters = nil
             isChanged = true
         }
 

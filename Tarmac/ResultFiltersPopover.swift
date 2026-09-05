@@ -7,20 +7,22 @@
 import SwiftUI
 
 /**
- * Editor for a one-way search's result filters, presented from the results header's Filters button.
+ * Editor for a search's result filters, presented from the results header's Filters button.
  *
- * Every row is driven by `OneWayFilterBounds`, so only the filters the returned fares can actually
+ * Every row is driven by `ResultFilterBounds`, so only the filters the returned fares can actually
  * support are offered. Dragging a range back to its full extent clears that filter rather than
  * leaving it set to "everything".
  */
-struct OneWayFiltersPopover: View
+struct ResultFiltersPopover: View
 {
-    var bounds: OneWayFilterBounds
-    @Binding var filters: OneWayFilters
+    var bounds: ResultFilterBounds
+    var isRoundTrip: Bool
+    @Binding var filters: ResultFilters
 
-    // Departure and arrival times are filtered across the whole clock rather than only the span the
-    // results happen to cover, so "leaves after 06:00" means the same thing whatever the data; the
-    // bounds derived from the fares only decide whether the filter is worth offering at all.
+    // Departure, arrival and inbound-departure times are filtered across the whole clock rather than
+    // only the span the results happen to cover, so "leaves after 06:00" means the same thing
+    // whatever the data; the bounds derived from the fares only decide whether the filter is worth
+    // offering at all.
     private static let clockMinuteBounds: ClosedRange< Double > = 0 ... Double( 24 * 60 - 1 )
 
     var body: some View
@@ -41,13 +43,25 @@ struct OneWayFiltersPopover: View
                     )
                 }
 
+                if let tripDurationRange = self.bounds.tripDurationRange
+                {
+                    RangeFilterRow(
+                        title: "Trip",
+                        bounds: Double( tripDurationRange.lowerBound ) ... Double( tripDurationRange.upperBound ),
+                        step: 1,
+                        format: { SavedSearch.nightsLabel( forNights: Int( $0.rounded() ) ) },
+                        lower: self.wholeNumberBinding( self.$filters.minTripDurationDays ),
+                        upper: self.wholeNumberBinding( self.$filters.maxTripDurationDays )
+                    )
+                }
+
                 if let dateRange = self.bounds.dateRange
                 {
                     RangeFilterRow(
-                        title: "Date",
-                        bounds: 0 ... Double( OneWayFilters.dayIndex( for: dateRange.upperBound, from: dateRange.lowerBound ) ),
+                        title: Self.outboundRowTitle( "Date", isRoundTrip: self.isRoundTrip ),
+                        bounds: 0 ... Double( ResultFilters.dayIndex( for: dateRange.upperBound, from: dateRange.lowerBound ) ),
                         step: 1,
-                        format: { OneWayFilters.dateLabel( for: OneWayFilters.date( atDayIndex: Int( $0.rounded() ), from: dateRange.lowerBound, isEndOfDay: false ) ) },
+                        format: { ResultFilters.dateLabel( for: ResultFilters.date( atDayIndex: Int( $0.rounded() ), from: dateRange.lowerBound, isEndOfDay: false ) ) },
                         lower: self.dayBinding( self.$filters.startDate, from: dateRange.lowerBound, isEndOfDay: false ),
                         upper: self.dayBinding( self.$filters.endDate, from: dateRange.lowerBound, isEndOfDay: true )
                     )
@@ -56,7 +70,7 @@ struct OneWayFiltersPopover: View
                 if self.bounds.carriers.isEmpty == false
                 {
                     MultiSelectFilterRow(
-                        title: "Carriers",
+                        title: Self.outboundRowTitle( "Carriers", isRoundTrip: self.isRoundTrip ),
                         noun: "carriers",
                         values: self.bounds.carriers,
                         selection: self.$filters.carriers
@@ -66,36 +80,36 @@ struct OneWayFiltersPopover: View
                 if self.bounds.departureMinuteRange != nil
                 {
                     RangeFilterRow(
-                        title: "Departure",
+                        title: Self.outboundRowTitle( "Departure", isRoundTrip: self.isRoundTrip ),
                         bounds: Self.clockMinuteBounds,
                         step: 5,
-                        format: { OneWayFilters.clockTimeLabel( forMinutes: Int( $0.rounded() ) ) },
-                        lower: self.minuteBinding( self.$filters.departureStartMinute ),
-                        upper: self.minuteBinding( self.$filters.departureEndMinute )
+                        format: { ResultFilters.clockTimeLabel( forMinutes: Int( $0.rounded() ) ) },
+                        lower: self.wholeNumberBinding( self.$filters.departureStartMinute ),
+                        upper: self.wholeNumberBinding( self.$filters.departureEndMinute )
                     )
                 }
 
                 if self.bounds.arrivalMinuteRange != nil
                 {
                     RangeFilterRow(
-                        title: "Arrival",
+                        title: Self.outboundRowTitle( "Arrival", isRoundTrip: self.isRoundTrip ),
                         bounds: Self.clockMinuteBounds,
                         step: 5,
-                        format: { OneWayFilters.clockTimeLabel( forMinutes: Int( $0.rounded() ) ) },
-                        lower: self.minuteBinding( self.$filters.arrivalStartMinute ),
-                        upper: self.minuteBinding( self.$filters.arrivalEndMinute )
+                        format: { ResultFilters.clockTimeLabel( forMinutes: Int( $0.rounded() ) ) },
+                        lower: self.wholeNumberBinding( self.$filters.arrivalStartMinute ),
+                        upper: self.wholeNumberBinding( self.$filters.arrivalEndMinute )
                     )
                 }
 
                 if let durationRange = self.bounds.durationRange
                 {
                     RangeFilterRow(
-                        title: "Duration",
+                        title: Self.outboundRowTitle( "Duration", isRoundTrip: self.isRoundTrip ),
                         bounds: Double( durationRange.lowerBound ) ... Double( durationRange.upperBound ),
                         step: 5,
-                        format: { OneWayFilters.durationLabel( forMinutes: Int( $0.rounded() ) ) },
-                        lower: self.minuteBinding( self.$filters.minDurationMinutes ),
-                        upper: self.minuteBinding( self.$filters.maxDurationMinutes )
+                        format: { ResultFilters.durationLabel( forMinutes: Int( $0.rounded() ) ) },
+                        lower: self.wholeNumberBinding( self.$filters.minDurationMinutes ),
+                        upper: self.wholeNumberBinding( self.$filters.maxDurationMinutes )
                     )
                 }
 
@@ -107,10 +121,34 @@ struct OneWayFiltersPopover: View
                 if self.bounds.flightNumbers.isEmpty == false
                 {
                     MultiSelectFilterRow(
-                        title: "Flight n°",
+                        title: Self.outboundRowTitle( "Flight n°", isRoundTrip: self.isRoundTrip ),
                         noun: "flights",
                         values: self.bounds.flightNumbers,
                         selection: self.$filters.flightNumbers
+                    )
+                }
+
+                if let inboundDateRange = self.bounds.inboundDateRange
+                {
+                    RangeFilterRow(
+                        title: "Inbound date",
+                        bounds: 0 ... Double( ResultFilters.dayIndex( for: inboundDateRange.upperBound, from: inboundDateRange.lowerBound ) ),
+                        step: 1,
+                        format: { ResultFilters.dateLabel( for: ResultFilters.date( atDayIndex: Int( $0.rounded() ), from: inboundDateRange.lowerBound, isEndOfDay: false ) ) },
+                        lower: self.dayBinding( self.$filters.inboundStartDate, from: inboundDateRange.lowerBound, isEndOfDay: false ),
+                        upper: self.dayBinding( self.$filters.inboundEndDate, from: inboundDateRange.lowerBound, isEndOfDay: true )
+                    )
+                }
+
+                if self.bounds.inboundDepartureMinuteRange != nil
+                {
+                    RangeFilterRow(
+                        title: "Inbound departure",
+                        bounds: Self.clockMinuteBounds,
+                        step: 5,
+                        format: { ResultFilters.clockTimeLabel( forMinutes: Int( $0.rounded() ) ) },
+                        lower: self.wholeNumberBinding( self.$filters.inboundDepartureStartMinute ),
+                        upper: self.wholeNumberBinding( self.$filters.inboundDepartureEndMinute )
                     )
                 }
             }
@@ -122,7 +160,7 @@ struct OneWayFiltersPopover: View
                     Spacer()
                     Button( "Reset All" )
                     {
-                        self.filters = OneWayFilters()
+                        self.filters = ResultFilters()
                     }
                     .disabled( self.filters.isActive == false )
                 }
@@ -152,7 +190,7 @@ struct OneWayFiltersPopover: View
             set: { self.filters.maxStops = $0 >= range.upperBound ? nil : $0 }
         )
 
-        return Picker( "Max stops", selection: selection )
+        return Picker( Self.outboundRowTitle( "Max stops", isRoundTrip: self.isRoundTrip ), selection: selection )
         {
             ForEach( Array( range ), id: \.self )
             { stops in
@@ -160,6 +198,29 @@ struct OneWayFiltersPopover: View
                     .tag( stops )
             }
         }
+    }
+
+    /**
+     * Titles a row filtering on the outbound leg. Every row this titles reads an outbound value,
+     * and a round trip has a second leg those values could just as well belong to, so its rows name
+     * the leg they narrow — without which "Direct only" would read as a promise about both legs.
+     *
+     * Sentence case is kept, matching the rows a one-way search shows rather than the results
+     * table's Title Case column headings.
+     *
+     * @param title The row's title where there is only one leg to describe.
+     * @param isRoundTrip Whether the search has an inbound leg to distinguish the outbound one from.
+     * @return The title unchanged for a one-way search, and qualified as the outbound leg's for a round trip.
+     */
+    static func outboundRowTitle( _ title: String, isRoundTrip: Bool ) -> String
+    {
+        guard isRoundTrip
+        else
+        {
+            return title
+        }
+
+        return "Outbound \( title.lowercased() )"
     }
 
     /**
@@ -183,12 +244,13 @@ struct OneWayFiltersPopover: View
     }
 
     /**
-     * Adapts a minute-valued filter to the slider's `Double` domain.
+     * Adapts a whole-number filter — minutes since midnight, total minutes, or nights — to the
+     * slider's `Double` domain.
      *
      * @param source Binding to the stored filter value.
      * @return A binding usable by `RangeFilterRow`.
      */
-    private func minuteBinding( _ source: Binding< Int? > ) -> Binding< Double? >
+    private func wholeNumberBinding( _ source: Binding< Int? > ) -> Binding< Double? >
     {
         Binding(
             get: { source.wrappedValue.map( Double.init ) },
@@ -208,8 +270,8 @@ struct OneWayFiltersPopover: View
     private func dayBinding( _ source: Binding< Date? >, from start: Date, isEndOfDay: Bool ) -> Binding< Double? >
     {
         Binding(
-            get: { source.wrappedValue.map { Double( OneWayFilters.dayIndex( for: $0, from: start ) ) } },
-            set: { source.wrappedValue = $0.map { OneWayFilters.date( atDayIndex: Int( $0.rounded() ), from: start, isEndOfDay: isEndOfDay ) } }
+            get: { source.wrappedValue.map { Double( ResultFilters.dayIndex( for: $0, from: start ) ) } },
+            set: { source.wrappedValue = $0.map { ResultFilters.date( atDayIndex: Int( $0.rounded() ), from: start, isEndOfDay: isEndOfDay ) } }
         )
     }
 }
@@ -265,7 +327,7 @@ private struct MultiSelectFilterRow: View
     {
         LabeledContent( self.title )
         {
-            Menu( self.selection.map { OneWayFilters.listLabel( $0, noun: self.noun ) } ?? "All" )
+            Menu( self.selection.map { ResultFilters.listLabel( $0, noun: self.noun ) } ?? "All" )
             {
                 Button( "All" )
                 {

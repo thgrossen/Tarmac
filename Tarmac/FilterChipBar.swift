@@ -14,10 +14,11 @@ import SwiftUI
  */
 struct FilterChipBar: View
 {
-    var filters: OneWayFilters
+    var filters: ResultFilters
+    var isRoundTrip: Bool
     var matchingCount: Int
     var totalCount: Int
-    var onChange: ( OneWayFilters ) -> Void
+    var onChange: ( ResultFilters ) -> Void
     var onEdit: () -> Void
 
     /**
@@ -40,7 +41,7 @@ struct FilterChipBar: View
             {
                 FlowLayout( spacing: 6 )
                 {
-                    ForEach( self.filters.chips() )
+                    ForEach( self.filters.chips( isRoundTrip: self.isRoundTrip ) )
                     { chip in
                         FilterChip(
                             label: chip.label,
@@ -61,7 +62,7 @@ struct FilterChipBar: View
 
                     Button( "Clear Filters" )
                     {
-                        self.onChange( OneWayFilters() )
+                        self.onChange( ResultFilters() )
                     }
                     .buttonStyle( .link )
                     .font( .caption )

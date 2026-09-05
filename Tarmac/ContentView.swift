@@ -458,12 +458,12 @@ struct SearchDetailView: View
 
     @Environment( \.modelContext ) private var modelContext
     @State private var selectedRun: SearchRun?
-    @State private var filters = OneWayFilters()
+    @State private var filters = ResultFilters()
     @State private var isPresentingFilters = false
 
     // Cached rather than recomputed per render: it walks every fare of every run, and runs are
     // append-only, so it can only change when a refresh adds one.
-    @State private var filterBounds = OneWayFilterBounds()
+    @State private var filterBounds = ResultFilterBounds()
 
     private var isLoading: Bool { self.refreshState.isLoading( self.search.id ) }
     private var errorMessage: String? { self.refreshState.errorMessage( for: self.search.id ) }
@@ -504,9 +504,41 @@ struct SearchDetailView: View
         return "Updating… \( countable.percentText )"
     }
 
-    // Filters are one-way-only for now, and only mean anything once a run has returned fares to
-    // derive their extents from.
-    private var isFilterable: Bool { self.search.kind == .oneWay }
+    private var isFilterable: Bool { Self.isFilterable( bounds: self.filterBounds ) }
+    private var isRoundTrip: Bool { self.search.kind == .roundTrip }
+
+    /**
+     * Whether a search can be filtered at all, which it can once its runs have returned fares
+     * carrying a value some filter could narrow — whatever kind of search it is.
+     *
+     * @param bounds The extents derived from the search's runs.
+     * @return True when at least one filter has something to offer.
+     */
+    static func isFilterable( bounds: ResultFilterBounds ) -> Bool
+    {
+        bounds.isEmpty == false
+    }
+
+    /**
+     * The Filters button's title, which counts the active filters only while they are actually
+     * narrowing the results. A count on a button whose popover cannot be opened would name filters
+     * the user has no way to see or clear.
+     *
+     * @param isFilterable Whether the search has extents any filter could be set within.
+     * @param filters The search's stored filters.
+     * @return "Filters", or "Filters (n)" while n of them apply.
+     */
+    static func filtersButtonTitle( isFilterable: Bool, filters: ResultFilters ) -> String
+    {
+        guard isFilterable,
+              filters.isActive
+        else
+        {
+            return "Filters"
+        }
+
+        return "Filters (\( filters.activeCount ))"
+    }
 
     /**
      * The filters to narrow the chart and the table by: the active set for a filterable search, and
@@ -516,7 +548,7 @@ struct SearchDetailView: View
      * @param isFilterable Whether this search supports filtering at all.
      * @return The filters to apply, or nil to apply none.
      */
-    static func appliedFilters( _ filters: OneWayFilters, isFilterable: Bool ) -> OneWayFilters?
+    static func appliedFilters( _ filters: ResultFilters, isFilterable: Bool ) -> ResultFilters?
     {
         guard isFilterable,
               filters.isActive
@@ -548,19 +580,20 @@ struct SearchDetailView: View
 
                 Spacer()
 
-                if self.isFilterable
+                Button
                 {
-                    Button
-                    {
-                        self.isPresentingFilters = true
-                    } label: {
-                        Label( self.filters.isActive ? "Filters (\( self.filters.activeCount ))" : "Filters", systemImage: "line.3.horizontal.decrease.circle" )
-                    }
-                    .disabled( self.filterBounds.isEmpty )
-                    .popover( isPresented: self.$isPresentingFilters, arrowEdge: .bottom )
-                    {
-                        OneWayFiltersPopover( bounds: self.filterBounds, filters: self.$filters )
-                    }
+                    self.isPresentingFilters = true
+                } label: {
+                    Label( Self.filtersButtonTitle( isFilterable: self.isFilterable, filters: self.filters ), systemImage: "line.3.horizontal.decrease.circle" )
+                }
+                .disabled( self.isFilterable == false )
+                .popover( isPresented: self.$isPresentingFilters, arrowEdge: .bottom )
+                {
+                    ResultFiltersPopover(
+                        bounds: self.filterBounds,
+                        isRoundTrip: self.isRoundTrip,
+                        filters: self.$filters
+                    )
                 }
 
                 Button
@@ -610,6 +643,7 @@ struct SearchDetailView: View
             {
                 FilterChipBar(
                     filters: self.filters,
+                    isRoundTrip: self.isRoundTrip,
                     matchingCount: self.filters.apply( to: self.selectedRun?.itineraries ?? [] ).count,
                     totalCount: self.selectedRun?.itineraries.count ?? 0,
                     onChange: { self.filters = $0 },
@@ -667,18 +701,25 @@ struct SearchDetailView: View
         {
             // This view is `.id( search.id )`-keyed by `ResultsPane`, so switching searches builds a
             // brand new one — seeding from the model here is what restores each search's own filters.
-            self.filters = self.search.oneWayFilters ?? OneWayFilters()
+            self.filters = self.search.resultFilters ?? ResultFilters()
             self.refreshFilterBounds()
         }
         .onChange( of: self.filters )
         {
-            self.search.oneWayFilters = self.filters.isActive ? self.filters : nil
+            self.search.resultFilters = self.filters.isActive ? self.filters : nil
         }
     }
 
     private func refreshFilterBounds()
     {
-        self.filterBounds = self.isFilterable ? OneWayFilterBounds.bounds( for: self.search.runs ) : OneWayFilterBounds()
+        // Walks every fare of every run, and lands on the same value whenever no run was added —
+        // which the two `onAppear`s alone guarantee happens. Assigning it anyway would invalidate
+        // the view for nothing.
+        let bounds = ResultFilterBounds.bounds( for: self.search.runs )
+        if bounds != self.filterBounds
+        {
+            self.filterBounds = bounds
+        }
     }
 
     private func refresh() async
