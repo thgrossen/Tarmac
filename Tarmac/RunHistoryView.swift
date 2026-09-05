@@ -435,6 +435,10 @@ private extension PriceSnapshot
     var departureDateSortKey: Date { self.departureDate ?? .distantPast }
     var inboundDepartureTimeSortKey: String { self.inboundDepartureTime ?? "" }
     var inboundDepartureDateSortKey: Date { self.inboundDepartureDate ?? .distantPast }
+
+    // -1 rather than the 0 outboundDurationSortKey falls back to, so fares with no duration
+    // sort apart from genuine same-day returns instead of being interleaved with them.
+    var tripDurationSortKey: Int { self.tripDurationDays ?? -1 }
 }
 
 // MARK: - Run detail
@@ -589,6 +593,19 @@ private struct RunDetailView: View
                 }
                 else
                 {
+                    TableColumn( "Trip", value: \.tripDurationSortKey )
+                    { ( snapshot: PriceSnapshot ) in
+                        if let tripDurationDays = snapshot.tripDurationDays
+                        {
+                            Text( "\( tripDurationDays ) d" )
+                                .monospacedDigit()
+                        }
+                        else
+                        {
+                            Text( "—" )
+                        }
+                    }
+                    .width( min: 44, ideal: 60 )
                     TableColumn( "Outbound", value: \.outboundSummarySortKey )
                     { ( snapshot: PriceSnapshot ) in Text( snapshot.outboundSummary ?? "—" ) }
                     TableColumn( "Outbound Date", value: \.departureDateSortKey )

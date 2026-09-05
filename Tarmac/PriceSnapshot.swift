@@ -81,4 +81,39 @@ final class PriceSnapshot
 
         return "\( Int( self.amount )) \( self.currency )"
     }
+
+    /**
+     * How long the round trip lasts, counted in nights: the whole-day difference between the
+     * outbound and inbound departure dates, not the inclusive day count. An outbound departing
+     * 5 October and an inbound departing 8 October is 3, matching the number
+     * `SavedSearch.tripDurationDays` was configured with rather than being off by one against it.
+     *
+     * Both dates are instants derived from local wall-clock times, so they are normalised with
+     * `Calendar.current` — the same zone their strings were parsed in — before differencing.
+     *
+     * @return The number of nights, or `nil` for a one-way fare, a fare missing either date, or
+     *         an inbound departing before the outbound.
+     */
+    var tripDurationDays: Int?
+    {
+        guard let departureDate = self.departureDate,
+              let inboundDepartureDate = self.inboundDepartureDate
+        else
+        {
+            return nil
+        }
+
+        let calendar = Calendar.current
+        let outboundDay = calendar.startOfDay( for: departureDate )
+        let inboundDay = calendar.startOfDay( for: inboundDepartureDate )
+
+        guard let days = calendar.dateComponents( [ .day ], from: outboundDay, to: inboundDay ).day,
+              days >= 0
+        else
+        {
+            return nil
+        }
+
+        return days
+    }
 }

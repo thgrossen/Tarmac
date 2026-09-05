@@ -12,6 +12,23 @@ import Testing
 @Suite( "PriceSnapshot" )
 struct PriceSnapshotTests
 {
+    // Built against `Calendar.current`, because `tripDurationDays` normalises in that same zone.
+    private static func localDate( _ year: Int, _ month: Int, _ day: Int, hour: Int = 0, minute: Int = 0 ) -> Date
+    {
+        let components = DateComponents( year: year, month: month, day: day, hour: hour, minute: minute )
+        return Calendar.current.date( from: components )!
+    }
+
+    private static func roundTrip( outbound: Date?, inbound: Date? ) -> PriceSnapshot
+    {
+        PriceSnapshot(
+            amount: 397.0,
+            currency: "CHF",
+            departureDate: outbound,
+            inboundDepartureDate: inbound
+        )
+    }
+
     @Test( "Defaults for optional display fields" )
     func defaults()
     {
@@ -71,5 +88,84 @@ struct PriceSnapshotTests
         let snapshot = PriceSnapshot( amount: .nan, currency: "CHF" )
 
         #expect( snapshot.formattedAmount == nil )
+    }
+
+    @Test( "Trip duration counts the nights between the two departures" )
+    func tripDurationMultiDay()
+    {
+        let snapshot = Self.roundTrip(
+            outbound: Self.localDate( 2026, 10, 5 ),
+            inbound: Self.localDate( 2026, 10, 8 )
+        )
+
+        #expect( snapshot.tripDurationDays == 3 )
+    }
+
+    @Test( "Trip duration is 0 for a same-day return" )
+    func tripDurationSameDay()
+    {
+        let snapshot = Self.roundTrip(
+            outbound: Self.localDate( 2026, 10, 5, hour: 6, minute: 40 ),
+            inbound: Self.localDate( 2026, 10, 5, hour: 19, minute: 15 )
+        )
+
+        #expect( snapshot.tripDurationDays == 0 )
+    }
+
+    @Test( "Trip duration ignores the time of day, early outbound to late inbound" )
+    func tripDurationIgnoresTimeOfDayEarlyToLate()
+    {
+        let snapshot = Self.roundTrip(
+            outbound: Self.localDate( 2026, 10, 5, hour: 6, minute: 40 ),
+            inbound: Self.localDate( 2026, 10, 8, hour: 19, minute: 15 )
+        )
+
+        #expect( snapshot.tripDurationDays == 3 )
+    }
+
+    @Test( "Trip duration ignores the time of day, late outbound to early inbound" )
+    func tripDurationIgnoresTimeOfDayLateToEarly()
+    {
+        let snapshot = Self.roundTrip(
+            outbound: Self.localDate( 2026, 10, 5, hour: 19, minute: 15 ),
+            inbound: Self.localDate( 2026, 10, 8, hour: 6, minute: 40 )
+        )
+
+        #expect( snapshot.tripDurationDays == 3 )
+    }
+
+    @Test( "Trip duration is nil without an inbound date" )
+    func tripDurationMissingInbound()
+    {
+        let snapshot = Self.roundTrip( outbound: Self.localDate( 2026, 10, 5 ), inbound: nil )
+
+        #expect( snapshot.tripDurationDays == nil )
+    }
+
+    @Test( "Trip duration is nil without an outbound date" )
+    func tripDurationMissingOutbound()
+    {
+        let snapshot = Self.roundTrip( outbound: nil, inbound: Self.localDate( 2026, 10, 8 ) )
+
+        #expect( snapshot.tripDurationDays == nil )
+    }
+
+    @Test( "Trip duration is nil without either date" )
+    func tripDurationMissingBoth()
+    {
+        let snapshot = Self.roundTrip( outbound: nil, inbound: nil )
+
+        #expect( snapshot.tripDurationDays == nil )
+    }
+
+    @Test( "Trip duration is nil when the inbound departs before the outbound" )
+    func tripDurationInboundBeforeOutbound()
+    {
+        let snapshot = Self.roundTrip(
+            outbound: Self.localDate( 2026, 10, 8 ),
+            inbound: Self.localDate( 2026, 10, 5 )
+        )
+
+        #expect( snapshot.tripDurationDays == nil )
     }
 }
