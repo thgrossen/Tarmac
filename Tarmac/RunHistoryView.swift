@@ -478,6 +478,19 @@ private struct RunDetailView: View
                     .background( .orange.opacity( 0.08 ) )
             }
 
+            // Below the failure banners: a coverage notice rather than a failure, and it can
+            // accompany them — a truncated sweep that found nothing gets both.
+            if let truncationMessage = self.run.truncationMessage
+            {
+                Text( truncationMessage )
+                    .font( .callout.monospacedDigit() )
+                    .foregroundStyle( .secondary )
+                    .textSelection( .enabled )
+                    .padding( 10 )
+                    .frame( maxWidth: .infinity, alignment: .leading )
+                    .background( .gray.opacity( 0.12 ) )
+            }
+
             self.itineraryTable
                 .contextMenu
                 {

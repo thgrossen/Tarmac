@@ -131,6 +131,7 @@ private struct FiltersPane: View
 private struct LimitsPane: View
 {
     @AppStorage( OneWaySweepPreference.capDefaultsKey ) private var oneWaySweepCap = OneWaySweepPreference.defaultCap
+    @AppStorage( RoundTripSweepPreference.capDefaultsKey ) private var roundTripSweepCap = RoundTripSweepPreference.defaultCap
     @AppStorage( BookingLinkExpiryPreference.maxRunAgeHoursDefaultsKey ) private var bookingLinkHours = BookingLinkExpiryPreference.defaultHours
 
     var body: some View
@@ -140,7 +141,15 @@ private struct LimitsPane: View
             Section
             {
                 Stepper( "One-way sweep cap: \( self.oneWaySweepCap )", value: $oneWaySweepCap, in: 1 ... 100 )
+                Stepper( "Round-trip sweep cap: \( self.roundTripSweepCap )", value: $roundTripSweepCap, in: 1 ... 500 )
+            } footer: {
+                Text( "A sweep spends one billed API call per request, so a cap is also a ceiling on what one update costs." )
+                    .font( .caption )
+                    .foregroundStyle( .secondary )
+            }
 
+            Section
+            {
                 Picker( "Booking links valid for", selection: $bookingLinkHours )
                 {
                     ForEach( BookingLinkExpiryPreference.allHours, id: \.self )

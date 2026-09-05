@@ -15,6 +15,15 @@ final class SearchRun
     var rawJSON: String?
     var errorMessage: String?
     var partialFailureMessage: String?
+
+    /**
+     * Set when a round-trip sweep's cap kept it from covering every date pair it could have,
+     * stating how many of them it did cover. Nil on a round-trip run that searched its whole
+     * matrix, and on every one-way run — one-way sweeps cap and sample too, but do not yet
+     * report it.
+     */
+    var truncationMessage: String?
+
     var requestCount: Int
 
     var savedSearch: SavedSearch?
@@ -27,6 +36,7 @@ final class SearchRun
         rawJSON: String? = nil,
         errorMessage: String? = nil,
         partialFailureMessage: String? = nil,
+        truncationMessage: String? = nil,
         requestCount: Int,
         savedSearch: SavedSearch? = nil
     )
@@ -36,6 +46,7 @@ final class SearchRun
         self.rawJSON = rawJSON
         self.errorMessage = errorMessage
         self.partialFailureMessage = partialFailureMessage
+        self.truncationMessage = truncationMessage
         self.requestCount = requestCount
         self.savedSearch = savedSearch
     }

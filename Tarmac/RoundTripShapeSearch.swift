@@ -9,7 +9,19 @@ import Foundation
 struct ShapeSearchResult
 {
     var itineraries: [ Itinerary ] = []
+
+    /**
+     * Number of requests attempted, which is the candidate count narrowed to the sweep's cap.
+     * A request that failed still counts, since it was spent all the same.
+     */
     var requestCount = 0
+
+    /**
+     * Number of date pairs the search could have covered, before the cap thinned them down.
+     * Equal to `requestCount` when the cap didn't bite.
+     */
+    var candidateCount = 0
+
     var rawJSON: String?
     var errorMessage: String?
 }
@@ -21,8 +33,6 @@ enum RoundTripShapeSearch
         var departure: Date
         var returnDate: Date
     }
-
-    nonisolated static let defaultCallCap = 25
 
     private static let calendar: Calendar = {
         var calendar = Calendar( identifier: .gregorian )
@@ -52,8 +62,7 @@ enum RoundTripShapeSearch
         let rangeEnd   = self.calendar.startOfDay( for: max( search.rangeStart, search.rangeEnd ) )
         let dayCount   = ( self.calendar.dateComponents( [ .day ], from: rangeStart, to: rangeEnd ).day ?? 0 ) + 1
 
-        let minDuration = max( 1, search.tripDurationDays - search.flexibilityDays )
-        let maxDuration = max( minDuration, search.tripDurationDays + search.flexibilityDays )
+        let durations = search.searchedDurationRange
 
         var result: [ Candidate ] = []
         for dayOffset in 0 ..< dayCount
@@ -64,7 +73,7 @@ enum RoundTripShapeSearch
                 continue
             }
 
-            for duration in minDuration ... maxDuration
+            for duration in durations
             {
                 guard let returnDate = self.calendar.date( byAdding: .day, value: duration, to: departure )
                 else
@@ -125,7 +134,9 @@ enum RoundTripShapeSearch
      *
      * @param search Round-trip SavedSearch to run.
      * @param apiKey Ignav API key.
-     * @param cap Maximum number of Ignav calls to make; defaults to `defaultCallCap`.
+     * @param cap Maximum number of Ignav calls to make; defaults to `RoundTripSweepPreference.defaultCap`,
+     *            which ignores the user's preference — pass
+     *            `RoundTripSweepPreference.currentCap( defaults: )` to honour it.
      * @param defaults UserDefaults suite to read the airline restriction preference from.
      * @param fetch Override for the network call, used by tests; defaults to a real IgnavClient.
      * @param onProgress Called with the planned request count before the first call, then once
@@ -133,12 +144,13 @@ enum RoundTripShapeSearch
      *                   all the same. A search with nothing planned emits a single 0-of-0 and
      *                   nothing else. Called synchronously on the main actor, which this sweep
      *                   runs on, so emissions arrive in order.
-     * @return The aggregated, deduplicated, price-sorted itineraries and run metadata.
+     * @return The aggregated, deduplicated, price-sorted itineraries and run metadata, including
+     *         both the number of candidates the search covers and the number it actually requested.
      */
     static func run(
         for search: SavedSearch,
         apiKey: String,
-        cap: Int = Self.defaultCallCap,
+        cap: Int = RoundTripSweepPreference.defaultCap,
         defaults: UserDefaults = .standard,
         fetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )? = nil,
         onProgress: ( ( SearchProgress ) -> Void )? = nil
@@ -148,7 +160,8 @@ enum RoundTripShapeSearch
             try await IgnavClient( apiKey: apiKey ).roundTrip( request )
         }
 
-        let sampled = self.sample( self.candidates( for: search ), cap: cap )
+        let candidates = self.candidates( for: search )
+        let sampled    = self.sample( candidates, cap: cap )
         let airlinesInclude = AirlinePreference.currentAirlinesInclude( defaults: defaults )
         let market = MarketPreference.currentMarket( defaults: defaults )
 
@@ -214,6 +227,7 @@ enum RoundTripShapeSearch
         return ShapeSearchResult(
             itineraries: itineraries,
             requestCount: sampled.count,
+            candidateCount: candidates.count,
             rawJSON: rawJSONOfCheapest,
             errorMessage: itineraries.isEmpty ? lastError?.localizedDescription : nil
         )

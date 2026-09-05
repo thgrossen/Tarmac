@@ -70,16 +70,24 @@ struct RoundTripSearchForm: View
                     DatePicker( "Earliest departure", selection: $rangeStart, in: self.earliestSelectableDate..., displayedComponents: .date )
                     DatePicker( "Latest departure", selection: $rangeEnd, in: rangeStart..., displayedComponents: .date )
 
-                    Stepper(
-                        "Trip duration: \( tripDurationDays ) night\( tripDurationDays == 1 ? "" : "s" )",
-                        value: $tripDurationDays,
-                        in: 1 ... 30
-                    )
-                    Stepper(
-                        "Flexibility: ±\( flexibilityDays ) day\( flexibilityDays == 1 ? "" : "s" )",
-                        value: $flexibilityDays,
-                        in: 0 ... 14
-                    )
+                    LabeledContent( "Trip duration" )
+                    {
+                        // The count is the stepper's own label, so it sits against the arrows and
+                        // is always announced with them; LabeledContent supplies the row's title.
+                        Stepper( value: $tripDurationDays, in: 1 ... 30 )
+                        {
+                            Text( SavedSearch.nightsLabel( forNights: self.tripDurationDays ) )
+                                .monospacedDigit()
+                        }
+                    }
+                    Picker( "Flexibility", selection: $flexibilityDays )
+                    {
+                        ForEach( FlexibilityOptions.days( including: self.flexibilityDays ), id: \.self )
+                        { days in
+                            Text( FlexibilityOptions.label( forDays: days ) ).tag( days )
+                        }
+                    }
+                    .help( "Days either side of the trip duration" )
                     Toggle( "Must include a weekend", isOn: $mustIncludeWeekend )
 
                     CabinClassPicker( selection: $cabinClass )
@@ -137,7 +145,9 @@ struct RoundTripSearchForm: View
         let mostRecentRoundTrip = SearchPrefill.mostRecentRoundTrip( in: self.recentSearches )
         let roundTrip = SearchPrefill.roundTripFields( from: mostRecentRoundTrip )
         self.tripDurationDays = roundTrip.tripDurationDays
-        self.flexibilityDays = roundTrip.flexibilityDays
+        // Normalised so the picker always has an option matching its selection; a negative
+        // flexibility would leave it showing nothing selected and save that value straight back.
+        self.flexibilityDays = FlexibilityOptions.selectable( from: roundTrip.flexibilityDays )
         self.mustIncludeWeekend = roundTrip.mustIncludeWeekend
     }
 

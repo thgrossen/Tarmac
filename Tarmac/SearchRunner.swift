@@ -19,12 +19,12 @@ enum SearchRunner
      * Both kinds sweep their whole date range: one-way issues one Ignav
      * `IgnavClient.oneWay(_:)` call per day in `search.rangeStart...search.rangeEnd`
      * (capped and sampled per `OneWaySweepPreference`), and round-trip issues one call
-     * per departure/return candidate via the shape search.
+     * per departure/return candidate via the shape search (capped and sampled per
+     * `RoundTripSweepPreference`).
      *
      * @param search Saved search to run.
      * @param apiKey Ignav API key.
      * @param defaults UserDefaults suite to read the airline restriction / cap preferences from.
-     * @param cap Maximum number of Ignav calls a round-trip shape search may make; ignored for one-way.
      * @param oneWayFetch Override for the one-way network call, used by tests.
      * @param roundTripFetch Override for the round-trip network call, used by tests.
      * @param onProgress Called with the sweep's planned request count before the first call, then
@@ -40,7 +40,6 @@ enum SearchRunner
         for search: SavedSearch,
         apiKey: String,
         defaults: UserDefaults = .standard,
-        cap: Int = RoundTripShapeSearch.defaultCallCap,
         oneWayFetch: ( ( OneWayRequest ) async throws -> ( FaresResponse, String ) )? = nil,
         roundTripFetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )? = nil,
         onProgress: ( ( SearchProgress ) -> Void )? = nil
@@ -70,7 +69,6 @@ enum SearchRunner
                         for: search,
                         apiKey: apiKey,
                         defaults: defaults,
-                        cap: cap,
                         fetch: roundTripFetch,
                         onProgress: onProgress
                     )
@@ -124,7 +122,6 @@ enum SearchRunner
         for search: SavedSearch,
         apiKey: String,
         defaults: UserDefaults,
-        cap: Int,
         fetch: ( ( RoundTripRequest ) async throws -> ( FaresResponse, String ) )?,
         onProgress: ( ( SearchProgress ) -> Void )?
     ) async -> SearchRun
@@ -132,7 +129,7 @@ enum SearchRunner
         let result = await RoundTripShapeSearch.run(
             for: search,
             apiKey: apiKey,
-            cap: cap,
+            cap: RoundTripSweepPreference.currentCap( defaults: defaults ),
             defaults: defaults,
             fetch: fetch,
             onProgress: onProgress
@@ -143,10 +140,40 @@ enum SearchRunner
             id: id,
             rawJSON: result.rawJSON,
             errorMessage: errorMessage,
+            truncationMessage: self.truncationMessage(
+                candidateCount: result.candidateCount,
+                requestCount: result.requestCount
+            ),
             requestCount: result.requestCount
         )
         run.itineraries = result.itineraries.map { self.snapshot( for: $0, run: run ) }
         return run
+    }
+
+    /**
+     * Describes a round-trip sweep the cap kept from covering its whole matrix, pointing at the
+     * preference that widens it.
+     *
+     * @param candidateCount Number of date pairs the search covers.
+     * @param requestCount Number of them actually requested, once the cap was applied.
+     * @return The notice to show alongside the run's results, or nil when nothing was dropped.
+     *         Worded for a round-trip sweep — a one-way sweep would need its own copy.
+     */
+    static func truncationMessage( candidateCount: Int, requestCount: Int ) -> String?
+    {
+        guard requestCount < candidateCount
+        else
+        {
+            return nil
+        }
+
+        // A cap of 1 takes the first pair rather than spreading, so the even-sampling claim only
+        // holds from two upwards.
+        let coverage = requestCount == 1
+            ? "Searched 1 of \( candidateCount ) possible date pairs"
+            : "Searched \( requestCount ) of \( candidateCount ) possible date pairs, spread evenly across the range"
+
+        return coverage + ". Raise the round-trip sweep cap in Settings › Limits to search more."
     }
 
     private static func snapshot( for itinerary: Itinerary, run: SearchRun ) -> PriceSnapshot

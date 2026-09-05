@@ -72,6 +72,18 @@ struct SearchPrefillTests
         #expect( fields.passengers == 2 )
     }
 
+    @Test( "Direct flights only prefills in both directions, not just when it is off" )
+    func sharedFieldsCarryDirectOnlyBothWays()
+    {
+        let restricted = Self.makeSearch( kind: .roundTrip, directOnly: true )
+        let open       = Self.makeSearch( kind: .roundTrip, directOnly: false )
+
+        #expect( restricted.directOnly == true )
+        #expect( SearchPrefill.sharedFields( from: restricted ).directOnly == true )
+        #expect( open.directOnly == false )
+        #expect( SearchPrefill.sharedFields( from: open ).directOnly == false )
+    }
+
     @Test( "Round-trip fields fall back to hardcoded defaults with no previous round-trip search" )
     func roundTripFieldsWithNoPreviousRoundTrip()
     {

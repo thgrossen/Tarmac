@@ -436,7 +436,7 @@ struct SearchRunnerTests
 
     // MARK: - Round-trip dispatch
 
-    @Test( "Dispatches a round-trip search to the shape-search runner, forwarding cap and defaults" )
+    @Test( "Dispatches a round-trip search to the shape-search runner, honouring the persisted cap and defaults" )
     func roundTripDispatchesShapeSearch() async throws
     {
         let search = Self.makeRoundTripSearch(
@@ -449,12 +449,12 @@ struct SearchRunnerTests
         let defaults = Self.freshDefaults()
         defaults.set( false, forKey: AirlinePreference.restrictAirlinesDefaultsKey )
         defaults.set( "FR", forKey: MarketPreference.marketDefaultsKey )
+        defaults.set( 2, forKey: RoundTripSweepPreference.capDefaultsKey )
 
         let run = await SearchRunner.run(
             for: search,
             apiKey: "key",
             defaults: defaults,
-            cap: 2,
             roundTripFetch: { request in
                 log.record( request )
                 return try Self.fares( itineraries: """
@@ -470,6 +470,34 @@ struct SearchRunnerTests
         #expect( run.itineraries.count == 2 )
         #expect( run.savedSearch === search )
         #expect( search.runs.first === run )
+    }
+
+    @Test( "Applies the default round-trip cap when none has been persisted" )
+    func roundTripUsesDefaultCapWhenUnset() async throws
+    {
+        // 31 departure days × 5 durations (3 days, ±2) = 155 candidates, comfortably more
+        // than the default cap, so the request count can only come from the cap itself.
+        let search = Self.makeRoundTripSearch(
+            rangeStart: Self.utcDate( 2026, 10, 1 ),
+            rangeEnd: Self.utcDate( 2026, 10, 31 ),
+            tripDurationDays: 3,
+            flexibilityDays: 2
+        )
+        let log = FetchLog< RoundTripRequest >()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            roundTripFetch: { request in
+                log.record( request )
+                return try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( RoundTripShapeSearch.candidates( for: search ).count == 155 )
+        #expect( log.requests.count == RoundTripSweepPreference.defaultCap )
+        #expect( run.requestCount == RoundTripSweepPreference.defaultCap )
     }
 
     @Test( "Omits baggage parameters on a round trip when neither bag type is required" )
@@ -676,6 +704,103 @@ struct SearchRunnerTests
         let snapshot = try #require( run.itineraries.first )
         #expect( snapshot.outboundStopCount == 0 )
         #expect( snapshot.outboundFlightNumbers == [ "LX 100" ] )
+    }
+
+    // MARK: - Truncation message
+
+    @Test( "No truncation message when every candidate was searched" )
+    func truncationMessageNilWhenNothingDropped()
+    {
+        #expect( SearchRunner.truncationMessage( candidateCount: 12, requestCount: 12 ) == nil )
+    }
+
+    @Test( "No truncation message when the matrix is empty" )
+    func truncationMessageNilForAnEmptyMatrix()
+    {
+        #expect( SearchRunner.truncationMessage( candidateCount: 0, requestCount: 0 ) == nil )
+    }
+
+    @Test( "Counts what was searched against what was possible when the cap bites" )
+    func truncationMessageCountsBothWhenTruncated()
+    {
+        let message = SearchRunner.truncationMessage( candidateCount: 315, requestCount: 100 )
+        #expect( message == "Searched 100 of 315 possible date pairs, spread evenly across the range. "
+                          + "Raise the round-trip sweep cap in Settings › Limits to search more." )
+    }
+
+    @Test( "Drops the even-sampling claim when a cap of one takes only the first pair" )
+    func truncationMessageOmitsSpreadForASingleRequest()
+    {
+        let message = SearchRunner.truncationMessage( candidateCount: 155, requestCount: 1 )
+        #expect( message == "Searched 1 of 155 possible date pairs. "
+                          + "Raise the round-trip sweep cap in Settings › Limits to search more." )
+    }
+
+    @Test( "A round-trip run whose sweep was capped carries the truncation message" )
+    func roundTripRunRecordsTruncation() async throws
+    {
+        // 10 departure days × 5 durations (3 days, ±2) = 50 candidates, capped to 2 requests.
+        let search   = Self.makeRoundTripSearch(
+            rangeStart: Self.utcDate( 2026, 10, 1 ),
+            rangeEnd: Self.utcDate( 2026, 10, 10 ),
+            tripDurationDays: 3,
+            flexibilityDays: 2
+        )
+        let defaults = Self.freshDefaults()
+        defaults.set( 2, forKey: RoundTripSweepPreference.capDefaultsKey )
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: defaults,
+            roundTripFetch: { _ in
+                try Self.fares( itineraries: """
+                    { "ignav_id": "RT1", "price": { "amount": 400, "currency": "CHF" } }
+                    """ )
+            }
+        )
+
+        #expect( run.truncationMessage == "Searched 2 of 50 possible date pairs, spread evenly across the range. "
+                                        + "Raise the round-trip sweep cap in Settings › Limits to search more." )
+    }
+
+    @Test( "A round-trip run that searched its whole matrix carries no truncation message" )
+    func roundTripRunOmitsTruncationWhenComplete() async throws
+    {
+        let search = Self.makeRoundTripSearch(
+            rangeStart: Self.utcDate( 2026, 10, 1 ),
+            rangeEnd: Self.utcDate( 2026, 10, 3 ),
+            tripDurationDays: 3,
+            flexibilityDays: 0
+        )
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            roundTripFetch: { _ in
+                try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( run.truncationMessage == nil )
+    }
+
+    @Test( "A one-way run never carries a truncation message" )
+    func oneWayRunOmitsTruncation() async throws
+    {
+        let search = Self.makeOneWaySearch()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            oneWayFetch: { _ in
+                try Self.fares( itineraries: "" )
+            }
+        )
+
+        #expect( run.truncationMessage == nil )
     }
 
     // MARK: - Run attribution

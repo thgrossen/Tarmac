@@ -68,6 +68,7 @@ struct IgnavClientTests
 
         let json = Self.decodedBody( req )
         #expect( json[ "return_date" ] as? String == "2026-10-08" )
+        #expect( json[ "max_stops" ] as? Int == 0 )
         #expect( json[ "airlines_include" ] == nil )
     }
 

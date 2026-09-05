@@ -533,6 +533,19 @@ struct SearchDetailView: View
         {
             HStack
             {
+                if let detailsSummary = SavedSearch.detailsSummary( for: self.search )
+                {
+                    // Yields to the buttons, which reserve their widest titles: on a narrow pane the
+                    // summary truncates rather than squeezing them.
+                    Text( detailsSummary )
+                        .font( .caption )
+                        .foregroundStyle( .secondary )
+                        .lineLimit( 1 )
+                        .truncationMode( .tail )
+                        .help( detailsSummary )
+                        .layoutPriority( -1 )
+                }
+
                 Spacer()
 
                 if self.isFilterable
