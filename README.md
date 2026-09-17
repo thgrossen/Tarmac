@@ -6,8 +6,9 @@ Tarmac is a native macOS app (SwiftUI + SwiftData) for tracking airfare prices. 
 
 - One-way and round-trip fare search with cabin class, max-stops, and airline filters
 - Saved searches with run history and price snapshots over time
-- One-way date-range sweep across multiple departure dates in one run, with a configurable per-run API-call cap
+- Date-range sweeps in a single run — departure dates for one-way searches, a departure-by-duration matrix for round trips — each with a configurable per-run API-call cap
 - Sortable, multi-column itinerary results table
+- Result filters on price, date, carrier, times, duration, stops and flight number, plus trip length and return date and time for round trips
 - Preferences pane for API key, market/currency, and airline restrictions
 
 ## Requirements
