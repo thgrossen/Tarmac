@@ -11,7 +11,7 @@ struct OneWaySearchForm: View
 {
     @Environment( \.modelContext ) private var modelContext
     @Environment( \.dismiss ) private var dismiss
-    @Environment( SearchDateSession.self ) private var dateSession
+    @Query( sort: \SavedSearch.createdAt, order: .reverse ) private var recentSearches: [ SavedSearch ]
 
     // Owned by the enclosing `NewSearchSheet` and shared with `RoundTripSearchForm`, so
     // switching kinds doesn't lose what the user already entered in these fields.
@@ -117,15 +117,7 @@ struct OneWaySearchForm: View
 
     private func prefillDates()
     {
-        let range: SearchDateSession.DateRange
-        if let stored = self.dateSession.range( for: .oneWay )
-        {
-            range = DepartureDateDefaults.clamped( stored )
-        }
-        else
-        {
-            range = DepartureDateDefaults.defaultRange()
-        }
+        let range = SearchPrefill.dateRange( from: SearchPrefill.mostRecentOneWay( in: self.recentSearches ) )
         self.rangeStart = range.start
         self.rangeEnd = range.end
     }
@@ -145,7 +137,6 @@ struct OneWaySearchForm: View
             passengers: self.passengers
         )
         self.modelContext.insert( search )
-        self.dateSession.recordRange( SearchDateSession.DateRange( start: self.rangeStart, end: self.rangeEnd ), for: .oneWay )
         self.onCreate( search )
         self.dismiss()
     }

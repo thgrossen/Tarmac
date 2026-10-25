@@ -11,11 +11,20 @@ import Testing
 @Suite( "SearchPrefill" )
 struct SearchPrefillTests
 {
+    private static func utcDate( _ year: Int, _ month: Int, _ day: Int ) -> Date
+    {
+        var calendar = Calendar( identifier: .gregorian )
+        calendar.timeZone = TimeZone( identifier: "UTC" )!
+        return calendar.date( from: DateComponents( year: year, month: month, day: day ) )!
+    }
+
     private static func makeSearch(
         kind: SearchKind = .oneWay,
         isSeeded: Bool = false,
         origin: String = "GVA",
         destination: String = "LIS",
+        rangeStart: Date = .now,
+        rangeEnd: Date = .now,
         cabinClass: String = "economy",
         directOnly: Bool = false,
         carryOnIncluded: Bool = true,
@@ -31,8 +40,8 @@ struct SearchPrefillTests
             kind: kind,
             origin: origin,
             destination: destination,
-            rangeStart: .now,
-            rangeEnd: .now,
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
             cabinClass: cabinClass,
             directOnly: directOnly,
             carryOnIncluded: carryOnIncluded,
@@ -158,6 +167,54 @@ struct SearchPrefillTests
         let searches = [ Self.makeSearch( kind: .roundTrip, isSeeded: true ) ]
 
         #expect( SearchPrefill.mostRecentRoundTrip( in: searches ) == nil )
+    }
+
+    @Test( "Most recent one-way skips a newer round trip and a seeded one-way" )
+    func mostRecentOneWaySkipsRoundTripsAndSeeded()
+    {
+        let newerRoundTrip = Self.makeSearch( kind: .roundTrip )
+        let seededOneWay   = Self.makeSearch( kind: .oneWay, isSeeded: true )
+        let realOneWay     = Self.makeSearch( kind: .oneWay, origin: "ZRH" )
+        let searches       = [ newerRoundTrip, seededOneWay, realOneWay ]
+
+        let result = SearchPrefill.mostRecentOneWay( in: searches )
+        #expect( result === realOneWay )
+    }
+
+    @Test( "Most recent one-way is nil when only round trips exist" )
+    func mostRecentOneWayWithNoOneWay()
+    {
+        let searches = [ Self.makeSearch( kind: .roundTrip ) ]
+
+        #expect( SearchPrefill.mostRecentOneWay( in: searches ) == nil )
+    }
+
+    @Test( "Dates fall back to the default window with no previous search" )
+    func dateRangeWithNoPreviousSearch()
+    {
+        let reference = Self.utcDate( 2026, 10, 25 )
+
+        #expect( SearchPrefill.dateRange( from: nil, referenceDate: reference ) == DepartureDateDefaults.defaultRange( referenceDate: reference ) )
+    }
+
+    @Test( "Dates copy the previous search's earliest and latest departure" )
+    func dateRangeFromPreviousSearch()
+    {
+        let search = Self.makeSearch( rangeStart: Self.utcDate( 2026, 10, 27 ), rangeEnd: Self.utcDate( 2026, 12, 26 ) )
+        let range  = SearchPrefill.dateRange( from: search, referenceDate: Self.utcDate( 2026, 10, 25 ) )
+
+        #expect( range.start == Self.utcDate( 2026, 10, 27 ) )
+        #expect( range.end == Self.utcDate( 2026, 12, 26 ) )
+    }
+
+    @Test( "Copied dates that have gone by start tomorrow instead" )
+    func dateRangeFromPastSearchStartsTomorrow()
+    {
+        let search = Self.makeSearch( rangeStart: Self.utcDate( 2026, 10, 20 ), rangeEnd: Self.utcDate( 2026, 11, 10 ) )
+        let range  = SearchPrefill.dateRange( from: search, referenceDate: Self.utcDate( 2026, 10, 25 ) )
+
+        #expect( range.start == Self.utcDate( 2026, 10, 26 ) )
+        #expect( range.end == Self.utcDate( 2026, 11, 10 ) )
     }
 
     @Test( "Most recent real search skips a seeded search" )

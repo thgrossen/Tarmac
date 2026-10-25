@@ -22,7 +22,6 @@ struct TarmacApp: App
             fatalError( "Could not create ModelContainer: \( error )" )
         }
     }()
-    let dateSession = SearchDateSession()
     let apiLog = APILog()
     let inspectorState = APIInspectorState()
     let newSearchCommand = NewSearchCommand()
@@ -43,7 +42,6 @@ struct TarmacApp: App
             ContentView()
         }
         .modelContainer( container )
-        .environment( self.dateSession )
         .environment( self.apiLog )
         .environment( self.inspectorState )
         .environment( self.newSearchCommand )

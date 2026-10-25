@@ -4,6 +4,8 @@
  * Copyright (c) 2026, Thomas Grossen
  ******************************************************************************/
 
+import Foundation
+
 enum SearchPrefill
 {
     static let defaultCabinClass = "business"
@@ -89,6 +91,36 @@ enum SearchPrefill
     static func mostRecentRoundTrip( in searches: [ SavedSearch ] ) -> SavedSearch?
     {
         searches.first { $0.kind == .roundTrip && $0.isSeeded == false }
+    }
+
+    /**
+     * Finds the most recent non-seeded one-way search among a set of searches.
+     *
+     * @param searches Currently available searches, newest first.
+     * @return The newest search with `kind == .oneWay` and `isSeeded == false`, or nil if none exists.
+     */
+    static func mostRecentOneWay( in searches: [ SavedSearch ] ) -> SavedSearch?
+    {
+        searches.first { $0.kind == .oneWay && $0.isSeeded == false }
+    }
+
+    /**
+     * Departure dates to prefill a new search form with.
+     *
+     * @param mostRecent The most recently created search of the form's kind, if any.
+     * @param referenceDate Date to compute "today" from; defaults to now.
+     * @return `mostRecent`'s earliest and latest departure, clamped so they never start before tomorrow, or the default one-day window when there is no prior search.
+     */
+    static func dateRange( from mostRecent: SavedSearch?, referenceDate: Date = .now ) -> DepartureDateDefaults.DateRange
+    {
+        guard let mostRecent
+        else
+        {
+            return DepartureDateDefaults.defaultRange( referenceDate: referenceDate )
+        }
+
+        let range = DepartureDateDefaults.DateRange( start: mostRecent.rangeStart, end: mostRecent.rangeEnd )
+        return DepartureDateDefaults.clamped( range, referenceDate: referenceDate )
     }
 
     /**

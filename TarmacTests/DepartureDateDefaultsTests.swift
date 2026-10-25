@@ -51,7 +51,7 @@ struct DepartureDateDefaultsTests
     func clampingLeavesValidRangeUnchanged()
     {
         let reference = Self.utcDate( 2026, 10, 5 )
-        let range     = SearchDateSession.DateRange( start: Self.utcDate( 2026, 10, 20 ), end: Self.utcDate( 2026, 10, 25 ) )
+        let range     = DepartureDateDefaults.DateRange( start: Self.utcDate( 2026, 10, 20 ), end: Self.utcDate( 2026, 10, 25 ) )
 
         let clamped = DepartureDateDefaults.clamped( range, referenceDate: reference )
         #expect( clamped == range )
@@ -61,7 +61,7 @@ struct DepartureDateDefaultsTests
     func clampingPullsStaleStartForward()
     {
         let reference = Self.utcDate( 2026, 10, 5 )
-        let stale     = SearchDateSession.DateRange( start: Self.utcDate( 2026, 9, 1 ), end: Self.utcDate( 2026, 9, 2 ) )
+        let stale     = DepartureDateDefaults.DateRange( start: Self.utcDate( 2026, 9, 1 ), end: Self.utcDate( 2026, 9, 2 ) )
 
         let clamped = DepartureDateDefaults.clamped( stale, referenceDate: reference )
         #expect( clamped.start == Self.utcDate( 2026, 10, 6 ) )
@@ -72,7 +72,7 @@ struct DepartureDateDefaultsTests
     func clampingKeepsEndAtOrAfterStart()
     {
         let reference = Self.utcDate( 2026, 10, 5 )
-        let inverted  = SearchDateSession.DateRange( start: Self.utcDate( 2026, 10, 20 ), end: Self.utcDate( 2026, 10, 10 ) )
+        let inverted  = DepartureDateDefaults.DateRange( start: Self.utcDate( 2026, 10, 20 ), end: Self.utcDate( 2026, 10, 10 ) )
 
         let clamped = DepartureDateDefaults.clamped( inverted, referenceDate: reference )
         #expect( clamped.start == Self.utcDate( 2026, 10, 20 ) )

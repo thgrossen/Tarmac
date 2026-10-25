@@ -8,6 +8,15 @@ import Foundation
 
 enum DepartureDateDefaults
 {
+    /**
+     * The earliest and latest days a search may depart on.
+     */
+    struct DateRange: Equatable
+    {
+        var start: Date
+        var end: Date
+    }
+
     private static var utcCalendar: Calendar
     {
         var calendar = Calendar( identifier: .gregorian )
@@ -34,27 +43,27 @@ enum DepartureDateDefaults
      * @param referenceDate Date to compute "today" from; defaults to now.
      * @return A range starting tomorrow and ending one day later.
      */
-    static func defaultRange( referenceDate: Date = .now ) -> SearchDateSession.DateRange
+    static func defaultRange( referenceDate: Date = .now ) -> DateRange
     {
         let start = Self.earliestDeparture( referenceDate: referenceDate )
         let end = Self.utcCalendar.date( byAdding: .day, value: 1, to: start )!
-        return SearchDateSession.DateRange( start: start, end: end )
+        return DateRange( start: start, end: end )
     }
 
     /**
      * Clamps a departure date range so it never starts before the earliest selectable
-     * date, regardless of where it was pre-filled from (e.g. a session-scoped range
-     * recorded before an app session crossed a day boundary).
+     * date, regardless of where it was pre-filled from (e.g. a previous search whose
+     * dates have since gone by).
      *
      * @param range Range to clamp.
      * @param referenceDate Date to compute "today" from; defaults to now.
      * @return `range` unchanged if already valid, otherwise shifted so both ends respect the earliest selectable date.
      */
-    static func clamped( _ range: SearchDateSession.DateRange, referenceDate: Date = .now ) -> SearchDateSession.DateRange
+    static func clamped( _ range: DateRange, referenceDate: Date = .now ) -> DateRange
     {
         let earliest = Self.earliestDeparture( referenceDate: referenceDate )
         let start = max( range.start, earliest )
         let end = max( range.end, start )
-        return SearchDateSession.DateRange( start: start, end: end )
+        return DateRange( start: start, end: end )
     }
 }
