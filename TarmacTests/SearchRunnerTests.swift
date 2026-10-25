@@ -475,11 +475,11 @@ struct SearchRunnerTests
     @Test( "Applies the default round-trip cap when none has been persisted" )
     func roundTripUsesDefaultCapWhenUnset() async throws
     {
-        // 31 departure days × 5 durations (3 days, ±2) = 155 candidates, comfortably more
+        // 123 departure days × 5 durations (3 days, ±2) = 615 candidates, comfortably more
         // than the default cap, so the request count can only come from the cap itself.
         let search = Self.makeRoundTripSearch(
             rangeStart: Self.utcDate( 2026, 10, 1 ),
-            rangeEnd: Self.utcDate( 2026, 10, 31 ),
+            rangeEnd: Self.utcDate( 2027, 1, 31 ),
             tripDurationDays: 3,
             flexibilityDays: 2
         )
@@ -495,7 +495,7 @@ struct SearchRunnerTests
             }
         )
 
-        #expect( RoundTripShapeSearch.candidates( for: search ).count == 155 )
+        #expect( RoundTripShapeSearch.candidates( for: search ).count == 615 )
         #expect( log.requests.count == RoundTripSweepPreference.defaultCap )
         #expect( run.requestCount == RoundTripSweepPreference.defaultCap )
     }

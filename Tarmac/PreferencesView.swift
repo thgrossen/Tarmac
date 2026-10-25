@@ -141,7 +141,7 @@ private struct LimitsPane: View
             Section
             {
                 Stepper( "One-way sweep cap: \( self.oneWaySweepCap )", value: $oneWaySweepCap, in: 1 ... 100 )
-                Stepper( "Round-trip sweep cap: \( self.roundTripSweepCap )", value: $roundTripSweepCap, in: 1 ... 500 )
+                Stepper( "Round-trip sweep cap: \( self.roundTripSweepCap )", value: $roundTripSweepCap, in: 1 ... 2000 )
             } footer: {
                 Text( "A sweep spends one billed API call per request, so a cap is also a ceiling on what one update costs." )
                     .font( .caption )

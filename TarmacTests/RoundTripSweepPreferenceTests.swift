@@ -16,11 +16,11 @@ struct RoundTripSweepPreferenceTests
         UserDefaults( suiteName: "RoundTripSweepPreferenceTests.\( UUID().uuidString )" )!
     }
 
-    @Test( "Defaults to 100 when nothing has been persisted yet" )
+    @Test( "Defaults to 500 when nothing has been persisted yet" )
     func currentCapDefaults()
     {
         let defaults = Self.freshDefaults()
-        #expect( RoundTripSweepPreference.currentCap( defaults: defaults ) == 100 )
+        #expect( RoundTripSweepPreference.currentCap( defaults: defaults ) == 500 )
     }
 
     @Test( "Reflects a persisted cap" )

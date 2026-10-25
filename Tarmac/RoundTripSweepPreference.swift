@@ -9,7 +9,7 @@ import Foundation
 enum RoundTripSweepPreference
 {
     static let capDefaultsKey = "round_trip_sweep_cap"
-    nonisolated static let defaultCap = 100
+    nonisolated static let defaultCap = 500
 
     /**
      * Reads the current round-trip sweep call cap preference.
