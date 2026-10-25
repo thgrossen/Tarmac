@@ -168,4 +168,18 @@ struct PriceSnapshotTests
 
         #expect( snapshot.tripDurationDays == nil )
     }
+
+    @Test( "Carrier codes cover every segment of both legs, in order" )
+    func carrierCodes()
+    {
+        let snapshot = PriceSnapshot(
+            amount: 397.0,
+            currency: "CHF",
+            outboundFlightNumbers: [ "LX 1234", "TP 5678" ],
+            inboundFlightNumbers: [ "TP 8765", " 4321" ]
+        )
+
+        // The last segment was recorded without a carrier, so its code is empty rather than absent.
+        #expect( snapshot.carrierCodes == [ "LX", "TP", "TP", "" ] )
+    }
 }

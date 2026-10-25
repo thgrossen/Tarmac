@@ -33,6 +33,8 @@ struct ResultFilterBounds: Equatable
     var tripDurationRange: ClosedRange< Int >?
     var inboundDateRange: ClosedRange< Date >?
     var inboundDepartureMinuteRange: ClosedRange< Int >?
+    var inboundArrivalMinuteRange: ClosedRange< Int >?
+    var inboundDurationRange: ClosedRange< Int >?
 
     // Currency the prices are quoted in, purely so the price filter can label its ends.
     var currency: String?
@@ -54,6 +56,8 @@ struct ResultFilterBounds: Equatable
             && self.tripDurationRange == nil
             && self.inboundDateRange == nil
             && self.inboundDepartureMinuteRange == nil
+            && self.inboundArrivalMinuteRange == nil
+            && self.inboundDurationRange == nil
     }
 
     /**
@@ -69,18 +73,37 @@ struct ResultFilterBounds: Equatable
         var bounds = ResultFilterBounds()
         bounds.priceRange           = Self.range( of: snapshots.map( \.amount ).filter { $0.isFinite } )
         bounds.dateRange            = Self.range( of: snapshots.compactMap( \.departureDate ) )
-        bounds.carriers             = Self.distinct( snapshots.compactMap( \.carrier ) )
+        bounds.carriers             = Self.distinct( snapshots.flatMap( \.carrierCodes ) )
         bounds.departureMinuteRange = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromClockTime: $0.departureTime ) } )
         bounds.arrivalMinuteRange   = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromClockTime: $0.arrivalTime ) } )
         bounds.durationRange        = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromDuration: $0.outboundDuration ) } )
-        bounds.stopsRange           = Self.range( of: snapshots.compactMap( \.outboundStopCount ) )
+        bounds.stopsRange           = Self.range( of: snapshots.compactMap( Self.stopCount(for:) ) )
         bounds.flightNumbers        = Self.distinct( snapshots.flatMap( \.outboundFlightNumbers ) )
         bounds.currency             = snapshots.first( where: { $0.amount.isFinite } )?.currency
 
         bounds.tripDurationRange           = Self.range( of: snapshots.compactMap( \.tripDurationDays ) )
         bounds.inboundDateRange            = Self.range( of: snapshots.compactMap( \.inboundDepartureDate ) )
         bounds.inboundDepartureMinuteRange = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromClockTime: $0.inboundDepartureTime ) } )
+        bounds.inboundArrivalMinuteRange   = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromClockTime: $0.inboundArrivalTime ) } )
+        bounds.inboundDurationRange        = Self.range( of: snapshots.compactMap { ResultFilters.minutes( fromDuration: $0.inboundDuration ) } )
         return bounds
+    }
+
+    /**
+     * The stops a fare makes on its busier leg, which is what the max-stops filter holds it to: a
+     * limit at or above it keeps the fare, and one below it drops the fare.
+     *
+     * @param snapshot Fare to measure.
+     * @return The larger of the two legs' stop counts, or nil when the outbound leg's is unknown.
+     */
+    private static func stopCount( for snapshot: PriceSnapshot ) -> Int?
+    {
+        guard let outboundStopCount = snapshot.outboundStopCount
+        else
+        {
+            return nil
+        }
+        return max( outboundStopCount, snapshot.inboundStopCount ?? 0 )
     }
 
     /**

@@ -86,4 +86,45 @@ struct PriceSnapshotBackfillTests
         #expect( snapshot.outboundStopCount == 0 )
         #expect( snapshot.outboundFlightNumbers == [ "LX 9999" ] )
     }
+
+    @Test( "Fills in the inbound leg of round-trip fares recorded before it was stored" )
+    func backfillsInboundLegs() throws
+    {
+        let context = try TestSupport.makeInMemoryContext( for: SavedSearch.self, SearchRun.self, PriceSnapshot.self )
+
+        // The outbound leg already carries a stop count, so only the inbound one is pending.
+        let snapshot = PriceSnapshot(
+            amount: 500,
+            currency: "CHF",
+            outboundSummary: "LX 1234",
+            inboundSummary: "TP 5678 → LX 9012",
+            outboundStopCount: 0,
+            outboundFlightNumbers: [ "LX 1234" ]
+        )
+        context.insert( snapshot )
+        try context.save()
+
+        PriceSnapshotBackfill.backfillIfNeeded( in: context )
+
+        #expect( snapshot.inboundStopCount == 1 )
+        #expect( snapshot.inboundFlightNumbers == [ "TP 5678", "LX 9012" ] )
+        #expect( snapshot.outboundStopCount == 0 )
+        #expect( snapshot.outboundFlightNumbers == [ "LX 1234" ] )
+    }
+
+    @Test( "A one-way fare has no inbound leg to fill in" )
+    func leavesOneWayInboundLegUnknown() throws
+    {
+        let context = try TestSupport.makeInMemoryContext( for: SavedSearch.self, SearchRun.self, PriceSnapshot.self )
+
+        let snapshot = PriceSnapshot( amount: 300, currency: "CHF", outboundSummary: "LX 1234" )
+        context.insert( snapshot )
+        try context.save()
+
+        PriceSnapshotBackfill.backfillIfNeeded( in: context )
+
+        #expect( snapshot.outboundStopCount == 0 )
+        #expect( snapshot.inboundStopCount == nil )
+        #expect( snapshot.inboundFlightNumbers.isEmpty )
+    }
 }

@@ -251,12 +251,6 @@ struct FilteredResultsTests
         #expect( ResultFiltersPopover.outboundRowTitle( "Departure", isRoundTrip: true ) == "Outbound departure" )
         #expect( ResultFiltersPopover.outboundRowTitle( "Arrival", isRoundTrip: true ) == "Outbound arrival" )
         #expect( ResultFiltersPopover.outboundRowTitle( "Duration", isRoundTrip: true ) == "Outbound duration" )
-
-        // Carrier, stops and flight number are recorded for the outbound leg alone too, so they
-        // name it as well — without which "Direct only" would read as a promise about both legs.
-        #expect( ResultFiltersPopover.outboundRowTitle( "Carriers", isRoundTrip: true ) == "Outbound carriers" )
-        #expect( ResultFiltersPopover.outboundRowTitle( "Max stops", isRoundTrip: true ) == "Outbound max stops" )
-        #expect( ResultFiltersPopover.outboundRowTitle( "Flight n°", isRoundTrip: true ) == "Outbound flight n°" )
     }
 
     @Test( "filters are only applied to a search that actually has some set" )

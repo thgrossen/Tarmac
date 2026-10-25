@@ -25,7 +25,6 @@ struct ResultFiltersTests
 
     private static func fare(
         amount: Double = 300,
-        carrier: String? = "LX",
         departureTime: String? = "08:00",
         arrivalTime: String? = "10:30",
         duration: String? = "2h30",
@@ -38,7 +37,6 @@ struct ResultFiltersTests
             amount: amount,
             currency: "CHF",
             outboundDuration: duration,
-            carrier: carrier,
             departureTime: departureTime,
             arrivalTime: arrivalTime,
             departureDate: departureDate,
@@ -51,14 +49,20 @@ struct ResultFiltersTests
         amount: Double = 300,
         departureDate: Date? = Self.date( 5 ),
         inboundDepartureDate: Date? = Self.date( 8 ),
-        inboundDepartureTime: String? = "18:00"
+        inboundDepartureTime: String? = "18:00",
+        inboundArrivalTime: String? = "20:30",
+        inboundDuration: String? = "2h30",
+        outboundStops: Int? = 0,
+        inboundStops: Int? = 0,
+        outboundFlightNumbers: [ String ] = [ "LX 1234" ],
+        inboundFlightNumbers: [ String ] = [ "LX 5678" ]
     ) -> PriceSnapshot
     {
         PriceSnapshot(
             amount: amount,
             currency: "CHF",
-            outboundSummary: "LX 1234",
-            inboundSummary: "LX 5678",
+            outboundSummary: outboundFlightNumbers.joined( separator: PriceSnapshotBackfill.flightNumberSeparator ),
+            inboundSummary: inboundFlightNumbers.joined( separator: PriceSnapshotBackfill.flightNumberSeparator ),
             outboundDuration: "2h30",
             carrier: "LX",
             departureTime: "08:00",
@@ -66,8 +70,12 @@ struct ResultFiltersTests
             departureDate: departureDate,
             inboundDepartureTime: inboundDepartureTime,
             inboundDepartureDate: inboundDepartureDate,
-            outboundStopCount: 0,
-            outboundFlightNumbers: [ "LX 1234" ]
+            inboundArrivalTime: inboundArrivalTime,
+            inboundDuration: inboundDuration,
+            outboundStopCount: outboundStops,
+            inboundStopCount: inboundStops,
+            outboundFlightNumbers: outboundFlightNumbers,
+            inboundFlightNumbers: inboundFlightNumbers
         )
     }
 
@@ -152,15 +160,18 @@ struct ResultFiltersTests
         #expect( filters.matches( Self.fare( departureDate: nil ) ) == false )
     }
 
-    @Test( "the carrier filter keeps only the selected carriers" )
+    @Test( "the carrier filter keeps a fare only when selected carriers fly every one of its flights" )
     func carrierFilter()
     {
         var filters = ResultFilters()
         filters.carriers = [ "LX", "TP" ]
 
-        #expect( filters.matches( Self.fare( carrier: "LX" ) ) )
-        #expect( filters.matches( Self.fare( carrier: "AF" ) ) == false )
-        #expect( filters.matches( Self.fare( carrier: nil ) ) == false )
+        #expect( filters.matches( Self.fare( flightNumbers: [ "LX 1234" ] ) ) )
+        #expect( filters.matches( Self.fare( flightNumbers: [ "LX 1234", "TP 5678" ] ) ) )
+        #expect( filters.matches( Self.fare( flightNumbers: [ "AF 1000" ] ) ) == false )
+        #expect( filters.matches( Self.fare( flightNumbers: [ "LX 1234", "AF 1000" ] ) ) == false )
+        #expect( filters.matches( Self.fare( flightNumbers: [ " 1000" ] ) ) == false )
+        #expect( filters.matches( Self.fare( flightNumbers: [] ) ) == false )
     }
 
     @Test( "the departure time filter compares minutes since midnight" )
@@ -231,9 +242,9 @@ struct ResultFiltersTests
         filters.carriers = [ "LX" ]
 
         let fares = [
-            Self.fare( amount: 300, carrier: "LX" ),
-            Self.fare( amount: 300, carrier: "TP" ),
-            Self.fare( amount: 900, carrier: "LX" ),
+            Self.fare( amount: 300, flightNumbers: [ "LX 1234" ] ),
+            Self.fare( amount: 300, flightNumbers: [ "TP 5678" ] ),
+            Self.fare( amount: 900, flightNumbers: [ "LX 1234" ] ),
         ]
 
         #expect( filters.apply( to: fares ).count == 1 )
@@ -332,8 +343,9 @@ struct ResultFiltersTests
         // fares supply no extents for them, so those rows are never offered.
         let chips = filters.chips( isRoundTrip: true )
 
-        // The order is the popover's, so the trip duration sits second and the inbound rows last.
-        #expect( chips.map( \.id ) == [ "price", "tripDuration", "carriers", "departure", "stops", "inboundDate" ] )
+        // The order is the popover's: the rows holding every leg alike first, then the outbound
+        // rows, and the inbound rows last.
+        #expect( chips.map( \.id ) == [ "price", "tripDuration", "carriers", "stops", "departure", "inboundDate" ] )
         #expect( chips.count == filters.activeCount )
     }
 
@@ -371,7 +383,7 @@ struct ResultFiltersTests
         var oneStop = ResultFilters()
         oneStop.maxStops = 1
         #expect( oneStop.chips( isRoundTrip: false ).first?.label == "≤ 1 stop" )
-        #expect( oneStop.chips( isRoundTrip: true ).first?.label == "Outbound ≤ 1 stop" )
+        #expect( oneStop.chips( isRoundTrip: true ).first?.label == "≤ 1 stop" )
     }
 
     @Test( "a round trip's chips name the leg they narrow, as its popover rows do" )
@@ -383,40 +395,45 @@ struct ResultFiltersTests
         filters.departureStartMinute = 6 * 60
         filters.arrivalEndMinute     = 23 * 60
         filters.maxDurationMinutes   = 5 * 60
-        filters.maxStops             = 0
 
         let oneWay = Dictionary( uniqueKeysWithValues: filters.chips( isRoundTrip: false ).map { ( $0.id, $0.label ) } )
         #expect( oneWay[ "date" ] == "Date 5 Oct–12 Oct" )
         #expect( oneWay[ "departure" ] == "Departs ≥ 06:00" )
         #expect( oneWay[ "arrival" ] == "Arrives ≤ 23:00" )
         #expect( oneWay[ "duration" ] == "Duration ≤ 5h00" )
-        #expect( oneWay[ "stops" ] == "Direct only" )
 
         let roundTrip = Dictionary( uniqueKeysWithValues: filters.chips( isRoundTrip: true ).map { ( $0.id, $0.label ) } )
         #expect( roundTrip[ "date" ] == "Outbound date 5 Oct–12 Oct" )
         #expect( roundTrip[ "departure" ] == "Outbound departure ≥ 06:00" )
         #expect( roundTrip[ "arrival" ] == "Outbound arrival ≤ 23:00" )
         #expect( roundTrip[ "duration" ] == "Outbound duration ≤ 5h00" )
-        #expect( roundTrip[ "stops" ] == "Outbound direct only" )
     }
 
-    @Test( "a round trip's carrier and flight-number chips say which leg's codes they list" )
-    func multiSelectionChipsNameTheOutboundLeg()
+    @Test( "carrier and stop chips read the same for either kind of search, since they hold every leg" )
+    func legAgnosticChips()
     {
         var filters = ResultFilters()
-        filters.carriers      = [ "LX", "TP" ]
+        filters.carriers = [ "LX", "TP" ]
+        filters.maxStops = 0
+
+        for isRoundTrip in [ false, true ]
+        {
+            let labels = Dictionary( uniqueKeysWithValues: filters.chips( isRoundTrip: isRoundTrip ).map { ( $0.id, $0.label ) } )
+            #expect( labels[ "carriers" ] == "LX, TP" )
+            #expect( labels[ "stops" ] == "Direct only" )
+        }
+    }
+
+    @Test( "a round trip's flight-number chip says which leg's flights it lists" )
+    func flightNumberChipNamesTheOutboundLeg()
+    {
+        var filters = ResultFilters()
         filters.flightNumbers = [ "LX 1234" ]
 
-        let oneWay = Dictionary( uniqueKeysWithValues: filters.chips( isRoundTrip: false ).map { ( $0.id, $0.label ) } )
-        #expect( oneWay[ "carriers" ] == "LX, TP" )
-        #expect( oneWay[ "flightNumbers" ] == "LX 1234" )
-
-        // A bare list of codes is the one chip shape carrying no noun at all, and the round-trip
-        // table prints both legs' flight numbers identically — so the qualifier is what tells them
-        // apart.
-        let roundTrip = Dictionary( uniqueKeysWithValues: filters.chips( isRoundTrip: true ).map { ( $0.id, $0.label ) } )
-        #expect( roundTrip[ "carriers" ] == "Outbound carriers: LX, TP" )
-        #expect( roundTrip[ "flightNumbers" ] == "Outbound flight n°: LX 1234" )
+        // A round trip doesn't offer the row, but a set holding the filter still names the leg it
+        // narrows, since the round-trip table prints both legs' flight numbers identically.
+        #expect( filters.chips( isRoundTrip: false ).first?.label == "LX 1234" )
+        #expect( filters.chips( isRoundTrip: true ).first?.label == "Outbound flight n°: LX 1234" )
     }
 
     @Test( "the price chip reads the same whatever legs the search has, since it isn't a leg's value" )
@@ -484,6 +501,67 @@ struct ResultFiltersTests
         #expect( outbound.matches( Self.roundTripFare( inboundDepartureTime: "23:30" ) ) == false )
     }
 
+    @Test( "a round trip's carrier filter holds the inbound flights to it as well as the outbound ones" )
+    func roundTripCarrierMatching()
+    {
+        var filters = ResultFilters()
+        filters.carriers = [ "LX" ]
+
+        #expect( filters.matches( Self.roundTripFare( outboundFlightNumbers: [ "LX 1234" ], inboundFlightNumbers: [ "LX 5678" ] ) ) )
+        #expect( filters.matches( Self.roundTripFare( outboundFlightNumbers: [ "LX 1234" ], inboundFlightNumbers: [ "TP 5678" ] ) ) == false )
+        #expect( filters.matches( Self.roundTripFare( outboundFlightNumbers: [ "LX 1234" ], inboundFlightNumbers: [ "LX 5678", "TP 9012" ] ) ) == false )
+        #expect( filters.matches( Self.roundTripFare( outboundFlightNumbers: [ "TP 4321", "LX 1234" ], inboundFlightNumbers: [ "LX 5678" ] ) ) == false )
+    }
+
+    @Test( "a round trip's max-stops filter holds each leg to the limit on its own" )
+    func roundTripMaxStopsMatching()
+    {
+        var filters = ResultFilters()
+        filters.maxStops = 0
+
+        #expect( filters.matches( Self.roundTripFare( outboundStops: 0, inboundStops: 0 ) ) )
+        #expect( filters.matches( Self.roundTripFare( outboundStops: 0, inboundStops: 1 ) ) == false )
+        #expect( filters.matches( Self.roundTripFare( outboundStops: 1, inboundStops: 0 ) ) == false )
+
+        // The limit is per leg, not on both legs' stops added together.
+        filters.maxStops = 1
+        #expect( filters.matches( Self.roundTripFare( outboundStops: 1, inboundStops: 1 ) ) )
+        #expect( filters.matches( Self.roundTripFare( outboundStops: 1, inboundStops: 2 ) ) == false )
+    }
+
+    @Test( "an inbound-arrival filter tests the return's landing time" )
+    func inboundArrivalMatching()
+    {
+        var filters = ResultFilters()
+        filters.inboundArrivalEndMinute = 21 * 60
+
+        #expect( filters.matches( Self.roundTripFare( inboundArrivalTime: "20:30" ) ) )
+        #expect( filters.matches( Self.roundTripFare( inboundArrivalTime: "21:00" ) ) )
+        #expect( filters.matches( Self.roundTripFare( inboundArrivalTime: "21:01" ) ) == false )
+        #expect( filters.matches( Self.roundTripFare( inboundArrivalTime: nil ) ) == false )
+
+        // The outbound leg lands at 10:30 on every one of those fares, and a one-way fare has no
+        // inbound leg at all.
+        #expect( filters.matches( Self.fare() ) == false )
+    }
+
+    @Test( "an inbound-duration filter tests the return leg's length" )
+    func inboundDurationMatching()
+    {
+        var filters = ResultFilters()
+        filters.minInboundDurationMinutes = 2 * 60
+        filters.maxInboundDurationMinutes = 3 * 60
+
+        #expect( filters.matches( Self.roundTripFare( inboundDuration: "2h00" ) ) )
+        #expect( filters.matches( Self.roundTripFare( inboundDuration: "3h00" ) ) )
+        #expect( filters.matches( Self.roundTripFare( inboundDuration: "1h55" ) ) == false )
+        #expect( filters.matches( Self.roundTripFare( inboundDuration: "3h05" ) ) == false )
+        #expect( filters.matches( Self.roundTripFare( inboundDuration: nil ) ) == false )
+
+        // The outbound leg takes 2h30 on every one of those fares, inside the filter's own span.
+        #expect( filters.matches( Self.fare() ) == false )
+    }
+
     @Test( "each round-trip filter counts once and gets one removable chip" )
     func roundTripChips() throws
     {
@@ -493,19 +571,27 @@ struct ResultFiltersTests
         filters.inboundStartDate            = Self.date( 8 )
         filters.inboundEndDate              = Self.date( 12 )
         filters.inboundDepartureStartMinute = 17 * 60
+        filters.inboundArrivalEndMinute     = 21 * 60
+        filters.maxInboundDurationMinutes   = 3 * 60
 
-        #expect( filters.activeCount == 3 )
+        #expect( filters.activeCount == 5 )
 
         let chips = filters.chips( isRoundTrip: true )
-        #expect( chips.map( \.id ) == [ "tripDuration", "inboundDate", "inboundDeparture" ] )
-        #expect( chips.map( \.label ) == [ "Trip 2–5 nights", "Inbound date 8 Oct–12 Oct", "Inbound departure ≥ 17:00" ] )
+        #expect( chips.map( \.id ) == [ "tripDuration", "inboundDate", "inboundDeparture", "inboundArrival", "inboundDuration" ] )
+        #expect( chips.map( \.label ) == [
+            "Trip 2–5 nights",
+            "Inbound date 8 Oct–12 Oct",
+            "Inbound departure ≥ 17:00",
+            "Inbound arrival ≤ 21:00",
+            "Inbound duration ≤ 3h00",
+        ] )
         #expect( chips.count == filters.activeCount )
 
         let tripChip = try #require( chips.first { $0.id == "tripDuration" } )
         #expect( tripChip.cleared.minTripDurationDays == nil )
         #expect( tripChip.cleared.maxTripDurationDays == nil )
         #expect( tripChip.cleared.inboundStartDate == Self.date( 8 ) )
-        #expect( tripChip.cleared.activeCount == 2 )
+        #expect( tripChip.cleared.activeCount == 4 )
     }
 
     @Test( "the trip-duration chip agrees with its own upper bound about nights" )
@@ -551,6 +637,10 @@ struct ResultFiltersTests
         filters.inboundEndDate              = Self.date( 12 )
         filters.inboundDepartureStartMinute = 17 * 60
         filters.inboundDepartureEndMinute   = 21 * 60
+        filters.inboundArrivalStartMinute   = 9 * 60
+        filters.inboundArrivalEndMinute     = 23 * 60
+        filters.minInboundDurationMinutes   = 60
+        filters.maxInboundDurationMinutes   = 5 * 60
 
         let encoded = try JSONEncoder().encode( filters )
         let decoded = try JSONDecoder().decode( ResultFilters.self, from: encoded )
@@ -573,6 +663,10 @@ struct ResultFiltersTests
         #expect( decoded.inboundEndDate == nil )
         #expect( decoded.inboundDepartureStartMinute == nil )
         #expect( decoded.inboundDepartureEndMinute == nil )
+        #expect( decoded.inboundArrivalStartMinute == nil )
+        #expect( decoded.inboundArrivalEndMinute == nil )
+        #expect( decoded.minInboundDurationMinutes == nil )
+        #expect( decoded.maxInboundDurationMinutes == nil )
 
         // The set reads exactly as it did before the new fields were added.
         #expect( decoded.activeCount == 2 )

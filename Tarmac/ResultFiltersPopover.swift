@@ -19,7 +19,7 @@ struct ResultFiltersPopover: View
     var isRoundTrip: Bool
     @Binding var filters: ResultFilters
 
-    // Departure, arrival and inbound-departure times are filtered across the whole clock rather than
+    // Departure and arrival times, on either leg, are filtered across the whole clock rather than
     // only the span the results happen to cover, so "leaves after 06:00" means the same thing
     // whatever the data; the bounds derived from the fares only decide whether the filter is worth
     // offering at all.
@@ -55,6 +55,21 @@ struct ResultFiltersPopover: View
                     )
                 }
 
+                if self.bounds.carriers.isEmpty == false
+                {
+                    MultiSelectFilterRow(
+                        title: "Carriers",
+                        noun: "carriers",
+                        values: self.bounds.carriers,
+                        selection: self.$filters.carriers
+                    )
+                }
+
+                if let stopsRange = self.bounds.stopsRange
+                {
+                    self.maxStopsRow( stopsRange )
+                }
+
                 if let dateRange = self.bounds.dateRange
                 {
                     RangeFilterRow(
@@ -64,16 +79,6 @@ struct ResultFiltersPopover: View
                         format: { ResultFilters.dateLabel( for: ResultFilters.date( atDayIndex: Int( $0.rounded() ), from: dateRange.lowerBound, isEndOfDay: false ) ) },
                         lower: self.dayBinding( self.$filters.startDate, from: dateRange.lowerBound, isEndOfDay: false ),
                         upper: self.dayBinding( self.$filters.endDate, from: dateRange.lowerBound, isEndOfDay: true )
-                    )
-                }
-
-                if self.bounds.carriers.isEmpty == false
-                {
-                    MultiSelectFilterRow(
-                        title: Self.outboundRowTitle( "Carriers", isRoundTrip: self.isRoundTrip ),
-                        noun: "carriers",
-                        values: self.bounds.carriers,
-                        selection: self.$filters.carriers
                     )
                 }
 
@@ -113,15 +118,11 @@ struct ResultFiltersPopover: View
                     )
                 }
 
-                if let stopsRange = self.bounds.stopsRange
-                {
-                    self.maxStopsRow( stopsRange )
-                }
-
-                if self.bounds.flightNumbers.isEmpty == false
+                if self.isRoundTrip == false,
+                   self.bounds.flightNumbers.isEmpty == false
                 {
                     MultiSelectFilterRow(
-                        title: Self.outboundRowTitle( "Flight n°", isRoundTrip: self.isRoundTrip ),
+                        title: "Flight n°",
                         noun: "flights",
                         values: self.bounds.flightNumbers,
                         selection: self.$filters.flightNumbers
@@ -149,6 +150,30 @@ struct ResultFiltersPopover: View
                         format: { ResultFilters.clockTimeLabel( forMinutes: Int( $0.rounded() ) ) },
                         lower: self.wholeNumberBinding( self.$filters.inboundDepartureStartMinute ),
                         upper: self.wholeNumberBinding( self.$filters.inboundDepartureEndMinute )
+                    )
+                }
+
+                if self.bounds.inboundArrivalMinuteRange != nil
+                {
+                    RangeFilterRow(
+                        title: "Inbound arrival",
+                        bounds: Self.clockMinuteBounds,
+                        step: 5,
+                        format: { ResultFilters.clockTimeLabel( forMinutes: Int( $0.rounded() ) ) },
+                        lower: self.wholeNumberBinding( self.$filters.inboundArrivalStartMinute ),
+                        upper: self.wholeNumberBinding( self.$filters.inboundArrivalEndMinute )
+                    )
+                }
+
+                if let inboundDurationRange = self.bounds.inboundDurationRange
+                {
+                    RangeFilterRow(
+                        title: "Inbound duration",
+                        bounds: Double( inboundDurationRange.lowerBound ) ... Double( inboundDurationRange.upperBound ),
+                        step: 5,
+                        format: { ResultFilters.durationLabel( forMinutes: Int( $0.rounded() ) ) },
+                        lower: self.wholeNumberBinding( self.$filters.minInboundDurationMinutes ),
+                        upper: self.wholeNumberBinding( self.$filters.maxInboundDurationMinutes )
                     )
                 }
             }
@@ -183,14 +208,14 @@ struct ResultFiltersPopover: View
 
     private func maxStopsRow( _ range: ClosedRange< Int > ) -> some View
     {
-        // The most stops any fare of this search has can't exclude anything, so picking it is how
-        // the filter is cleared.
+        // The most stops any leg of this search's fares makes can't exclude anything, so picking it
+        // is how the filter is cleared.
         let selection = Binding< Int >(
             get: { self.filters.maxStops ?? range.upperBound },
             set: { self.filters.maxStops = $0 >= range.upperBound ? nil : $0 }
         )
 
-        return Picker( Self.outboundRowTitle( "Max stops", isRoundTrip: self.isRoundTrip ), selection: selection )
+        return Picker( "Max stops", selection: selection )
         {
             ForEach( Array( range ), id: \.self )
             { stops in
@@ -203,7 +228,7 @@ struct ResultFiltersPopover: View
     /**
      * Titles a row filtering on the outbound leg. Every row this titles reads an outbound value,
      * and a round trip has a second leg those values could just as well belong to, so its rows name
-     * the leg they narrow — without which "Direct only" would read as a promise about both legs.
+     * the leg they narrow — without which a departure window would read as holding the way back too.
      *
      * Sentence case is kept, matching the rows a one-way search shows rather than the results
      * table's Title Case column headings.

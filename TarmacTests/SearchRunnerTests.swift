@@ -657,6 +657,10 @@ struct SearchRunnerTests
         #expect( snapshot.departureDate == nil )
         #expect( snapshot.outboundStopCount == nil )
         #expect( snapshot.outboundFlightNumbers.isEmpty )
+        #expect( snapshot.inboundArrivalTime == nil )
+        #expect( snapshot.inboundDuration == nil )
+        #expect( snapshot.inboundStopCount == nil )
+        #expect( snapshot.inboundFlightNumbers.isEmpty )
     }
 
     @Test( "Records the outbound leg's stop count and per-segment flight numbers" )
@@ -704,6 +708,39 @@ struct SearchRunnerTests
         let snapshot = try #require( run.itineraries.first )
         #expect( snapshot.outboundStopCount == 0 )
         #expect( snapshot.outboundFlightNumbers == [ "LX 100" ] )
+    }
+
+    @Test( "Records the inbound leg's arrival, duration, stop count and per-segment flight numbers" )
+    func mapsInboundLeg() async throws
+    {
+        let search = Self.makeRoundTripSearch()
+
+        let run = await SearchRunner.run(
+            for: search,
+            apiKey: "key",
+            defaults: Self.freshDefaults(),
+            roundTripFetch: { _ in
+                try Self.fares( itineraries: """
+                    { "ignav_id": "RT2", "price": { "amount": 900, "currency": "CHF" },
+                      "outbound": { "segments": [ { "marketing_carrier_code": "LX", "flight_number": "100" } ] },
+                      "inbound": { "duration_minutes": 230,
+                        "segments": [
+                          { "marketing_carrier_code": "TP", "flight_number": "201",
+                            "departure_time_local": "2026-10-08T18:00:00", "arrival_time_local": "2026-10-08T19:40:00" },
+                          { "marketing_carrier_code": "LX", "flight_number": "301",
+                            "departure_time_local": "2026-10-08T20:30:00", "arrival_time_local": "2026-10-08T21:50:00" }
+                        ] } }
+                    """ )
+            }
+        )
+
+        let snapshot = try #require( run.itineraries.first )
+        #expect( snapshot.inboundDepartureTime == "18:00" )
+        #expect( snapshot.inboundArrivalTime == "21:50" )
+        #expect( snapshot.inboundDuration == "3h50" )
+        #expect( snapshot.inboundStopCount == 1 )
+        #expect( snapshot.inboundFlightNumbers == [ "TP 201", "LX 301" ] )
+        #expect( snapshot.carrierCodes == [ "LX", "TP", "LX" ] )
     }
 
     // MARK: - Truncation message

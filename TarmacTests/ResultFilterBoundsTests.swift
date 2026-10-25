@@ -34,10 +34,10 @@ struct ResultFilterBoundsTests
     func boundsSpanEveryRun()
     {
         let first = Self.run( [
-            PriceSnapshot( amount: 300, currency: "CHF", carrier: "LX", departureDate: Self.date( 5 ) ),
+            PriceSnapshot( amount: 300, currency: "CHF", departureDate: Self.date( 5 ), outboundFlightNumbers: [ "LX 1234" ] ),
         ] )
         let second = Self.run( [
-            PriceSnapshot( amount: 900, currency: "CHF", carrier: "TP", departureDate: Self.date( 12 ) ),
+            PriceSnapshot( amount: 900, currency: "CHF", departureDate: Self.date( 12 ), outboundFlightNumbers: [ "TP 5678" ] ),
         ] )
 
         let bounds = ResultFilterBounds.bounds( for: [ first, second ] )
@@ -162,6 +162,39 @@ struct ResultFilterBoundsTests
         #expect( bounds.arrivalMinuteRange == 510 ... 1430 )
     }
 
+    @Test( "a round trip's carriers and stops span both of its legs" )
+    func roundTripCarriersAndStopsSpanBothLegs()
+    {
+        let run = Self.run( [
+            PriceSnapshot(
+                amount: 300,
+                currency: "CHF",
+                outboundStopCount: 0,
+                inboundStopCount: 1,
+                outboundFlightNumbers: [ "LX 1234" ],
+                inboundFlightNumbers: [ "AF 1000", "LX 5678" ]
+            ),
+            PriceSnapshot(
+                amount: 900,
+                currency: "CHF",
+                outboundStopCount: 0,
+                inboundStopCount: 0,
+                outboundFlightNumbers: [ "LX 4321" ],
+                inboundFlightNumbers: [ "LX 8765" ]
+            ),
+        ] )
+
+        let bounds = ResultFilterBounds.bounds( for: [ run ] )
+
+        // AF flies only on the way back, and only the way back ever stops: were the inbound leg
+        // left out, both would be a single shared value and their rows would not be offered.
+        #expect( bounds.carriers == [ "AF", "LX" ] )
+        #expect( bounds.stopsRange == 0 ... 1 )
+
+        // Flight numbers stay the outbound leg's, for the one-way row that lists them.
+        #expect( bounds.flightNumbers == [ "LX 1234", "LX 4321" ] )
+    }
+
     @Test( "a round trip's fares supply the trip-duration and inbound extents" )
     func roundTripExtents()
     {
@@ -171,14 +204,18 @@ struct ResultFilterBoundsTests
                 currency: "CHF",
                 departureDate: Self.date( 5 ),
                 inboundDepartureTime: "07:30",
-                inboundDepartureDate: Self.date( 8 )
+                inboundDepartureDate: Self.date( 8 ),
+                inboundArrivalTime: "09:45",
+                inboundDuration: "2h15"
             ),
             PriceSnapshot(
                 amount: 900,
                 currency: "CHF",
                 departureDate: Self.date( 5 ),
                 inboundDepartureTime: "21:15",
-                inboundDepartureDate: Self.date( 12 )
+                inboundDepartureDate: Self.date( 12 ),
+                inboundArrivalTime: "23:30",
+                inboundDuration: "4h00"
             ),
         ] )
 
@@ -188,6 +225,8 @@ struct ResultFilterBoundsTests
         #expect( bounds.tripDurationRange == 3 ... 7 )
         #expect( bounds.inboundDateRange == Self.date( 8 ) ... Self.date( 12 ) )
         #expect( bounds.inboundDepartureMinuteRange == 450 ... 1275 )
+        #expect( bounds.inboundArrivalMinuteRange == 585 ... 1410 )
+        #expect( bounds.inboundDurationRange == 135 ... 240 )
     }
 
     @Test( "a one-way search is offered none of the round-trip filters" )
@@ -200,11 +239,13 @@ struct ResultFilterBoundsTests
 
         let bounds = ResultFilterBounds.bounds( for: [ run ] )
 
-        // The fares carry no inbound leg, so these three stay nil and their rows never appear —
-        // without the popover having to know what kind of search it belongs to.
+        // The fares carry no inbound leg, so these stay nil and their rows never appear — without
+        // the popover having to know what kind of search it belongs to.
         #expect( bounds.tripDurationRange == nil )
         #expect( bounds.inboundDateRange == nil )
         #expect( bounds.inboundDepartureMinuteRange == nil )
+        #expect( bounds.inboundArrivalMinuteRange == nil )
+        #expect( bounds.inboundDurationRange == nil )
         #expect( bounds.isEmpty == false )
     }
 

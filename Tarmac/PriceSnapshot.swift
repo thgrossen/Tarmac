@@ -22,8 +22,12 @@ final class PriceSnapshot
     var departureDate: Date?
     var inboundDepartureTime: String? = nil
     var inboundDepartureDate: Date? = nil
+    var inboundArrivalTime: String? = nil
+    var inboundDuration: String? = nil
     var outboundStopCount: Int? = nil
+    var inboundStopCount: Int? = nil
     var outboundFlightNumbers: [ String ] = []
+    var inboundFlightNumbers: [ String ] = []
 
     // Booking links already resolved for this fare, kept so switching searches, adding runs or
     // relaunching the app doesn't spend another billed lookup for the same result. They stop
@@ -45,8 +49,12 @@ final class PriceSnapshot
         departureDate: Date? = nil,
         inboundDepartureTime: String? = nil,
         inboundDepartureDate: Date? = nil,
+        inboundArrivalTime: String? = nil,
+        inboundDuration: String? = nil,
         outboundStopCount: Int? = nil,
+        inboundStopCount: Int? = nil,
         outboundFlightNumbers: [ String ] = [],
+        inboundFlightNumbers: [ String ] = [],
         run: SearchRun? = nil
     )
     {
@@ -62,8 +70,12 @@ final class PriceSnapshot
         self.departureDate = departureDate
         self.inboundDepartureTime = inboundDepartureTime
         self.inboundDepartureDate = inboundDepartureDate
+        self.inboundArrivalTime = inboundArrivalTime
+        self.inboundDuration = inboundDuration
         self.outboundStopCount = outboundStopCount
+        self.inboundStopCount = inboundStopCount
         self.outboundFlightNumbers = outboundFlightNumbers
+        self.inboundFlightNumbers = inboundFlightNumbers
         self.run = run
     }
 
@@ -80,6 +92,18 @@ final class PriceSnapshot
         }
 
         return "\( Int( self.amount )) \( self.currency )"
+    }
+
+    /**
+     * The marketing carrier of every segment the fare flies, outbound then inbound, read off the
+     * front of each segment's flight number. A segment recorded without a carrier yields an empty
+     * code rather than being skipped, so it can never pass for one flown by a selected carrier.
+     *
+     * @return One code per segment, e.g. [ "LX", "TP", "TP" ]; empty when no segment was recorded.
+     */
+    var carrierCodes: [ String ]
+    {
+        ( self.outboundFlightNumbers + self.inboundFlightNumbers ).map { flightNumber in String( flightNumber.prefix { $0 != " " } ) }
     }
 
     // Autoupdating rather than a snapshot, so each reading resolves against the zone in force at

@@ -23,7 +23,7 @@ struct ResultFilters: Codable, Equatable
     var maxPrice: Double?
     var startDate: Date?
     var endDate: Date?
-    var carriers: [ String ]?               // nil = every carrier
+    var carriers: [ String ]?               // marketing carrier codes; nil = every carrier
     var departureStartMinute: Int?          // minutes since midnight
     var departureEndMinute: Int?
     var arrivalStartMinute: Int?
@@ -41,6 +41,10 @@ struct ResultFilters: Codable, Equatable
     var inboundEndDate: Date?
     var inboundDepartureStartMinute: Int?   // minutes since midnight
     var inboundDepartureEndMinute: Int?
+    var inboundArrivalStartMinute: Int?
+    var inboundArrivalEndMinute: Int?
+    var minInboundDurationMinutes: Int?
+    var maxInboundDurationMinutes: Int?
 
     // MARK: - State
 
@@ -64,6 +68,8 @@ struct ResultFilters: Codable, Equatable
             self.flightNumbers != nil,
             self.inboundStartDate != nil || self.inboundEndDate != nil,
             self.inboundDepartureStartMinute != nil || self.inboundDepartureEndMinute != nil,
+            self.inboundArrivalStartMinute != nil || self.inboundArrivalEndMinute != nil,
+            self.minInboundDurationMinutes != nil || self.maxInboundDurationMinutes != nil,
         ]
 
         return isSet.filter { $0 }.count
@@ -120,10 +126,12 @@ struct ResultFilters: Codable, Equatable
             }
         }
 
+        // Every segment of every leg has to be flown by a selected carrier, not just the first one.
         if let carriers
         {
-            guard let carrier = snapshot.carrier,
-                  carriers.contains( carrier )
+            let carrierCodes = snapshot.carrierCodes
+            guard carrierCodes.isEmpty == false,
+                  carrierCodes.allSatisfy( { carriers.contains( $0 ) } )
             else
             {
                 return false
@@ -159,11 +167,17 @@ struct ResultFilters: Codable, Equatable
             return false
         }
 
+        // Each leg is held to the limit on its own. A one-way fare has no inbound stop count to test.
         if let maxStops
         {
-            guard let stopCount = snapshot.outboundStopCount,
-                  stopCount <= maxStops
+            guard let outboundStopCount = snapshot.outboundStopCount,
+                  outboundStopCount <= maxStops
             else
+            {
+                return false
+            }
+            if let inboundStopCount = snapshot.inboundStopCount,
+               inboundStopCount > maxStops
             {
                 return false
             }
@@ -216,6 +230,24 @@ struct ResultFilters: Codable, Equatable
             Self.minutes( fromClockTime: snapshot.inboundDepartureTime ),
             start: self.inboundDepartureStartMinute,
             end: self.inboundDepartureEndMinute
+        )
+        {
+            return false
+        }
+
+        if Self.isOutside(
+            Self.minutes( fromClockTime: snapshot.inboundArrivalTime ),
+            start: self.inboundArrivalStartMinute,
+            end: self.inboundArrivalEndMinute
+        )
+        {
+            return false
+        }
+
+        if Self.isOutside(
+            Self.minutes( fromDuration: snapshot.inboundDuration ),
+            start: self.minInboundDurationMinutes,
+            end: self.maxInboundDurationMinutes
         )
         {
             return false
@@ -428,10 +460,11 @@ struct ResultFilters: Codable, Equatable
      * Describes every currently active filter, in the order they're presented in the popover.
      *
      * The filters fall into four groups, and the chips name them accordingly: the price, which
-     * belongs to no leg; the trip duration, which spans both; the outbound-leg group, which for a
-     * round trip carries the same "Outbound" qualifier its popover row does — without which a bare
-     * "LX 1234" or "Direct only" would say nothing about which leg it constrains; and the inbound
-     * group, which names its leg outright since it exists only for a round trip.
+     * belongs to no leg; the trip duration, carriers and stops, which hold every leg alike; the
+     * outbound-leg group, which for a round trip carries the same "Outbound" qualifier its popover
+     * row does — without which a bare "Departure ≥ 06:00" would say nothing about which leg it
+     * constrains; and the inbound group, which names its leg outright since it exists only for a
+     * round trip.
      *
      * @param isRoundTrip Whether the search has an inbound leg to distinguish the outbound one from.
      * @return One chip per active filter; empty when nothing is set.
@@ -463,6 +496,21 @@ struct ResultFilters: Codable, Equatable
             chips.append( Chip( id: "tripDuration", label: "Trip \( nights ) night\( trailing == 1 ? "" : "s" )", cleared: cleared ) )
         }
 
+        if let carriers
+        {
+            var cleared = self
+            cleared.carriers = nil
+            chips.append( Chip( id: "carriers", label: Self.listLabel( carriers, noun: "carriers" ), cleared: cleared ) )
+        }
+
+        if let maxStops
+        {
+            var cleared = self
+            cleared.maxStops = nil
+            let label = maxStops == 0 ? "Direct only" : "≤ \( maxStops ) stop\( maxStops == 1 ? "" : "s" )"
+            chips.append( Chip( id: "stops", label: label, cleared: cleared ) )
+        }
+
         if self.startDate != nil || self.endDate != nil
         {
             var cleared = self
@@ -470,14 +518,6 @@ struct ResultFilters: Codable, Equatable
             cleared.endDate = nil
             let title = isRoundTrip ? "Outbound date" : "Date"
             chips.append( Chip( id: "date", label: "\( title ) \( Self.rangeLabel( self.startDate.map( Self.dateLabel(for:) ), self.endDate.map( Self.dateLabel(for:) ) ) )", cleared: cleared ) )
-        }
-
-        if let carriers
-        {
-            var cleared = self
-            cleared.carriers = nil
-            let values = Self.listLabel( carriers, noun: "carriers" )
-            chips.append( Chip( id: "carriers", label: isRoundTrip ? "Outbound carriers: \( values )" : values, cleared: cleared ) )
         }
 
         if self.departureStartMinute != nil || self.departureEndMinute != nil
@@ -507,17 +547,6 @@ struct ResultFilters: Codable, Equatable
             chips.append( Chip( id: "duration", label: "\( title ) \( Self.rangeLabel( self.minDurationMinutes.map( Self.durationLabel(forMinutes:) ), self.maxDurationMinutes.map( Self.durationLabel(forMinutes:) ) ) )", cleared: cleared ) )
         }
 
-        if let maxStops
-        {
-            var cleared = self
-            cleared.maxStops = nil
-            // Only the outbound leg's stops are recorded, so a round trip says so rather than
-            // letting "Direct only" read as a promise about the way back too.
-            let limit  = maxStops == 0 ? "Direct only" : "≤ \( maxStops ) stop\( maxStops == 1 ? "" : "s" )"
-            let label  = isRoundTrip ? "Outbound \( limit.lowercased() )" : limit
-            chips.append( Chip( id: "stops", label: label, cleared: cleared ) )
-        }
-
         if let flightNumbers
         {
             var cleared = self
@@ -542,6 +571,22 @@ struct ResultFilters: Codable, Equatable
             cleared.inboundDepartureStartMinute = nil
             cleared.inboundDepartureEndMinute = nil
             chips.append( Chip( id: "inboundDeparture", label: "Inbound departure \( Self.rangeLabel( self.inboundDepartureStartMinute.map( Self.clockTimeLabel(forMinutes:) ), self.inboundDepartureEndMinute.map( Self.clockTimeLabel(forMinutes:) ) ) )", cleared: cleared ) )
+        }
+
+        if self.inboundArrivalStartMinute != nil || self.inboundArrivalEndMinute != nil
+        {
+            var cleared = self
+            cleared.inboundArrivalStartMinute = nil
+            cleared.inboundArrivalEndMinute = nil
+            chips.append( Chip( id: "inboundArrival", label: "Inbound arrival \( Self.rangeLabel( self.inboundArrivalStartMinute.map( Self.clockTimeLabel(forMinutes:) ), self.inboundArrivalEndMinute.map( Self.clockTimeLabel(forMinutes:) ) ) )", cleared: cleared ) )
+        }
+
+        if self.minInboundDurationMinutes != nil || self.maxInboundDurationMinutes != nil
+        {
+            var cleared = self
+            cleared.minInboundDurationMinutes = nil
+            cleared.maxInboundDurationMinutes = nil
+            chips.append( Chip( id: "inboundDuration", label: "Inbound duration \( Self.rangeLabel( self.minInboundDurationMinutes.map( Self.durationLabel(forMinutes:) ), self.maxInboundDurationMinutes.map( Self.durationLabel(forMinutes:) ) ) )", cleared: cleared ) )
         }
 
         return chips

@@ -191,8 +191,12 @@ enum SearchRunner
             departureDate: itinerary.outbound?.segments?.first?.departure_date,
             inboundDepartureTime: itinerary.inbound?.segments?.first?.departure_time,
             inboundDepartureDate: itinerary.inbound?.segments?.first?.departure_date,
+            inboundArrivalTime: itinerary.inbound?.segments?.last?.arrival_time,
+            inboundDuration: itinerary.inbound?.duration,
             outboundStopCount: itinerary.outbound?.segments.map { max( $0.count - 1, 0 ) },
+            inboundStopCount: itinerary.inbound?.segments.map { max( $0.count - 1, 0 ) },
             outboundFlightNumbers: self.flightNumbers( itinerary.outbound ),
+            inboundFlightNumbers: self.flightNumbers( itinerary.inbound ),
             run: run
         )
     }
