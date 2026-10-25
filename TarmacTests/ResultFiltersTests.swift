@@ -286,7 +286,7 @@ struct ResultFiltersTests
 
         #expect( ResultFilters.dayIndex( for: Self.date( 5, hour: 1 ), from: start ) == 0 )
         #expect( ResultFilters.dayIndex( for: Self.date( 8 ), from: start ) == 3 )
-        #expect( ResultFilters.dayIndex( for: Self.date( 3 ), from: start ) == -3 )
+        #expect( ResultFilters.dayIndex( for: Self.date( 3 ), from: start ) == -2 )
     }
 
     @Test( "a day offset resolves to that day's first or last instant" )

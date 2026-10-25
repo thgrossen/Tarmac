@@ -122,7 +122,8 @@ struct IgnavClientTests
                 destination: "LIS",
                 departure_date: "2026-10-05",
                 cabin_class: "business",
-                max_stops: 0
+                max_stops: 0,
+                market: "CH"
             ),
             path: "one-way"
         )

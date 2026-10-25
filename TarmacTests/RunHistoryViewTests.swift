@@ -118,9 +118,10 @@ struct PriceHistoryChartTests
         let run = SearchRun( requestCount: 1 )
 
         let extent = PriceHistoryChart.barExtent( for: run, yDomain: 200...800 )
+        let markerTop: Double = 200 + ( 800 - 200 ) * 0.03
 
         #expect( extent.low == 200 )
-        #expect( extent.high == 200 + ( 800 - 200 ) * 0.03 )
+        #expect( extent.high == markerTop )
     }
 
     // MARK: - Axis
@@ -201,9 +202,10 @@ struct PriceHistoryChartTests
         run.itineraries = [ PriceSnapshot( amount: 900, currency: "CHF" ) ]
 
         let extent = PriceHistoryChart.barExtent( for: run, yDomain: 200...800, filters: Self.filters( maxPrice: 500 ) )
+        let markerTop: Double = 200 + ( 800 - 200 ) * 0.03
 
         #expect( extent.low == 200 )
-        #expect( extent.high == 200 + ( 800 - 200 ) * 0.03 )
+        #expect( extent.high == markerTop )
     }
 
 }
